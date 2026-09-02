@@ -25,8 +25,32 @@ interface Props {
   onSelectGroup: (groupId: string, groupName: string) => void
 }
 
-function generateInviteCode() {
-  return Math.random().toString(16).slice(2, 10)
+interface PeriodOption {
+  key: string
+  label: string
+  period_type: string
+  period_custom_days: number | null
+}
+
+const PERIOD_OPTIONS: PeriodOption[] = [
+  { key: 'mensuel', label: '1 mois', period_type: 'mensuel', period_custom_days: null },
+  { key: '3mois', label: '3 mois', period_type: 'personnalise', period_custom_days: 90 },
+  { key: 'demi_saison', label: 'Demi-saison', period_type: 'demi_saison', period_custom_days: null },
+  { key: 'saison_complete', label: 'Saison complète', period_type: 'saison_complete', period_custom_days: null },
+  { key: 'illimite', label: 'On verra (illimité)', period_type: 'personnalise', period_custom_days: 36500 },
+]
+
+function formatPeriod(periodType: string, periodCustomDays: number | null) {
+  if (periodType === 'mensuel') return '1 mois'
+  if (periodType === 'demi_saison') return 'Demi-saison'
+  if (periodType === 'saison_complete') return 'Saison complète'
+  if (periodType === 'personnalise') {
+    if (periodCustomDays === 90) return '3 mois'
+    if (periodCustomDays && periodCustomDays >= 3650) return 'Illimité'
+    if (periodCustomDays) return `${periodCustomDays} jours`
+    return 'Personnalisé'
+  }
+  return periodType
 }
 
 export default function Groups({ onSelectGroup }: Props) {
@@ -37,6 +61,7 @@ export default function Groups({ onSelectGroup }: Props) {
 
   const [showCreate, setShowCreate] = useState(false)
   const [newGroupName, setNewGroupName] = useState('')
+  const [periodKey, setPeriodKey] = useState(PERIOD_OPTIONS[0].key)
   const [creating, setCreating] = useState(false)
 
   const [showJoin, setShowJoin] = useState(false)
@@ -75,37 +100,24 @@ export default function Groups({ onSelectGroup }: Props) {
     setError(null)
     setCreating(true)
 
-    const { data: group, error: groupError } = await supabase
-      .from('groups')
-      .insert({
-        name: newGroupName.trim(),
-        validation_mode: 'majorite',
-        period_type: 'mensuel',
-        invite_code: generateInviteCode(),
-        created_by: user.id,
-      })
-      .select()
-      .single()
+    const option = PERIOD_OPTIONS.find((o) => o.key === periodKey) ?? PERIOD_OPTIONS[0]
 
-    if (groupError || !group) {
-      setError(groupError?.message ?? 'Erreur lors de la création du groupe.')
-      setCreating(false)
-      return
-    }
-
-    const { error: memberError } = await supabase.from('group_members').insert({
-      group_id: group.id,
-      profile_id: user.id,
-      role: 'owner',
+    const { error: createError } = await supabase.rpc('create_group', {
+      p_name: newGroupName.trim(),
+      p_validation_mode: 'majorite',
+      p_validator_id: null,
+      p_period_type: option.period_type,
+      p_period_custom_days: option.period_custom_days,
     })
 
-    if (memberError) {
-      setError(memberError.message)
+    if (createError) {
+      setError(createError.message)
       setCreating(false)
       return
     }
 
     setNewGroupName('')
+    setPeriodKey(PERIOD_OPTIONS[0].key)
     setShowCreate(false)
     setCreating(false)
     await fetchGroups()
@@ -165,18 +177,39 @@ export default function Groups({ onSelectGroup }: Props) {
       </button>
 
       {showCreate && (
-        <form className="groups-form" onSubmit={handleCreateGroup}>
-          <input
-            className="groups-input"
-            placeholder="Nom du groupe"
-            value={newGroupName}
-            onChange={(e) => setNewGroupName(e.target.value)}
-            required
-          />
-          <button className="groups-submit" type="submit" disabled={creating}>
-            {creating ? 'Création...' : 'Créer'}
-          </button>
-        </form>
+        <>
+          <div className="groups-period-picker">
+            <div className="groups-period-label">Durée de la compétition :</div>
+            <div className="groups-period-options">
+              {PERIOD_OPTIONS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  className={
+                    option.key === periodKey
+                      ? 'groups-period-btn groups-period-btn-active'
+                      : 'groups-period-btn'
+                  }
+                  onClick={() => setPeriodKey(option.key)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <form className="groups-form" onSubmit={handleCreateGroup}>
+            <input
+              className="groups-input"
+              placeholder="Nom du groupe"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              required
+            />
+            <button className="groups-submit" type="submit" disabled={creating}>
+              {creating ? 'Création...' : 'Créer'}
+            </button>
+          </form>
+        </>
       )}
 
       {showJoin && (
@@ -214,7 +247,7 @@ export default function Groups({ onSelectGroup }: Props) {
               </div>
               <div className="groups-card-meta">
                 <span>Validation : {m.groups.validation_mode}</span>
-                <span>Période : {m.groups.period_type}</span>
+                <span>Période : {formatPeriod(m.groups.period_type, m.groups.period_custom_days)}</span>
               </div>
               {m.role === 'owner' && (
                 <div className="groups-card-invite">
