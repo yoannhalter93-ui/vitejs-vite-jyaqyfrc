@@ -1,0 +1,54 @@
+=== src/App.tsx (first early-return-ish "if" at line 46) ===
+  50: useEffect(() => {
+  79: const [screen, setScreen] = useState<Screen>('pronostics');
+  82: const [tokenBalance, setTokenBalance] = useState<number | null>(null)
+  83: const [bonusCatalog, setBonusCatalog] = useState<any[]>([])
+  84: const [showBonusPanel, setShowBonusPanel] = useState(false)
+  85: const [bonusTargetPicker, setBonusTargetPicker] = useState<string | null>(null)
+  86: const [groupMembersForBonus, setGroupMembersForBonus] = useState<{ id: string; p
+  87: const [bonusBusy, setBonusBusy] = useState(false)
+  88: const [bonusError, setBonusError] = useState<string | null>(null)
+  90: useEffect(() => {
+  103: useEffect(() => {
+  146: const [notifications, setNotifications] = useState<any[]>([])
+  147: const [showNotifPanel, setShowNotifPanel] = useState(false)
+  163: useEffect(() => {
+=== src/FreeBets.tsx (first early-return-ish "if" at line 37) ===
+  79: useEffect(() => {
+=== src/Groups.tsx (first early-return-ish "if" at line 46) ===
+  64: useEffect(() => {
+=== src/JuggleGame.tsx (first early-return-ish "if" at line 19) ===
+  40: const canvasRef = useRef<HTMLCanvasElement>(null)
+  41: const [playing, setPlaying] = useState(false)
+  42: const [score, setScore] = useState(0)
+  43: const [timeLeft, setTimeLeft] = useState(30)
+  44: const [finalScore, setFinalScore] = useState<number | null>(null)
+  45: const [scores, setScores] = useState<ScoreRow[]>([])
+  46: const [wizzShake, setWizzShake] = useState(false)
+  47: const [wizzCooldown, setWizzCooldown] = useState(0)
+  48: const [myPseudo, setMyPseudo] = useState<string | null>(null)
+  50: const stateRef = useRef({ x: 150, y: 200, vx: 0, vy: 0, running: false, score: 0
+  51: const lastTimeRef = useRef<number | null>(null)
+  56: const wizzCooldownRef = useRef(0)
+  80: useEffect(() => {
+  87: useEffect(() => {
+  97: useEffect(() => {
+  139: useEffect(() => {
+  144: useEffect(() => {
+=== src/PenaltyDuel.tsx (first early-return-ish "if" at line 54) ===
+  81: useEffect(() => {
+=== src/Predictions.tsx (first early-return-ish "if" at line 39) ===
+  104: useEffect(() => {
+=== src/Roulette.tsx (first early-return-ish "if" at line 32) ===
+  76: useEffect(() => {
+=== src/WeeklyDuel.tsx (first early-return-ish "if" at line 39) ===
+  45: const [periodId, setPeriodId] = useState<string | null>(null)
+  46: const [duels, setDuels] = useState<Duel[]>([])
+  47: const [members, setMembers] = useState<Member[]>([])
+  49: const [showChallenge, setShowChallenge] = useState(false)
+  50: const [selected, setSelected] = useState<string | null>(null)
+  51: const [sequence, setSequence] = useState<SeqRow[]>([])
+  54: const [oppAnswerCount, setOppAnswerCount] = useState(0)
+  55: const [loading, setLoading] = useState(true)
+  56: const [error, setError] = useState<string | null>(null)
+  85: useEffect(() => {
