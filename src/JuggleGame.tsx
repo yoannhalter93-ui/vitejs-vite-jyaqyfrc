@@ -120,12 +120,36 @@ export default function JuggleGame({ groupId, groupName }: Props) {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.fillStyle = '#171b24'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.fillStyle = miss ? '#ff6e6e' : '#6ee7ff'
+    drawBallGraphic(ctx, x, y, miss)
+  }
+  const drawBallGraphic = (ctx: CanvasRenderingContext2D, x: number, y: number, miss: boolean) => {
+    const r = BALL_RADIUS
+    ctx.save()
     ctx.beginPath()
-    ctx.arc(x, y, BALL_RADIUS, 0, Math.PI * 2)
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.clip()
+    const grad = ctx.createRadialGradient(x - r * 0.4, y - r * 0.4, r * 0.15, x, y, r)
+    grad.addColorStop(0, '#ffffff')
+    grad.addColorStop(1, '#c7c7c7')
+    ctx.fillStyle = grad
+    ctx.fillRect(x - r, y - r, r * 2, r * 2)
+    ctx.fillStyle = miss ? '#e74c3c' : '#1b1b1f'
+    ctx.beginPath()
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * ((Math.PI * 2) / 5)
+      const px = x + Math.cos(a) * r * 0.42
+      const py = y + Math.sin(a) * r * 0.42
+      if (i === 0) ctx.moveTo(px, py)
+      else ctx.lineTo(px, py)
+    }
+    ctx.closePath()
     ctx.fill()
-    ctx.fillStyle = '#9aa0a6'
-    ctx.fillRect(Math.max(0, Math.min(CANVAS_W - 60, x - 30)), 330, 60, 8)
+    ctx.restore()
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)'
+    ctx.lineWidth = 1
+    ctx.stroke()
   }
 
   const drawBall = (x: number, y: number) => {
@@ -317,7 +341,7 @@ export default function JuggleGame({ groupId, groupName }: Props) {
         width={CANVAS_W}
         height={CANVAS_H}
         onPointerDown={handleCanvasTap}
-        style={{ background: '#171b24', borderRadius: 12, border: '1px solid #2a2f3a', cursor: 'pointer', touchAction: 'manipulation', maxWidth: '100%', height: 'auto' }}
+          style={{ background: '#171b24', borderRadius: 12, border: '1px solid #2a2f3a', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', maxWidth: '100%', height: 'auto' }}
       />
 
       {/* Repère de version temporaire — juste pour confirmer visuellement que le
