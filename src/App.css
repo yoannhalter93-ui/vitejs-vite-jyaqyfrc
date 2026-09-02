@@ -275,6 +275,7 @@ body {
 
 .groups-card-name {
   font-size: 16px;
+  color: #1B1B1F;
   font-weight: 700;
 }
 
@@ -324,7 +325,7 @@ gr0ups-card-clickable {
 .predictions-back {
   background: none;
   border: 1px solid rgba(27, 27, 31, 0.15);
-  color: #1B1B1F;
+  color: #F4EFE2;
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 13px;
@@ -337,7 +338,7 @@ gr0ups-card-clickable {
 }
 
 .predictions-period {
-  color: rgba(27, 27, 31, 0.6);
+  color: rgba(244, 239, 226, 0.7);
   font-size: 13px;
   margin: 4px 0 16px;
 }
