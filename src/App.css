@@ -604,7 +604,6 @@ gr0ups-card-clickable {
   color: #1B1B1F;
 }
 
-
 .token-balance-wrap {
   position: relative;
   margin-left: auto;
@@ -715,7 +714,6 @@ gr0ups-card-clickable {
   margin-bottom: 8px;
 }
 
-
 .bet-boost-btn {
   margin-top: 8px;
   background: rgba(255, 215, 0, 0.12);
@@ -728,7 +726,6 @@ gr0ups-card-clickable {
   font-weight: 600;
   color: #D4A22C;
 }
-
 
 .home-header {
   position: relative;
@@ -822,6 +819,61 @@ gr0ups-card-clickable {
   margin-top: 4px;
 }
 
+.groups-rules-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 162, 44, 0.4);
+  background: rgba(212, 162, 44, 0.1);
+  color: #F4EFE2;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.groups-rules-btn:hover {
+  background: rgba(212, 162, 44, 0.18);
+}
+
+.rules-screen {
+  padding-bottom: 24px;
+}
+
+.rules-section {
+  background: #F4EFE2;
+  border: 1px solid rgba(27, 27, 31, 0.15);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.rules-section-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: #1B1B1F;
+}
+
+.rules-section-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(27, 27, 31, 0.7);
+}
+
+.rules-points {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: rgba(27, 27, 31, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rules-points li {
+  color: #1B1B1F;
+}
 
 /* ===== Mobile / responsive pass ===== */
 @media (max-width: 600px) {
