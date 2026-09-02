@@ -953,3 +953,36 @@ gr0ups-card-clickable {
     font-size: 14px;
   }
 }
+
+.groups-period-picker {
+  margin-bottom: 12px;
+}
+
+.groups-period-label {
+  color: rgba(244, 239, 226, 0.75);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.groups-period-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.groups-period-btn {
+  background: #F4EFE2;
+  border: 1px solid rgba(27, 27, 31, 0.15);
+  color: rgba(27, 27, 31, 0.6);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.groups-period-btn-active {
+  background: #D4A22C;
+  color: #1B1B1F;
+  border-color: transparent;
+  font-weight: 700;
+}
