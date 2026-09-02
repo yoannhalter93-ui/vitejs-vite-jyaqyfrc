@@ -173,11 +173,24 @@ export default function JuggleGame({ groupId, groupName }: Props) {
   }, [wizzCooldown])
 
   // Effet de wizz partagé : déclenché soit par le bouton de test local, soit
-  // par un wizz reçu en direct d'un coéquipier pendant qu'on joue.
+  // par un wizz reçu en direct d'un coéquipier pendant qu'on joue. Ne se
+  // contente plus de secouer l'écran : si une partie est en cours, le
+  // ballon reçoit vraiment un coup aléatoire (vitesse horizontale ET
+  // verticale) pour casser le timing du joueur, pas juste son écran.
   const triggerWizzEffect = () => {
     setWizzShake(true)
-    if (navigator.vibrate) navigator.vibrate([80, 40, 80, 40, 150])
-    setTimeout(() => setWizzShake(false), 500)
+    if (navigator.vibrate) navigator.vibrate([120, 60, 120, 60, 120, 60, 220])
+
+    const st = stateRef.current
+    if (st.running) {
+      const kick = (260 + Math.random() * 220) * (Math.random() < 0.5 ? -1 : 1)
+      st.vx += kick
+      if (st.vx > MAX_VX) st.vx = MAX_VX
+      if (st.vx < -MAX_VX) st.vx = -MAX_VX
+      st.vy -= 90 + Math.random() * 90
+    }
+
+    setTimeout(() => setWizzShake(false), 900)
     setWizzCooldown(15)
   }
 
@@ -336,13 +349,20 @@ export default function JuggleGame({ groupId, groupName }: Props) {
 
       <p className="predictions-period">Tape sur le ballon pour commencer, puis tape bien dessus à chaque fois qu'il redescend pour le renvoyer en l'air. Un tap trop loin ne compte pas, et s'il te tape de travers il part sur le côté — 30 secondes chrono !</p>
 
-      <canvas
-        ref={canvasRef}
-        width={CANVAS_W}
-        height={CANVAS_H}
-        onPointerDown={handleCanvasTap}
+      <div className="juggle-canvas-wrap">
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_W}
+          height={CANVAS_H}
+          onPointerDown={handleCanvasTap}
           style={{ background: '#171b24', borderRadius: 12, border: '1px solid #2a2f3a', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', maxWidth: '100%', height: 'auto' }}
-      />
+        />
+        {wizzShake && (
+          <div className="juggle-wizz-overlay">
+            <span className="juggle-wizz-overlay-text">⚡ WIZZ !</span>
+          </div>
+        )}
+      </div>
 
       {/* Repère de version temporaire — juste pour confirmer visuellement que le
           dernier réglage de physique est bien arrivé jusqu'à l'écran du joueur.
