@@ -24,6 +24,17 @@ export default function Classement({ groupId, groupName }: Props) {
       setLoading(true)
       setError(null)
 
+      const { data: members, error: membersError } = await supabase
+        .from('group_members')
+        .select('profile_id, profiles(pseudo)')
+        .eq('group_id', groupId)
+
+      if (membersError) {
+        setError(membersError.message)
+        setLoading(false)
+        return
+      }
+
       const { data: period } = await supabase
         .from('group_periods')
         .select('id')
@@ -31,33 +42,37 @@ export default function Classement({ groupId, groupName }: Props) {
         .eq('is_current', true)
         .maybeSingle()
 
-      if (!period) {
-        setRows([])
-        setLoading(false)
-        return
+      let pointsByProfile: Record<string, number> = {}
+
+      if (period) {
+        const { data: lb, error: lbError } = await supabase
+          .from('group_leaderboard')
+          .select('profile_id, total_points')
+          .eq('group_id', groupId)
+          .eq('period_id', period.id)
+
+        if (lbError) {
+          setError(lbError.message)
+          setLoading(false)
+          return
+        }
+
+        pointsByProfile = Object.fromEntries((lb ?? []).map((r) => [r.profile_id, r.total_points]))
       }
 
-      const { data: lb, error: lbError } = await supabase
-        .from('group_leaderboard')
-        .select('profile_id, total_points')
-        .eq('group_id', groupId)
-        .eq('period_id', period.id)
-        .order('total_points', { ascending: false })
+      type MemberRow = { profile_id: string; profiles: { pseudo: string } | { pseudo: string }[] | null }
+      const merged: Row[] = ((members ?? []) as unknown as MemberRow[]).map((m) => {
+        const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
+        return {
+          profile_id: m.profile_id,
+          pseudo: prof?.pseudo ?? '???',
+          total_points: pointsByProfile[m.profile_id] ?? 0,
+        }
+      })
 
-      if (lbError) {
-        setError(lbError.message)
-        setLoading(false)
-        return
-      }
+      merged.sort((a, b) => b.total_points - a.total_points || a.pseudo.localeCompare(b.pseudo))
 
-      const ids = (lb ?? []).map((r) => r.profile_id)
-      let pseudos: Record<string, string> = {}
-      if (ids.length > 0) {
-        const { data: profs } = await supabase.from('profiles').select('id, pseudo').in('id', ids)
-        pseudos = Object.fromEntries((profs ?? []).map((p) => [p.id, p.pseudo]))
-      }
-
-      setRows((lb ?? []).map((r) => ({ ...r, pseudo: pseudos[r.profile_id] ?? '???' })))
+      setRows(merged)
       setLoading(false)
     }
     load()
@@ -74,7 +89,7 @@ export default function Classement({ groupId, groupName }: Props) {
       {loading ? (
         <p className="groups-loading">Chargement du classement...</p>
       ) : rows.length === 0 ? (
-        <p className="groups-empty">Aucun point marqué pour l'instant.</p>
+        <p className="groups-empty">Aucun membre dans ce groupe pour l'instant.</p>
       ) : (
         <ul className="matches-list">
           {rows.map((r, i) => (
