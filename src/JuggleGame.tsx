@@ -445,7 +445,7 @@ export default function JuggleGame({ groupId, groupName }: Props) {
                                 Fragment,
                                 null,
                                 createElement('span', null, 'Score : ', score),
-                                createElement('span', null, 'Temps : ', elapsed, 's'),
+                                createElement('span', { style: { color: '#C1443C', fontWeight: 800 } }, 'Temps : ', elapsed, 's'),
                                 createElement('span', null, 'Ballons : ', ballCount)
                               )
                   : createElement(
