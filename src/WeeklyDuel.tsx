@@ -70,7 +70,8 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
       setQuestion(null)
       return
     }
-    setQuestion({ order, question: data.question, options: data.options })
+    const q = data as { question: string; options: string[] }
+    setQuestion({ order, question: q.question, options: q.options })
     setTimeLeft(7)
   }
 
