@@ -986,3 +986,69 @@ body {
   border-color: transparent;
   font-weight: 700;
 }
+.groups-card-owner-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.groups-card-action-btn {
+  background: #E8E0CC;
+  border: 1px solid rgba(27, 27, 31, 0.15);
+  color: #1B1B1F;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.groups-card-action-danger {
+  background: rgba(193, 68, 60, 0.12);
+  border-color: rgba(193, 68, 60, 0.4);
+  color: #C1443C;
+}
+
+.groups-card-action-primary {
+  background: #D4A22C;
+  border-color: transparent;
+  color: #1B1B1F;
+  font-weight: 700;
+}
+
+.groups-delete-confirm-text {
+  font-size: 12px;
+  color: #C1443C;
+  font-weight: 600;
+}
+
+.groups-card-period-editor {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(27, 27, 31, 0.1);
+}
+
+.groups-card-period-label {
+  color: rgba(27, 27, 31, 0.6);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.groups-card-period-btn {
+  background: #E8E0CC;
+  border: 1px solid rgba(27, 27, 31, 0.15);
+  color: rgba(27, 27, 31, 0.6);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.groups-card-period-btn-active {
+  background: #D4A22C;
+  color: #1B1B1F;
+  border-color: transparent;
+  font-weight: 700;
+}
