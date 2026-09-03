@@ -7,8 +7,8 @@ interface Duel {
   player_a_id: string
   player_b_id: string
   status: string
-  score_a: number
-  score_b: number
+  score_a: number | null
+  score_b: number | null
 }
 
 interface CurrentQuestion {
@@ -25,6 +25,7 @@ interface Props {
 export default function WeeklyDuel({ groupId, groupName }: Props) {
   const { user } = useAuth()
   const [duels, setDuels] = useState<Duel[]>([])
+  const [allDuels, setAllDuels] = useState<Duel[]>([])
   const [pseudos, setPseudos] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<string | null>(null)
   const [duel, setDuel] = useState<Duel | null>(null)
@@ -53,6 +54,22 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
       .order('created_at', { ascending: false })
     if (dErr) setError(dErr.message)
     setDuels(d ?? [])
+
+    // tous les duels du groupe pour la semaine en cours (qui affronte qui,
+    // et où ils en sont), pas seulement les miens
+    const { data: latest } = await supabase
+      .from('weekly_duels').select('week_start')
+      .eq('group_id', groupId).order('week_start', { ascending: false }).limit(1).maybeSingle()
+    if (latest?.week_start) {
+      const { data: all } = await supabase
+        .from('weekly_duels').select('id, player_a_id, player_b_id, status, score_a, score_b')
+        .eq('group_id', groupId).eq('week_start', latest.week_start)
+        .order('created_at', { ascending: true })
+      setAllDuels(all ?? [])
+    } else {
+      setAllDuels([])
+    }
+
     setLoading(false)
   }
 
@@ -184,6 +201,28 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
             )
           })}
         </ul>
+      )}
+
+      {allDuels.length > 0 && (
+        <>
+          <h3 className="rules-section-title">Tous les duels de la semaine</h3>
+          <ul className="matches-list">
+            {allDuels.map((d) => (
+              <li className="match-card" key={d.id}>
+                <div className="match-teams">
+                  <span>{pseudos[d.player_a_id] ?? '???'} vs {pseudos[d.player_b_id] ?? '???'}</span>
+                </div>
+                {d.status === 'done' ? (
+                  <div className="match-result">{d.score_a} - {d.score_b}</div>
+                ) : (
+                  <div className="match-kickoff">
+                    {d.score_a === null && d.score_b === null ? 'Pas encore commencé' : 'En cours'}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   )
