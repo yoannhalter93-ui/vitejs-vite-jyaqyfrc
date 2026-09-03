@@ -53,6 +53,13 @@ function formatPeriod(periodType: string, periodCustomDays: number | null) {
   return periodType
 }
 
+function periodKeyForGroup(periodType: string, periodCustomDays: number | null) {
+  const match = PERIOD_OPTIONS.find(
+    (o) => o.period_type === periodType && (o.period_custom_days ?? null) === (periodCustomDays ?? null)
+  )
+  return match ? match.key : PERIOD_OPTIONS[0].key
+}
+
 export default function Groups({ onSelectGroup }: Props) {
   const { user } = useAuth()
   const [memberships, setMemberships] = useState<Membership[]>([])
@@ -69,6 +76,13 @@ export default function Groups({ onSelectGroup }: Props) {
   const [joining, setJoining] = useState(false)
 
   const [showRules, setShowRules] = useState(false)
+
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
+  const [editPeriodKey, setEditPeriodKey] = useState(PERIOD_OPTIONS[0].key)
+  const [savingPeriod, setSavingPeriod] = useState(false)
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchGroups = async () => {
     if (!user) return
@@ -142,6 +156,54 @@ export default function Groups({ onSelectGroup }: Props) {
     setJoinCode('')
     setShowJoin(false)
     setJoining(false)
+    await fetchGroups()
+  }
+
+  const openPeriodEditor = (group: GroupRow) => {
+    setDeleteConfirmId(null)
+    setEditingGroupId(group.id)
+    setEditPeriodKey(periodKeyForGroup(group.period_type, group.period_custom_days))
+  }
+
+  const handleSavePeriod = async (groupId: string) => {
+    setError(null)
+    setSavingPeriod(true)
+
+    const option = PERIOD_OPTIONS.find((o) => o.key === editPeriodKey) ?? PERIOD_OPTIONS[0]
+
+    const { error: updateError } = await supabase.rpc('update_group_period', {
+      p_group_id: groupId,
+      p_period_type: option.period_type,
+      p_period_custom_days: option.period_custom_days,
+    })
+
+    if (updateError) {
+      setError(updateError.message)
+      setSavingPeriod(false)
+      return
+    }
+
+    setEditingGroupId(null)
+    setSavingPeriod(false)
+    await fetchGroups()
+  }
+
+  const handleDeleteGroup = async (groupId: string) => {
+    setError(null)
+    setDeleting(true)
+
+    const { error: deleteError } = await supabase.rpc('delete_group', {
+      p_group_id: groupId,
+    })
+
+    if (deleteError) {
+      setError(deleteError.message)
+      setDeleting(false)
+      return
+    }
+
+    setDeleteConfirmId(null)
+    setDeleting(false)
     await fetchGroups()
   }
 
@@ -252,6 +314,83 @@ export default function Groups({ onSelectGroup }: Props) {
               {m.role === 'owner' && (
                 <div className="groups-card-invite">
                   Code d'invitation : <code>{m.groups.invite_code}</code>
+                </div>
+              )}
+              {m.role === 'owner' && (
+                <div className="groups-card-owner-actions" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    className="groups-card-action-btn"
+                    onClick={() => openPeriodEditor(m.groups)}
+                  >
+                    ⚙️ Modifier la durée
+                  </button>
+                  {deleteConfirmId === m.groups.id ? (
+                    <>
+                      <span className="groups-delete-confirm-text">Supprimer définitivement ?</span>
+                      <button
+                        type="button"
+                        className="groups-card-action-btn groups-card-action-danger"
+                        onClick={() => handleDeleteGroup(m.groups.id)}
+                        disabled={deleting}
+                      >
+                        {deleting ? '...' : 'Oui, supprimer'}
+                      </button>
+                      <button
+                        type="button"
+                        className="groups-card-action-btn"
+                        onClick={() => setDeleteConfirmId(null)}
+                      >
+                        Annuler
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="groups-card-action-btn groups-card-action-danger"
+                      onClick={() => setDeleteConfirmId(m.groups.id)}
+                    >
+                      🗑️ Supprimer
+                    </button>
+                  )}
+                </div>
+              )}
+              {editingGroupId === m.groups.id && (
+                <div className="groups-card-period-editor" onClick={(e) => e.stopPropagation()}>
+                  <div className="groups-card-period-label">Nouvelle durée :</div>
+                  <div className="groups-period-options">
+                    {PERIOD_OPTIONS.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        className={
+                          option.key === editPeriodKey
+                            ? 'groups-card-period-btn groups-card-period-btn-active'
+                            : 'groups-card-period-btn'
+                        }
+                        onClick={() => setEditPeriodKey(option.key)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="groups-card-owner-actions">
+                    <button
+                      type="button"
+                      className="groups-card-action-btn groups-card-action-primary"
+                      onClick={() => handleSavePeriod(m.groups.id)}
+                      disabled={savingPeriod}
+                    >
+                      {savingPeriod ? 'Enregistrement...' : 'Enregistrer'}
+                    </button>
+                    <button
+                      type="button"
+                      className="groups-card-action-btn"
+                      onClick={() => setEditingGroupId(null)}
+                    >
+                      Annuler
+                    </button>
+                  </div>
                 </div>
               )}
             </li>
