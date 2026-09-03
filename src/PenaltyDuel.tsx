@@ -39,9 +39,21 @@ interface Props {
   groupName: string
 }
 
+// lundi (UTC) de la semaine en cours, même convention que le tirage au sort
+// côté base (date_trunc('week', now())) — sert à filtrer "tous les duels de
+// la semaine" puisque penalty_duels n'a pas de colonne week_start dédiée
+function mondayUtcISO(): string {
+  const now = new Date()
+  const day = now.getUTCDay()
+  const diff = day === 0 ? 6 : day - 1
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - diff))
+  return monday.toISOString().slice(0, 10)
+}
+
 export default function PenaltyDuel({ groupId, groupName }: Props) {
   const { user } = useAuth()
   const [duels, setDuels] = useState<Duel[]>([])
+  const [allDuels, setAllDuels] = useState<Duel[]>([])
   const [pseudos, setPseudos] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<string | null>(null)
   const [attempts, setAttempts] = useState<Attempt[]>([])
@@ -69,6 +81,15 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
       .order('created_at', { ascending: false })
     if (dErr) setError(dErr.message)
     setDuels(d ?? [])
+
+    // tous les duels du groupe pour la semaine en cours (qui affronte qui,
+    // et où ils en sont), pas seulement les miens
+    const { data: all } = await supabase
+      .from('penalty_duels').select('id, player_a_id, player_b_id, phase, score_a, score_b, winner_id, finished_at')
+      .eq('group_id', groupId).gte('created_at', mondayUtcISO())
+      .order('created_at', { ascending: true })
+    setAllDuels(all ?? [])
+
     setLoading(false)
   }
 
@@ -225,6 +246,26 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
             )
           })}
         </ul>
+      )}
+
+      {allDuels.length > 0 && (
+        <>
+          <h3 className="rules-section-title">Tous les duels de la semaine</h3>
+          <ul className="matches-list">
+            {allDuels.map((d) => (
+              <li className="match-card" key={d.id}>
+                <div className="match-teams">
+                  <span>{pseudos[d.player_a_id] ?? '???'} vs {pseudos[d.player_b_id] ?? '???'}</span>
+                </div>
+                {d.phase === 'done' ? (
+                  <div className="match-result">{d.score_a} - {d.score_b}</div>
+                ) : (
+                  <div className="match-kickoff">En cours ({d.score_a} - {d.score_b})</div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   )
