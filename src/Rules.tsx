@@ -50,7 +50,7 @@ export default function Rules({ onBack }: Props) {
       <div className="rules-section">
         <h3 className="rules-section-title">🥅 Duel de pénalités</h3>
         <p className="rules-section-text">
-          Chaque semaine, un adversaire du groupe t'est tiré au sort automatiquement — jamais deux fois la même personne tant que tu n'as pas croisé tout le monde. Chacun tire 3 penaltys pendant que l'autre garde les buts, puis les rôles s'inversent. Le tireur vise une zone, le gardien plonge sans savoir laquelle :
+          Chaque semaine, un adversaire du groupe t'est tiré au sort automatiquement — jamais deux fois la même personne tant que tu n'as pas croisé tout le monde. Chacun tire 3 penaltys sur l'autre, dans n'importe quel ordre : pas besoin d'attendre ton tour, tire quand tu veux, et dès que ton adversaire a tiré les siens tu peux deviner où il a visé. Le tireur vise une zone, le gardien plonge sans savoir laquelle :
         </p>
         <ul className="rules-points">
           <li>But au milieu — 2 points</li>
