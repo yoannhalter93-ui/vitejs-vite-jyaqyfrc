@@ -69,6 +69,7 @@ export default function JuggleGame({ groupId, groupName }: Props) {
     const [scores, setScores] = useState<ScoreRow[]>([])
     const [wizzShake, setWizzShake] = useState(false)
     const [wizzCooldown, setWizzCooldown] = useState(0)
+    const [wizzFrom, setWizzFrom] = useState<string | null>(null)
     const [myPseudo, setMyPseudo] = useState<string | null>(null)
     // balles en jeu (x/y/vx/vy en pixels "logiques", espace fixe 300x340, et en
   // px/s pour les vitesses) + score + horloge d'apparition du prochain ballon
@@ -130,7 +131,7 @@ export default function JuggleGame({ groupId, groupName }: Props) {
                 if (!user || !payload || payload.targetProfileId !== user.id) return
                 if (!stateRef.current.running) return
                 if (wizzCooldownRef.current > 0) return
-                triggerWizzEffect()
+                triggerWizzEffect(payload.fromPseudo || 'Un ami')
         }).subscribe()
         wizzChannelRef.current = channel
         return () => {
@@ -208,8 +209,9 @@ export default function JuggleGame({ groupId, groupName }: Props) {
   // un coup aléatoire (vitesse horizontale ET verticale) pour casser le
   // timing du joueur, pas juste son écran — plus il y a de ballons, plus le
   // chaos est grand.
-  const triggerWizzEffect = () => {
+  const triggerWizzEffect = (fromPseudo: string) => {
         setWizzShake(true)
+        setWizzFrom(fromPseudo)
         if (navigator.vibrate) navigator.vibrate([120, 60, 120, 60, 120, 60, 220])
 
         const st = stateRef.current
@@ -223,7 +225,7 @@ export default function JuggleGame({ groupId, groupName }: Props) {
                 }
         }
 
-        setTimeout(() => setWizzShake(false), 900)
+        setTimeout(() => { setWizzShake(false); setWizzFrom(null) }, 900)
         setWizzCooldown(15)
   }
 
@@ -244,6 +246,10 @@ export default function JuggleGame({ groupId, groupName }: Props) {
                           event: 'playing',
                           payload: { action: 'start', profileId: user.id, pseudo: myPseudo || 'Un coéquipier' },
                 })
+                // notification persistée + push, pour les membres du groupe qui
+                // n'ont pas l'appli ouverte en ce moment (le broadcast temps réel
+                // ci-dessus ne les atteint pas)
+                supabase.rpc('notify_juggle_start', { p_group_id: groupId })
         }
 
         const canvas = canvasRef.current
@@ -428,7 +434,7 @@ export default function JuggleGame({ groupId, groupName }: Props) {
                   createElement(
                               'div',
                     { className: 'juggle-wizz-overlay' },
-                              createElement('span', { className: 'juggle-wizz-overlay-text' }, '⚡ WIZZ !')
+                              createElement('span', { className: 'juggle-wizz-overlay-text' }, `⚡ WIZZ de ${wizzFrom || 'un ami'} !`)
                             )
               ),
         createElement(
