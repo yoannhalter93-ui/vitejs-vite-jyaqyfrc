@@ -228,6 +228,16 @@ function App() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
   }
 
+  // Envoyer un wizz directement depuis une notif "X joue aux Jonglages" dans
+  // la cloche : marche même si on a raté le bandeau temps réel (pas connecté
+  // au bon moment) puisque ça passe par la même RPC que le wizz "live", qui
+  // enregistre une notif + push pour le destinataire.
+  const sendWizzFromNotification = (n: any) => {
+    if (!n.related_profile_id || !n.ref_id) return
+    supabase.rpc('notify_wizz', { p_target_profile_id: n.related_profile_id, p_group_id: n.ref_id })
+    markNotifRead(n.id)
+  }
+
   const handleUseBonus = (code: string) => {
     if (code === 'double_ou_rien') {
       setShowBonusPanel(false)
@@ -270,6 +280,12 @@ function App() {
                     <div key={n.id} className={`notif-row ${n.read ? '' : 'notif-unread'}`} onClick={() => !n.read && markNotifRead(n.id)}>
                       <div className="notif-text">{n.text}</div>
                       <div className="notif-date">{new Date(n.created_at).toLocaleString('fr-FR')}</div>
+                      {n.type === 'jongle' && n.related_profile_id && (
+                        <button
+                          className="juggle-wizz-btn"
+                          onClick={(e) => { e.stopPropagation(); sendWizzFromNotification(n) }}
+                        >🧪 Envoyer un wizz</button>
+                      )}
                     </div>
                   ))}
                 </div>
