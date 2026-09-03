@@ -65,7 +65,7 @@ export default function Rules({ onBack }: Props) {
       <div className="rules-section">
         <h3 className="rules-section-title">❓ Questionnaire</h3>
         <p className="rules-section-text">
-          Chaque semaine, un adversaire du groupe t'est tiré au sort automatiquement — jamais deux fois la même personne tant que tu n'as pas croisé tout le monde. Duel à 10 questions, 7 secondes pour répondre à chacune. Celui qui a le plus de bonnes réponses gagne :
+          Chaque semaine, un adversaire du groupe t'est tiré au sort automatiquement — jamais deux fois la même personne tant que tu n'as pas croisé tout le monde. Duel à 10 questions, 10 secondes pour répondre à chacune. Celui qui a le plus de bonnes réponses gagne :
         </p>
         <ul className="rules-points">
           <li>Victoire — 2 points</li>
