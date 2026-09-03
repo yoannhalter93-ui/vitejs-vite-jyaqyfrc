@@ -85,9 +85,9 @@ export default function Rules({ onBack }: Props) {
       </div>
 
       <div className="rules-section">
-        <h3 className="rules-section-title">🤹 Jonglages Chrono</h3>
+        <h3 className="rules-section-title">🤹 Jonglages</h3>
         <p className="rules-section-text">
-          Mini-jeu solo : 30 secondes chrono pour garder le ballon en l'air en tapant dessus au bon moment. Chaque semaine, le meilleur score du groupe rapporte 2 points au classement et 2 🪙 jetons à son auteur.
+          Mini-jeu solo : garde les ballons en l'air en tapant dessus au bon moment. Pas de chrono : un 2e ballon entre en jeu au bout de 30 secondes, un 3e au bout d'une minute, et la partie s'arrête dès qu'un seul ballon touche le sol. Chaque semaine, le meilleur score du groupe rapporte 2 points au classement et 2 🪙 jetons à son auteur.
         </p>
       </div>
 
