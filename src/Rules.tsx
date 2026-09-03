@@ -25,7 +25,6 @@ export default function Rules({ onBack }: Props) {
           <li>Bon écart de buts et bon résultat — 4 points</li>
           <li>Juste le bon résultat, victoire/nul/défaite — 3 points</li>
           <li>Rien de bon — 0 point</li>
-          <li>Bonus buteur — +1 point si tu devines un buteur du match, ou si tu paries « pas de buteur » et que le match finit 0-0</li>
         </ul>
       </div>
 
@@ -88,7 +87,7 @@ export default function Rules({ onBack }: Props) {
       <div className="rules-section">
         <h3 className="rules-section-title">🤹 Jonglages Chrono</h3>
         <p className="rules-section-text">
-          Mini-jeu solo : 30 secondes chrono pour garder le ballon en l'air en tapant dessus au bon moment. Chaque semaine, le meilleur score du groupe rapporte 15 points à son auteur.
+          Mini-jeu solo : 30 secondes chrono pour garder le ballon en l'air en tapant dessus au bon moment. Chaque semaine, le meilleur score du groupe rapporte 2 points au classement et 2 🪙 jetons à son auteur.
         </p>
       </div>
 
