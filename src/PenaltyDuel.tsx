@@ -106,7 +106,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
   const [animMode, setAnimMode] = useState<'shoot' | 'keep' | null>(null)
   const [animBusy, setAnimBusy] = useState(false)
   const [animZone, setAnimZone] = useState<string | null>(null)
-  const [animStage, setAnimStage] = useState<'start' | 'flying' | 'sent' | 'result' | null>(null)
+  const [animStage, setAnimStage] = useState<'start' | 'flying' | 'sent' | 'reveal' | 'result' | null>(null)
   const [animResult, setAnimResult] = useState<{ scored: boolean; points: number; shooterZone: string } | null>(null)
   const [finishedSoundPlayed, setFinishedSoundPlayed] = useState<string | null>(null)
 
@@ -243,21 +243,28 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
       (a) => a.phase_number === attemptRef.phase_number && a.attempt_number === attemptRef.attempt_number
     )
 
+    // le gardien plonge d'abord (on ne sait pas encore où le tir est parti),
+    // puis seulement une fois la plongée terminée le ballon arrive
+    // visiblement vers sa vraie zone — sinon il "apparaît" directement dans
+    // le coin et on ne voit jamais où l'adversaire a réellement tiré
     setTimeout(() => {
-      if (resolved) {
-        const shooterZone = resolved.shooter_zone || zone
-        const scored = !!resolved.scored
-        setAnimResult({ scored, points: resolved.points ?? 0, shooterZone })
-        setAnimStage('result')
-        if (scored) (shooterZone === 'milieu' ? playPanenka() : playGoal())
-        else playSave()
-      }
-      setTimeout(async () => {
-        setAnimBusy(false); setAnimMode(null); setAnimStage(null); setAnimZone(null); setAnimResult(null)
-        await openDuel(selected)
-        await loadList()
-      }, 1200)
-    }, 500)
+      setAnimStage('reveal')
+      setTimeout(() => {
+        if (resolved) {
+          const shooterZone = resolved.shooter_zone || zone
+          const scored = !!resolved.scored
+          setAnimResult({ scored, points: resolved.points ?? 0, shooterZone })
+          setAnimStage('result')
+          if (scored) (shooterZone === 'milieu' ? playPanenka() : playGoal())
+          else playSave()
+        }
+        setTimeout(async () => {
+          setAnimBusy(false); setAnimMode(null); setAnimStage(null); setAnimZone(null); setAnimResult(null)
+          await openDuel(selected)
+          await loadList()
+        }, 2200)
+      }, 600)
+    }, 550)
   }
 
   const zoneBtn = (value: string) => {
@@ -280,10 +287,17 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
     const ballTarget = animMode === 'shoot'
       ? (animStage === 'start' ? { left: '50%', top: '96%' } : ZONE_POS[animZone!])
       : (animStage === 'result' && animResult ? ZONE_POS[animResult.shooterZone] : { left: '50%', top: '96%' })
-    const keeperTarget = animMode === 'keep' && animZone && (animStage === 'flying' || animStage === 'result')
+    const keeperTarget = animMode === 'keep' && animZone && (animStage === 'flying' || animStage === 'reveal' || animStage === 'result')
       ? ZONE_POS[animZone]
       : { left: '50%', top: '50%' }
-    const showBall = animMode === 'shoot' ? animStage !== null : (animStage === 'result')
+    // en tir : le ballon est visible dès le départ. En arrêt : il ne
+    // "sort" qu'à la phase reveal (une fois le gardien déjà plongé sur sa
+    // zone devinée), puis on le laisse visiblement voler jusqu'à sa vraie
+    // zone à la phase result — sinon il apparaît directement dans le coin
+    // et on ne voit jamais où l'adversaire a réellement tiré
+    const showBall = animMode === 'shoot'
+      ? animStage !== null
+      : (animStage === 'reveal' || animStage === 'result')
     const netShake = animStage === 'result' && animResult?.scored
 
     return (
@@ -317,6 +331,10 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
                   ? (animResult.shooterZone === 'milieu' ? '🎩 Panenka ! But au milieu (+2)' : '⚽ But dans le coin ! (+1)')
                   : '🧤 Arrêté ! (+0)'}
               </p>
+            ) : animMode === 'keep' && animStage === 'reveal' ? (
+              <p className="penalty-anim-caption">👀 Le tir arrive...</p>
+            ) : animMode === 'keep' && animStage === 'flying' ? (
+              <p className="penalty-anim-caption">🧤 Plongeon...</p>
             ) : animMode === 'shoot' && animStage ? (
               <p className="penalty-anim-caption">⚽ Tir envoyé, à l'aveugle...</p>
             ) : myTurnToShoot ? (
