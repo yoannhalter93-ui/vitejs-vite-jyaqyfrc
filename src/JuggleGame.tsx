@@ -172,11 +172,11 @@ export default function JuggleGame({ groupId, groupName }: Props) {
     return () => clearTimeout(t)
   }, [wizzCooldown])
 
-  // Effet de wizz partagé : déclenché soit par le bouton de test local, soit
-  // par un wizz reçu en direct d'un coéquipier pendant qu'on joue. Ne se
-  // contente plus de secouer l'écran : si une partie est en cours, le
-  // ballon reçoit vraiment un coup aléatoire (vitesse horizontale ET
-  // verticale) pour casser le timing du joueur, pas juste son écran.
+  // Effet de wizz partagé : déclenché par un wizz reçu en direct d'un
+  // coéquipier pendant qu'on joue. Ne se contente pas de secouer l'écran :
+  // si une partie est en cours, le ballon reçoit vraiment un coup aléatoire
+  // (vitesse horizontale ET verticale) pour casser le timing du joueur, pas
+  // juste son écran.
   const triggerWizzEffect = () => {
     setWizzShake(true)
     if (navigator.vibrate) navigator.vibrate([120, 60, 120, 60, 120, 60, 220])
@@ -192,11 +192,6 @@ export default function JuggleGame({ groupId, groupName }: Props) {
 
     setTimeout(() => setWizzShake(false), 900)
     setWizzCooldown(15)
-  }
-
-  const simulateWizz = () => {
-    if (wizzCooldown > 0) return
-    triggerWizzEffect()
   }
 
   const startGame = () => {
@@ -364,13 +359,6 @@ export default function JuggleGame({ groupId, groupName }: Props) {
         )}
       </div>
 
-      {/* Repère de version temporaire — juste pour confirmer visuellement que le
-          dernier réglage de physique est bien arrivé jusqu'à l'écran du joueur.
-          À retirer une fois que le réglage de difficulté est validé. */}
-      <p style={{ fontSize: 10, opacity: 0.45, textAlign: 'center', margin: '4px 0 0' }}>
-        réglage v9 · gravité {GRAVITY} · sensibilité {H_SENSITIVITY} · rayon {HIT_RADIUS}
-      </p>
-
       <div className="match-predict">
         {playing ? (
           <>
@@ -383,17 +371,6 @@ export default function JuggleGame({ groupId, groupName }: Props) {
           </button>
         )}
       </div>
-
-      {playing && (
-        <button
-          className="juggle-wizz-btn"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); simulateWizz() }}
-          disabled={wizzCooldown > 0}
-        >
-          {wizzCooldown > 0 ? `⏳ Wizz dans ${wizzCooldown}s` : '🧪 Tester un wizz'}
-        </button>
-      )}
 
       {finalScore !== null && !playing && (
         <p className="match-result">Score final : {finalScore} jonglages</p>
