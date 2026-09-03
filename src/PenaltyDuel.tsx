@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 
@@ -9,6 +9,48 @@ const ZONES: { value: string; label: string }[] = [
   { value: 'bas-gauche', label: 'Bas gauche' },
   { value: 'bas-droite', label: 'Bas droite' },
 ]
+
+// coordonnées (en % de la cage) de chaque zone, partagées par le ballon et
+// le gardien pour que les deux animations restent cohérentes entre elles
+const ZONE_POS: Record<string, { left: string; top: string }> = {
+  'haut-gauche': { left: '20%', top: '22%' },
+  'haut-droite': { left: '80%', top: '22%' },
+  'milieu': { left: '50%', top: '46%' },
+  'bas-gauche': { left: '20%', top: '78%' },
+  'bas-droite': { left: '80%', top: '78%' },
+}
+
+function useSynth() {
+  const ctxRef = useRef<AudioContext | null>(null)
+  const getCtx = () => {
+    if (!ctxRef.current) {
+      const AC = (window as any).AudioContext || (window as any).webkitAudioContext
+      ctxRef.current = new AC()
+    }
+    return ctxRef.current!
+  }
+  const tone = (freq: number, start: number, dur: number, type: OscillatorType = 'sine', vol = 0.15) => {
+    try {
+      const ctx = getCtx()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = type
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start)
+      gain.gain.setValueAtTime(vol, ctx.currentTime + start)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur)
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(ctx.currentTime + start)
+      osc.stop(ctx.currentTime + start + dur + 0.02)
+    } catch { /* audio non disponible, tant pis */ }
+  }
+  const playGoal = () => { tone(180, 0, 0.08, 'square', 0.12);[523, 659, 784, 1047].forEach((f, i) => tone(f, 0.08 + i * 0.07, 0.18, 'triangle', 0.13)) }
+  const playPanenka = () => { tone(180, 0, 0.08, 'square', 0.12); tone(300, 0.1, 0.1, 'sine', 0.1); tone(220, 0.18, 0.1, 'sine', 0.1);[392, 523, 659, 784, 988, 1175].forEach((f, i) => tone(f, 0.3 + i * 0.06, 0.22, 'triangle', 0.14)) }
+  const playSave = () => { tone(140, 0, 0.1, 'square', 0.14); tone(220, 0.05, 0.12, 'sawtooth', 0.1); tone(160, 0.16, 0.18, 'sawtooth', 0.09) }
+  const playKick = () => { tone(300, 0, 0.05, 'square', 0.1) }
+  const playVictory = () => {[523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, i * 0.11, 0.3, 'triangle', 0.14)) }
+  const playDefeat = () => {[392, 349, 293, 220].forEach((f, i) => tone(f, i * 0.16, 0.35, 'sawtooth', 0.1)) }
+  return { playGoal, playPanenka, playSave, playKick, playVictory, playDefeat }
+}
 
 interface Duel {
   id: string
@@ -57,10 +99,18 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
   const [pseudos, setPseudos] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<string | null>(null)
   const [attempts, setAttempts] = useState<Attempt[]>([])
-  const [shots, setShots] = useState<Record<number, string>>({})
-  const [saves, setSaves] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // animation en cours (tir aveugle ou plongeon du gardien)
+  const [animMode, setAnimMode] = useState<'shoot' | 'keep' | null>(null)
+  const [animBusy, setAnimBusy] = useState(false)
+  const [animZone, setAnimZone] = useState<string | null>(null)
+  const [animStage, setAnimStage] = useState<'start' | 'flying' | 'sent' | 'result' | null>(null)
+  const [animResult, setAnimResult] = useState<{ scored: boolean; points: number; shooterZone: string } | null>(null)
+  const [finishedSoundPlayed, setFinishedSoundPlayed] = useState<string | null>(null)
+
+  const { playGoal, playPanenka, playSave, playKick, playVictory, playDefeat } = useSynth()
 
   const loadList = async () => {
     if (!user) return
@@ -100,63 +150,141 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
 
   const openDuel = async (id: string) => {
     setSelected(id)
-    setShots({})
-    setSaves({})
     setError(null)
     const { data, error: err } = await supabase.rpc('get_penalty_duel_attempts', { p_duel_id: id })
     if (err) setError(err.message)
     setAttempts((data ?? []) as Attempt[])
   }
 
-  const submitShots = async () => {
-    if (!user || !selected) return
-    setError(null)
-    for (let n = 1; n <= 3; n++) {
-      const zone = shots[n]
-      if (!zone) continue
-      const { error: err } = await supabase.rpc('submit_shot', { p_duel_id: selected, p_attempt_number: n, p_zone: zone })
-      if (err) { setError(err.message); return }
+  const duel = duels.find((d) => d.id === selected)
+
+  // son de victoire/défaite une seule fois quand le duel vient de se terminer
+  useEffect(() => {
+    if (duel?.phase === 'done' && selected && finishedSoundPlayed !== selected) {
+      setFinishedSoundPlayed(selected)
+      if (duel.winner_id === user?.id) playVictory()
+      else if (duel.winner_id && duel.winner_id !== user?.id) playDefeat()
     }
-    await openDuel(selected)
-    await loadList()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duel?.phase, duel?.winner_id, selected])
+
+  const isPlayerA = duel?.player_a_id === user?.id
+  const myShooterPhase = isPlayerA ? 1 : 2
+  const myKeeperPhase = isPlayerA ? 2 : 1
+
+  const myShotAttempts = attempts.filter((a) => a.phase_number === myShooterPhase && a.shooter_id === user?.id)
+  const myKeepAttempts = attempts.filter((a) => a.phase_number === myKeeperPhase && a.keeper_id === user?.id)
+
+  const iHaveShot = myShotAttempts.length > 0 && myShotAttempts.every((a) => a.shot_taken)
+  const opponentHasShot = myKeepAttempts.length > 0 && myKeepAttempts.every((a) => a.shot_taken)
+  const iHaveFinishedKeeping = myKeepAttempts.length > 0 && myKeepAttempts.every((a) => a.resolved)
+
+  const myTurnToShoot = !!duel && duel.phase !== 'done' && !iHaveShot
+  const myTurnToSave = !!duel && duel.phase !== 'done' && opponentHasShot && !iHaveFinishedKeeping
+
+  const nextShotAttempt = myShotAttempts.find((a) => a.shooter_zone === null) ?? null
+  const nextKeepAttempt = myKeepAttempts.find((a) => a.shot_taken && !a.resolved) ?? null
+  const shotsDone = myShotAttempts.filter((a) => a.shooter_zone !== null).length
+  const savesDone = myKeepAttempts.filter((a) => a.resolved).length
+
+  const pickShotZone = async (zone: string) => {
+    if (!selected || animBusy || !nextShotAttempt) return
+    setAnimBusy(true)
+    setAnimMode('shoot')
+    setAnimZone(zone)
+    setAnimStage('start')
+    playKick()
+    // laisse le ballon partir de son point de départ avant de lancer la
+    // transition CSS vers la cible (sinon pas d'animation, juste un saut)
+    requestAnimationFrame(() => requestAnimationFrame(() => setAnimStage('flying')))
+
+    const { error: err } = await supabase.rpc('submit_shot', {
+      p_duel_id: selected, p_attempt_number: nextShotAttempt.attempt_number, p_zone: zone,
+    })
+    if (err) {
+      setError(err.message)
+      setAnimBusy(false); setAnimMode(null); setAnimStage(null); setAnimZone(null)
+      return
+    }
+
+    setTimeout(() => {
+      setAnimStage('sent')
+      setTimeout(async () => {
+        setAnimBusy(false); setAnimMode(null); setAnimStage(null); setAnimZone(null)
+        await openDuel(selected)
+        await loadList()
+      }, 750)
+    }, 550)
   }
 
-  const submitSaves = async () => {
-    if (!user || !selected) return
-    setError(null)
-    for (let n = 1; n <= 3; n++) {
-      const zone = saves[n]
-      if (!zone) continue
-      const { error: err } = await supabase.rpc('submit_save', { p_duel_id: selected, p_attempt_number: n, p_zone: zone })
-      if (err) { setError(err.message); return }
+  const pickSaveZone = async (zone: string) => {
+    if (!selected || animBusy || !nextKeepAttempt) return
+    setAnimBusy(true)
+    setAnimMode('keep')
+    setAnimZone(zone)
+    setAnimResult(null)
+    setAnimStage('start')
+    requestAnimationFrame(() => requestAnimationFrame(() => setAnimStage('flying')))
+
+    const attemptRef = nextKeepAttempt
+    const { error: err } = await supabase.rpc('submit_save', {
+      p_duel_id: selected, p_attempt_number: attemptRef.attempt_number, p_zone: zone,
+    })
+    if (err) {
+      setError(err.message)
+      setAnimBusy(false); setAnimMode(null); setAnimStage(null); setAnimZone(null)
+      return
     }
-    await openDuel(selected)
-    await loadList()
+
+    const { data } = await supabase.rpc('get_penalty_duel_attempts', { p_duel_id: selected })
+    const fresh = (data ?? []) as Attempt[]
+    setAttempts(fresh)
+    const resolved = fresh.find(
+      (a) => a.phase_number === attemptRef.phase_number && a.attempt_number === attemptRef.attempt_number
+    )
+
+    setTimeout(() => {
+      if (resolved) {
+        const shooterZone = resolved.shooter_zone || zone
+        const scored = !!resolved.scored
+        setAnimResult({ scored, points: resolved.points ?? 0, shooterZone })
+        setAnimStage('result')
+        if (scored) (shooterZone === 'milieu' ? playPanenka() : playGoal())
+        else playSave()
+      }
+      setTimeout(async () => {
+        setAnimBusy(false); setAnimMode(null); setAnimStage(null); setAnimZone(null); setAnimResult(null)
+        await openDuel(selected)
+        await loadList()
+      }, 1200)
+    }, 500)
+  }
+
+  const zoneBtn = (value: string) => {
+    const z = ZONES.find((zz) => zz.value === value)!
+    return (
+      <button
+        key={value}
+        className="groups-action-btn groups-action-btn-secondary"
+        disabled={animBusy}
+        onClick={() => (myTurnToShoot ? pickShotZone(value) : pickSaveZone(value))}
+      >{z.label}</button>
+    )
   }
 
   if (selected) {
-    const duel = duels.find((d) => d.id === selected)
     const opponentId = duel && (duel.player_a_id === user?.id ? duel.player_b_id : duel.player_a_id)
-    const isPlayerA = duel?.player_a_id === user?.id
 
-    // A tire en phase 1 (B garde), B tire en phase 2 (A garde) : les deux
-    // moitiés existent dès la création du duel et avancent indépendamment,
-    // pas besoin d'attendre son tour pour tirer ses propres penaltys.
-    const myShooterPhase = isPlayerA ? 1 : 2
-    const myKeeperPhase = isPlayerA ? 2 : 1
-
-    const myShotAttempts = attempts.filter((a) => a.phase_number === myShooterPhase && a.shooter_id === user?.id)
-    const myKeepAttempts = attempts.filter((a) => a.phase_number === myKeeperPhase && a.keeper_id === user?.id)
-
-    const iHaveShot = myShotAttempts.length > 0 && myShotAttempts.every((a) => a.shot_taken)
-    const opponentHasShot = myKeepAttempts.length > 0 && myKeepAttempts.every((a) => a.shot_taken)
-    const iHaveFinishedKeeping = myKeepAttempts.length > 0 && myKeepAttempts.every((a) => a.resolved)
-
-    const myTurnToShoot = !!duel && duel.phase !== 'done' && !iHaveShot
-    const myTurnToSave = !!duel && duel.phase !== 'done' && opponentHasShot && !iHaveFinishedKeeping
-
-    const allShotsChosen = [1, 2, 3].every((n) => shots[n])
-    const allSavesChosen = [1, 2, 3].every((n) => saves[n])
+    // pendant l'animation : ballon/gardien vers la zone choisie ; sinon,
+    // ballon posé au point de départ (bas de la cage) et gardien au centre
+    const ballTarget = animMode === 'shoot'
+      ? (animStage === 'start' ? { left: '50%', top: '96%' } : ZONE_POS[animZone!])
+      : (animStage === 'result' && animResult ? ZONE_POS[animResult.shooterZone] : { left: '50%', top: '96%' })
+    const keeperTarget = animMode === 'keep' && animZone && (animStage === 'flying' || animStage === 'result')
+      ? ZONE_POS[animZone]
+      : { left: '50%', top: '50%' }
+    const showBall = animMode === 'shoot' ? animStage !== null : (animStage === 'result')
+    const netShake = animStage === 'result' && animResult?.scored
 
     return (
       <div className="predictions-screen">
@@ -169,39 +297,60 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
         {duel?.phase === 'done' ? (
           <p className="match-result">Score final : {duel.score_a} - {duel.score_b}
             {duel.winner_id ? (duel.winner_id === user?.id ? ' — Tu as gagné !' : ' — Tu as perdu.') : ' — Match nul.'}</p>
-        ) : myTurnToShoot ? (
+        ) : myTurnToShoot || myTurnToSave ? (
           <div className="roulette-result">
-            <p className="predictions-period">Choisis tes 3 tirs (l'adversaire ne les voit pas) :</p>
-            {myShotAttempts.map((a) => (
-              <div className="match-predict" key={a.attempt_number}>
-                <span>Tir {a.attempt_number} :</span>
-                {ZONES.map((z) => (
-                  <button
-                    key={z.value}
-                    className={"groups-action-btn groups-action-btn-secondary" + (shots[a.attempt_number] === z.value ? " group-nav-tab-active" : "")}
-                    onClick={() => setShots((s) => ({ ...s, [a.attempt_number]: z.value }))}
-                  >{z.label}</button>
-                ))}
+            <div className={"penalty-cage" + (netShake ? ' penalty-cage-shake' : '')}>
+              {animMode === 'keep' && (
+                <div className="penalty-keeper" style={{ left: keeperTarget.left, top: keeperTarget.top }}>🧤</div>
+              )}
+              {showBall && (
+                <div className="penalty-ball" style={{ left: ballTarget.left, top: ballTarget.top }}>⚽</div>
+              )}
+              {animStage === 'result' && animResult && (
+                <div className={"penalty-flash " + (animResult.scored ? 'penalty-flash-goal' : 'penalty-flash-save')} />
+              )}
+            </div>
+
+            {animStage === 'result' && animResult ? (
+              <p className={"penalty-anim-caption " + (animResult.scored ? 'penalty-caption-goal' : 'penalty-caption-save')}>
+                {animResult.scored
+                  ? (animResult.shooterZone === 'milieu' ? '🎩 Panenka ! But au milieu (+2)' : '⚽ But dans le coin ! (+1)')
+                  : '🧤 Arrêté ! (+0)'}
+              </p>
+            ) : animMode === 'shoot' && animStage ? (
+              <p className="penalty-anim-caption">⚽ Tir envoyé, à l'aveugle...</p>
+            ) : myTurnToShoot ? (
+              <p className="predictions-period">Choisis où viser (tir {shotsDone + 1} / 3, l'adversaire ne le voit pas) :</p>
+            ) : (
+              <p className="predictions-period">Devine où l'adversaire a tiré (arrêt {savesDone + 1} / 3) :</p>
+            )}
+
+            <div className="penalty-zone-grid">
+              <div className="penalty-zone-row">
+                {zoneBtn('haut-gauche')}
+                {zoneBtn('haut-droite')}
               </div>
-            ))}
-            <button className="match-save-btn" disabled={!allShotsChosen} onClick={submitShots}>Valider mes tirs</button>
-          </div>
-        ) : myTurnToSave ? (
-          <div className="roulette-result">
-            <p className="predictions-period">Devine où l'adversaire a tiré (3 arrêts) :</p>
-            {myKeepAttempts.map((a) => (
-              <div className="match-predict" key={a.attempt_number}>
-                <span>Tir {a.attempt_number} :</span>
-                {ZONES.map((z) => (
-                  <button
-                    key={z.value}
-                    className={"groups-action-btn groups-action-btn-secondary" + (saves[a.attempt_number] === z.value ? " group-nav-tab-active" : "")}
-                    onClick={() => setSaves((s) => ({ ...s, [a.attempt_number]: z.value }))}
-                  >{z.label}</button>
-                ))}
+              <div className="penalty-zone-row penalty-zone-row-center">
+                {zoneBtn('milieu')}
               </div>
-            ))}
-            <button className="match-save-btn" disabled={!allSavesChosen} onClick={submitSaves}>Valider mes arrêts</button>
+              <div className="penalty-zone-row">
+                {zoneBtn('bas-gauche')}
+                {zoneBtn('bas-droite')}
+              </div>
+            </div>
+
+            <div className="penalty-progress-dots">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className={
+                    "penalty-dot" +
+                    (i < (myTurnToShoot ? shotsDone : savesDone) ? " penalty-dot-done" : "") +
+                    (i === (myTurnToShoot ? shotsDone : savesDone) && !animBusy ? " penalty-dot-current" : "")
+                  }
+                />
+              ))}
+            </div>
           </div>
         ) : (
           <p className="groups-empty">
