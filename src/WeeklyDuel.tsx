@@ -17,6 +17,15 @@ interface CurrentQuestion {
   options: string[]
 }
 
+interface ReviewRow {
+  question_order: number
+  question: string
+  options: string[]
+  correct_index: number
+  my_index: number
+  opp_index: number | null
+}
+
 interface Props {
   groupId: string
   groupName: string
@@ -31,10 +40,12 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
   const [duel, setDuel] = useState<Duel | null>(null)
   const [oppAnswered, setOppAnswered] = useState(0)
   const [question, setQuestion] = useState<CurrentQuestion | null>(null)
-  const [timeLeft, setTimeLeft] = useState(7)
+  const [timeLeft, setTimeLeft] = useState(10)
   const [answering, setAnswering] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [review, setReview] = useState<ReviewRow[] | null>(null)
+  const [reviewLoading, setReviewLoading] = useState(false)
 
   const loadList = async () => {
     if (!user) return
@@ -89,7 +100,7 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
     }
     const q = data as { question: string; options: string[] }
     setQuestion({ order, question: q.question, options: q.options })
-    setTimeLeft(7)
+    setTimeLeft(10)
   }
 
   const refresh = async (id: string) => {
@@ -113,7 +124,17 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
     setSelected(id)
     setError(null)
     setQuestion(null)
+    setReview(null)
     await refresh(id)
+  }
+
+  const loadReview = async () => {
+    if (!selected) return
+    setReviewLoading(true)
+    const { data, error: err } = await supabase.rpc('get_duel_review', { p_duel_id: selected })
+    if (err) setError(err.message)
+    setReview((data ?? []) as ReviewRow[])
+    setReviewLoading(false)
   }
 
   const answer = async (order: number, index: number) => {
@@ -152,8 +173,41 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
         {error && <p className="groups-error">{error}</p>}
 
         {duel?.status === 'done' ? (
-          <p className="match-result">Score final : {duel.score_a} - {duel.score_b}
-            {duel.score_a === duel.score_b ? ' — Match nul.' : ((duel.player_a_id === user?.id) === (duel.score_a > duel.score_b) ? ' — Tu as gagné !' : ' — Tu as perdu.')}</p>
+          <>
+            <p className="match-result">Score final : {duel.score_a} - {duel.score_b}
+              {(duel.score_a ?? 0) === (duel.score_b ?? 0) ? ' — Match nul.' : ((duel.player_a_id === user?.id) === ((duel.score_a ?? 0) > (duel.score_b ?? 0)) ? ' — Tu as gagné !' : ' — Tu as perdu.')}</p>
+
+            {review === null ? (
+              <button className="match-save-btn" disabled={reviewLoading} onClick={loadReview}>
+                {reviewLoading ? '...' : 'Voir les réponses'}
+              </button>
+            ) : (
+              <ul className="matches-list">
+                {review.map((r) => (
+                  <li className="match-card" key={r.question_order}>
+                    <div className="match-teams"><span>Q{r.question_order} — {r.question}</span></div>
+                    <ul className="rules-points">
+                      {r.options.map((opt, i) => {
+                        const isCorrect = i === r.correct_index
+                        const isMine = i === r.my_index
+                        const isOpp = i === r.opp_index
+                        let label = opt
+                        const tags: string[] = []
+                        if (isMine) tags.push('toi')
+                        if (isOpp) tags.push('adversaire')
+                        if (tags.length) label += ` (${tags.join(' & ')})`
+                        return (
+                          <li key={i} style={{ color: isCorrect ? '#2F8F5B' : (isMine || isOpp) ? '#C1443C' : undefined, fontWeight: isCorrect ? 700 : undefined }}>
+                            {isCorrect ? '✓ ' : ''}{label}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         ) : question ? (
           <div className="roulette-result">
             <p className="predictions-period">Question {question.order} / 10 — {timeLeft}s</p>
