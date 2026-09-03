@@ -161,7 +161,7 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
       ) : (
         <ul className="matches-list">
           {matches.map((m) => {
-            const isOpen = m.status === 'open'
+            const isOpen = m.status === 'open' && new Date(m.kickoff_at).getTime() > Date.now()
             const draft = drafts[m.id] ?? { home: '', away: '' }
             const hasPrediction = !!predictions[m.id]
 
@@ -216,8 +216,17 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
                       {savingId === m.id ? '...' : hasPrediction ? 'Modifier' : 'Valider'}
                     </button>
                   </div>
-                ) : (
+                ) : m.status === 'cancelled' ? (
                   <div className="match-cancelled">Match annulé</div>
+                ) : (
+                  <div className="match-cancelled">
+                    Pronostics clôturés (coup d'envoi passé)
+                    {hasPrediction && (
+                      <span className="match-my-pred">
+                        {' '}(ton pronostic : {predictions[m.id].pred_home_score} - {predictions[m.id].pred_away_score})
+                      </span>
+                    )}
+                  </div>
                 )}
               </li>
             )
