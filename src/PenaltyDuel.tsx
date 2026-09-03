@@ -31,6 +31,7 @@ interface Attempt {
   scored: boolean | null
   points: number | null
   resolved: boolean
+  shot_taken: boolean
 }
 
 interface Props {
@@ -117,11 +118,22 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
     const opponentId = duel && (duel.player_a_id === user?.id ? duel.player_b_id : duel.player_a_id)
     const isPlayerA = duel?.player_a_id === user?.id
 
-    const myTurnToShoot = !!duel && ((duel.phase === 'a_shoots' && isPlayerA) || (duel.phase === 'b_shoots' && !isPlayerA))
-    const myTurnToSave = !!duel && ((duel.phase === 'b_keeps' && !isPlayerA) || (duel.phase === 'a_keeps' && isPlayerA))
-    const activePhaseNumber = duel?.phase === 'a_shoots' || duel?.phase === 'b_keeps' ? 1 : 2
-    const myShotAttempts = attempts.filter((a) => a.phase_number === activePhaseNumber && a.shooter_id === user?.id)
-    const mySaveAttempts = attempts.filter((a) => a.phase_number === activePhaseNumber && a.keeper_id === user?.id)
+    // A tire en phase 1 (B garde), B tire en phase 2 (A garde) : les deux
+    // moitiés existent dès la création du duel et avancent indépendamment,
+    // pas besoin d'attendre son tour pour tirer ses propres penaltys.
+    const myShooterPhase = isPlayerA ? 1 : 2
+    const myKeeperPhase = isPlayerA ? 2 : 1
+
+    const myShotAttempts = attempts.filter((a) => a.phase_number === myShooterPhase && a.shooter_id === user?.id)
+    const myKeepAttempts = attempts.filter((a) => a.phase_number === myKeeperPhase && a.keeper_id === user?.id)
+
+    const iHaveShot = myShotAttempts.length > 0 && myShotAttempts.every((a) => a.shot_taken)
+    const opponentHasShot = myKeepAttempts.length > 0 && myKeepAttempts.every((a) => a.shot_taken)
+    const iHaveFinishedKeeping = myKeepAttempts.length > 0 && myKeepAttempts.every((a) => a.resolved)
+
+    const myTurnToShoot = !!duel && duel.phase !== 'done' && !iHaveShot
+    const myTurnToSave = !!duel && duel.phase !== 'done' && opponentHasShot && !iHaveFinishedKeeping
+
     const allShotsChosen = [1, 2, 3].every((n) => shots[n])
     const allSavesChosen = [1, 2, 3].every((n) => saves[n])
 
@@ -156,7 +168,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
         ) : myTurnToSave ? (
           <div className="roulette-result">
             <p className="predictions-period">Devine où l'adversaire a tiré (3 arrêts) :</p>
-            {mySaveAttempts.map((a) => (
+            {myKeepAttempts.map((a) => (
               <div className="match-predict" key={a.attempt_number}>
                 <span>Tir {a.attempt_number} :</span>
                 {ZONES.map((z) => (
@@ -171,7 +183,11 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
             <button className="match-save-btn" disabled={!allSavesChosen} onClick={submitSaves}>Valider mes arrêts</button>
           </div>
         ) : (
-          <p className="groups-empty">En attente de l'adversaire...</p>
+          <p className="groups-empty">
+            {iHaveShot && !opponentHasShot
+              ? "Tes tirs sont enregistrés, en attente que l'adversaire tire les siens..."
+              : "En attente de l'adversaire..."}
+          </p>
         )}
       </div>
     )
@@ -183,7 +199,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
         <h2>Duel de penaltys — {groupName}</h2>
       </div>
       <p className="predictions-period">
-        Chaque semaine, un adversaire différent t'est tiré au sort automatiquement (jamais deux fois la même personne tant que tu n'as pas croisé tout le groupe).
+        Chaque semaine, un adversaire différent t'est tiré au sort automatiquement (jamais deux fois la même personne tant que tu n'as pas croisé tout le groupe). Tu peux tirer tes 3 penaltys dès que tu veux, sans attendre l'adversaire.
       </p>
       {error && <p className="groups-error">{error}</p>}
 
@@ -195,9 +211,6 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
         <ul className="matches-list">
           {duels.map((d) => {
             const opponentId = d.player_a_id === user?.id ? d.player_b_id : d.player_a_id
-            const isPlayerA = d.player_a_id === user?.id
-            const myTurn = (d.phase === 'a_shoots' && isPlayerA) || (d.phase === 'b_shoots' && !isPlayerA)
-              || (d.phase === 'b_keeps' && !isPlayerA) || (d.phase === 'a_keeps' && isPlayerA)
             return (
               <li className="match-card groups-card-clickable" key={d.id} onClick={() => openDuel(d.id)}>
                 <div className="match-teams">
@@ -206,7 +219,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
                 {d.phase === 'done' ? (
                   <div className="match-result">Terminé : {d.score_a} - {d.score_b}</div>
                 ) : (
-                  <div className="match-kickoff">{myTurn ? 'À toi de jouer !' : 'En attente de l\'adversaire'}</div>
+                  <div className="match-kickoff">En cours</div>
                 )}
               </li>
             )
