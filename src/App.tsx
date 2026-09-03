@@ -115,6 +115,12 @@ function App() {
   const sendWizz = () => {
     if (!juggleAlert || !wizzChannel) return
     wizzChannel.send({ type: 'broadcast', event: 'wizz', payload: { targetProfileId: juggleAlert.profileId, fromPseudo: myPseudo || 'Un ami' } })
+    // notification persistée + push, au cas où le destinataire ne serait
+    // plus sur l'écran Jonglages (ou plus dans l'appli) pour voir l'effet
+    // temps réel
+    if (selectedGroup?.id) {
+      supabase.rpc('notify_wizz', { p_target_profile_id: juggleAlert.profileId, p_group_id: selectedGroup.id })
+    }
   }
 
   const [screen, setScreen] = useState<Screen>('pronostics');
