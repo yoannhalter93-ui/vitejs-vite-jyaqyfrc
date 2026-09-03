@@ -31,6 +31,47 @@ const SCREENS: { key: Screen; label: string }[] = [
   { key: 'jonglages', label: 'Jonglages' },
 ];
 
+const VAPID_PUBLIC_KEY = 'BODqLXOAm-EvaSnvqqQCmRdfvSPk-QEZ1SAc8BDd8x-Fn3r-AteEiUDqCcciJ5ZxG5XR1z-zd8jgca1kjKfYiVg'
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
+async function subscribeToPush(profileId: string) {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    const reg = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
+    let permission = Notification.permission
+    if (permission === 'default') {
+      permission = await Notification.requestPermission()
+    }
+    if (permission !== 'granted') return
+
+    let sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      })
+    }
+    const json = sub.toJSON()
+    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return
+    await supabase.from('push_subscriptions').upsert(
+      { profile_id: profileId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
+      { onConflict: 'endpoint' }
+    )
+  } catch (e) {
+    console.error('Abonnement aux notifications push impossible', e)
+  }
+}
+
 function App() {
   const [juggleAlert, setJuggleAlert] = useState<{ profileId: string; pseudo: string } | null>(null)
   const [myPseudo, setMyPseudo] = useState<string | null>(null)
@@ -163,6 +204,11 @@ function App() {
   useEffect(() => {
     if (!session?.user?.id) { setNotifications([]); return }
     loadNotifications()
+  }, [session?.user?.id])
+
+  useEffect(() => {
+    if (!session?.user?.id) return
+    subscribeToPush(session.user.id)
   }, [session?.user?.id])
 
   const markNotifRead = async (id: string) => {
