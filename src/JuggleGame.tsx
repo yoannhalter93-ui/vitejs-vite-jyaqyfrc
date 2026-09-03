@@ -51,11 +51,11 @@ const BALL_SPAWN_INTERVAL = 30 // secondes entre deux nouveaux ballons
 const MAX_BALLS = 3 // on plafonne à 3 ballons (2e à 30s, 3e à 60s) : au-delà ça devient injouable, pas de 4e ballon
 
 function spawnBall(): Ball {
-    // x aléatoire pour ne pas faire apparaître le nouveau ballon exactement
-  // sur un ballon déjà en jeu ; vy négatif pour qu'il "entre" en jeu en
-  // montant d'abord, comme le ballon de départ, plutôt que de tomber du ciel
-  // sans prévenir.
-  return { x: 60 + Math.random() * 180, y: 200, vx: 0, vy: -120, missed: false }
+  // Tombe du haut de l'écran (hors du canvas, y négatif) plutôt qu'au milieu
+      // comme le ballon de départ : sinon le nouveau ballon apparaît collé à
+      // celui déjà en jeu et c'est injouable. x aléatoire pour ne pas réapparaître
+      // toujours au même endroit.
+  return { x: 60 + Math.random() * 180, y: -BALL_RADIUS, vx: 0, vy: 0, missed: false }
 }
 
 export default function JuggleGame({ groupId, groupName }: Props) {
