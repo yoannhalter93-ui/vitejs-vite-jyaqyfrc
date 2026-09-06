@@ -17,9 +17,10 @@ interface Props {
   groupId: string
   groupName: string
   onBonusUsed?: () => void
+  onVoteOrCreate?: () => void
 }
 
-export default function FreeBets({ groupId, groupName, onBonusUsed }: Props) {
+export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCreate }: Props) {
   const { user } = useAuth()
   const [isOwner, setIsOwner] = useState(false)
   const [periodId, setPeriodId] = useState<string | null>(null)
@@ -94,6 +95,7 @@ export default function FreeBets({ groupId, groupName, onBonusUsed }: Props) {
     setDeadline('')
     setShowCreate(false)
     await load()
+    onVoteOrCreate?.()
   }
 
   const vote = async (betId: string, side: string) => {
@@ -102,6 +104,7 @@ export default function FreeBets({ groupId, groupName, onBonusUsed }: Props) {
     const { error: err } = await supabase.from('free_bet_votes').insert({ bet_id: betId, profile_id: user.id, side })
     if (err) setError(err.message)
     await load()
+    onVoteOrCreate?.()
   }
 
   const boostBet = async (betId: string) => {
