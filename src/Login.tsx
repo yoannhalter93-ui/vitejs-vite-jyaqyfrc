@@ -96,6 +96,10 @@ export default function Login() {
         >
           {mode === 'signin' ? "Pas encore de compte ? S'inscrire" : 'Déjà un compte ? Se connecter'}
         </button>
+
+        <a className="login-legal-link" href={`${import.meta.env.BASE_URL}politique-confidentialite.html`} target="_blank" rel="noreferrer">
+          Politique de confidentialité
+        </a>
       </div>
     </div>
   )
