@@ -28,6 +28,17 @@ function monday(): string {
     return d.toISOString().slice(0, 10)
 }
 
+function previousMonday(): string {
+    const d = new Date(monday() + 'T00:00:00Z')
+    d.setUTCDate(d.getUTCDate() - 7)
+    return d.toISOString().slice(0, 10)
+}
+
+interface BestScore {
+    pseudo: string
+    score: number
+}
+
 // Constantes de jeu — toute la physique tourne dans cet espace fixe en
 // pixels "logiques", jamais dans l'espace visuel affiché à l'écran (voir
 // handleCanvasTap : le ratio réel est recalculé à chaque tap depuis
@@ -67,6 +78,11 @@ export default function JuggleGame({ groupId, groupName }: Props) {
     const [ballCount, setBallCount] = useState(1)
     const [finalScore, setFinalScore] = useState<number | null>(null)
     const [scores, setScores] = useState<ScoreRow[]>([])
+    // palmarès : meilleur score de la semaine précédente (pour se souvenir
+    // avec quel score le précédent gagnant a fini, une fois le tableau de
+    // cette semaine reparti à zéro) + record absolu du groupe
+    const [lastWeekBest, setLastWeekBest] = useState<BestScore | null>(null)
+    const [allTimeBest, setAllTimeBest] = useState<BestScore | null>(null)
     const [wizzShake, setWizzShake] = useState(false)
     const [wizzCooldown, setWizzCooldown] = useState(0)
     const [wizzFrom, setWizzFrom] = useState<string | null>(null)
@@ -91,13 +107,24 @@ export default function JuggleGame({ groupId, groupName }: Props) {
   const wizzChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   const loadScores = async () => {
-        const { data: period } = await supabase.from('group_periods').select('id').eq('group_id', groupId).eq('is_current', true).maybeSingle()
         const { data: s } = await supabase.from('juggle_scores').select('profile_id, score')
           .eq('group_id', groupId).eq('week_start', monday()).order('score', { ascending: false })
-        const ids = [...new Set((s ?? []).map((r) => r.profile_id))]
+        // palmarès : meilleur score de la semaine précédente (le tableau de
+        // cette semaine étant reparti à zéro) et record absolu du groupe,
+        // toutes semaines confondues
+        const { data: lastWeekRows } = await supabase.from('juggle_scores').select('profile_id, score')
+          .eq('group_id', groupId).eq('week_start', previousMonday()).order('score', { ascending: false }).limit(1)
+        const { data: allTimeRows } = await supabase.from('juggle_scores').select('profile_id, score')
+          .eq('group_id', groupId).order('score', { ascending: false }).limit(1)
+
+        const ids = new Set<string>()
+        for (const r of s ?? []) ids.add(r.profile_id)
+        for (const r of lastWeekRows ?? []) ids.add(r.profile_id)
+        for (const r of allTimeRows ?? []) ids.add(r.profile_id)
+
         let pseudos: Record<string, string> = {}
-              if (ids.length > 0) {
-                      const { data: profs } = await supabase.from('profiles').select('id, pseudo').in('id', ids)
+              if (ids.size > 0) {
+                      const { data: profs } = await supabase.from('profiles').select('id, pseudo').in('id', [...ids])
                       pseudos = Object.fromEntries((profs ?? []).map((p) => [p.id, p.pseudo]))
               }
         const best: Record<string, number> = {}
@@ -105,7 +132,17 @@ export default function JuggleGame({ groupId, groupName }: Props) {
         const rows = Object.entries(best).map(([profile_id, sc]) => ({ profile_id, score: sc, pseudo: pseudos[profile_id] ?? '???' }))
         rows.sort((a, b) => b.score - a.score)
         setScores(rows)
-        void period
+
+        setLastWeekBest(
+          lastWeekRows && lastWeekRows[0]
+            ? { pseudo: pseudos[lastWeekRows[0].profile_id] ?? '???', score: lastWeekRows[0].score }
+            : null
+        )
+        setAllTimeBest(
+          allTimeRows && allTimeRows[0]
+            ? { pseudo: pseudos[allTimeRows[0].profile_id] ?? '???', score: allTimeRows[0].score }
+            : null
+        )
   }
 
   useEffect(() => {
@@ -457,6 +494,28 @@ export default function JuggleGame({ groupId, groupName }: Props) {
         finalScore !== null &&
           !playing &&
           createElement('p', { className: 'match-result' }, 'Score final : ', finalScore, ' jonglages'),
+        (allTimeBest || lastWeekBest) &&
+          createElement(
+                    'div',
+            { className: 'juggle-palmares' },
+                    createElement('p', { className: 'predictions-period' }, '🏆 Palmarès'),
+                    allTimeBest &&
+                      createElement(
+                                  'p',
+                        { className: 'juggle-palmares-row' },
+                                  'Record du groupe : ',
+                                  createElement('b', null, allTimeBest.score),
+                                  ' (', allTimeBest.pseudo, ')'
+                                ),
+                    lastWeekBest &&
+                      createElement(
+                                  'p',
+                        { className: 'juggle-palmares-row' },
+                                  'Semaine dernière : ',
+                                  createElement('b', null, lastWeekBest.score),
+                                  ' (', lastWeekBest.pseudo, ')'
+                                )
+                  ),
         scores.length > 0 &&
           createElement(
                     'div',
