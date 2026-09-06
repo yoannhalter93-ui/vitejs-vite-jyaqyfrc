@@ -98,9 +98,14 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
       setQuestion(null)
       return
     }
-    const q = data as { question: string; options: string[] }
+    // le serveur renvoie le temps RÉELLEMENT restant (pas toujours 10) :
+    // si on avait quitté l'appli pendant cette question et qu'on y revient
+    // après le délai, il renvoie 0, ce qui déclenche l'auto-passage
+    // immédiat à la question suivante au lieu d'un faux compte à rebours
+    // flambant neuf
+    const q = data as { question: string; options: string[]; seconds_left: number }
     setQuestion({ order, question: q.question, options: q.options })
-    setTimeLeft(10)
+    setTimeLeft(q.seconds_left ?? 10)
   }
 
   const refresh = async (id: string) => {
