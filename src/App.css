@@ -491,6 +491,10 @@ body {
   font-weight: 700;
 }
 
+.classement-tabs {
+  margin-bottom: 14px;
+}
+
 .roulette-result {
   display: flex;
   flex-direction: column;
@@ -759,6 +763,35 @@ body {
   font-size: 12px;
   font-weight: 600;
   color: #D4A22C;
+}
+
+.bet-tabs {
+  margin-bottom: 14px;
+}
+
+.bet-reveal-btn {
+  margin-top: 8px;
+}
+
+.bet-reveal-list {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #E8E0CC;
+  list-style: none;
+}
+
+.bet-reveal-row {
+  font-size: 13px;
+  padding: 3px 0;
+}
+
+.bet-reveal-oui {
+  color: #2F8F5B;
+}
+
+.bet-reveal-non {
+  color: #C1443C;
 }
 
 .home-header {
