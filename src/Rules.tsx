@@ -53,12 +53,20 @@ export default function Rules({ onBack }: Props) {
           Chaque semaine, un adversaire du groupe t'est tiré au sort automatiquement — jamais deux fois la même personne tant que tu n'as pas croisé tout le monde. Chacun tire 3 penaltys sur l'autre, dans n'importe quel ordre : pas besoin d'attendre ton tour, tire quand tu veux, et dès que ton adversaire a tiré les siens tu peux deviner où il a visé. Le tireur vise une zone, le gardien plonge sans savoir laquelle :
         </p>
         <ul className="rules-points">
-          <li>But au milieu — 2 points</li>
-          <li>But dans un coin — 1 point</li>
-          <li>Arrêté — 0 point</li>
+          <li>But au milieu — 2 points du duel</li>
+          <li>But dans un coin — 1 point du duel</li>
+          <li>Arrêté — 0 point du duel</li>
         </ul>
         <p className="rules-section-text">
-          Celui qui totalise le plus de points sur les 6 tirs gagne le duel et remporte 1 🪙 jeton.
+          Celui qui totalise le plus de points sur les 6 tirs gagne le duel — ces points ne servent qu'à ça. Au classement général, seul le résultat du duel compte :
+        </p>
+        <ul className="rules-points">
+          <li>Victoire — 3 points</li>
+          <li>Match nul — 1 point</li>
+          <li>Défaite — 0 point</li>
+        </ul>
+        <p className="rules-section-text">
+          Le gagnant remporte aussi 1 🪙 jeton.
         </p>
       </div>
 
@@ -68,7 +76,7 @@ export default function Rules({ onBack }: Props) {
           Chaque semaine, un adversaire du groupe t'est tiré au sort automatiquement — jamais deux fois la même personne tant que tu n'as pas croisé tout le monde. Duel à 10 questions, 10 secondes pour répondre à chacune. Celui qui a le plus de bonnes réponses gagne :
         </p>
         <ul className="rules-points">
-          <li>Victoire — 2 points</li>
+          <li>Victoire — 3 points</li>
           <li>Match nul — 1 point</li>
           <li>Défaite — 0 point</li>
         </ul>
@@ -87,7 +95,7 @@ export default function Rules({ onBack }: Props) {
       <div className="rules-section">
         <h3 className="rules-section-title">🤹 Jonglages</h3>
         <p className="rules-section-text">
-          Mini-jeu solo : garde les ballons en l'air en tapant dessus au bon moment. Pas de chrono : un 2e ballon entre en jeu au bout de 30 secondes, un 3e au bout d'une minute, et la partie s'arrête dès qu'un seul ballon touche le sol. Chaque semaine, le meilleur score du groupe rapporte 2 points au classement et 2 🪙 jetons à son auteur.
+          Mini-jeu solo : garde les ballons en l'air en tapant dessus au bon moment. Pas de chrono : un 2e ballon entre en jeu au bout de 30 secondes, un 3e au bout d'une minute, et la partie s'arrête dès qu'un seul ballon touche le sol. Chaque semaine, le meilleur score du groupe rapporte 3 points au classement et 2 🪙 jetons à son auteur (en cas d'égalité au sommet, tous les joueurs à égalité gagnent).
         </p>
       </div>
 
