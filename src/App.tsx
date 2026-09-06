@@ -66,14 +66,26 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
       (navigator as any).standalone === true
     if (isIOS && !isStandalone) return 'ios-needs-install'
 
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported'
-    const reg = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return 'unsupported'
+
+    // On demande la permission EN TOUT PREMIER, avant le moindre `await` —
+    // y compris avant l'enregistrement du service worker. Certains
+    // navigateurs (Safari en particulier) n'honorent
+    // Notification.requestPermission() que s'il est appelé au tout début de
+    // la pile d'appel du clic utilisateur : un `await` intercalé avant,
+    // même rapide, peut suffire à leur faire perdre la trace du geste
+    // utilisateur et bloquer l'appel sans la moindre erreur visible — ce qui
+    // correspond exactement au symptôme observé (0 abonnement enregistré,
+    // aucune erreur).
     let permission = Notification.permission
     if (permission === 'default') {
       if (!promptIfDefault) return 'needs-permission'
       permission = await Notification.requestPermission()
     }
     if (permission !== 'granted') return 'denied'
+
+    const reg = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
+    await navigator.serviceWorker.ready
 
     let sub = await reg.pushManager.getSubscription()
     if (!sub) {
@@ -84,10 +96,19 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
     }
     const json = sub.toJSON()
     if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return 'error'
-    await supabase.from('push_subscriptions').upsert(
+
+    // Avant, l'erreur éventuelle de cet upsert (ex : bloqué par une policy
+    // RLS) n'était jamais vérifiée — la fonction renvoyait 'ok' même si rien
+    // n'avait été réellement enregistré en base, ce qui rendait ce genre de
+    // panne totalement invisible.
+    const { error } = await supabase.from('push_subscriptions').upsert(
       { profile_id: profileId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
       { onConflict: 'endpoint' }
     )
+    if (error) {
+      console.error('Abonnement push créé côté navigateur mais refusé à l\'enregistrement', error)
+      return 'error'
+    }
     return 'ok'
   } catch (e) {
     console.error('Abonnement aux notifications push impossible', e)
@@ -371,6 +392,21 @@ function App() {
       {!pushTipDismissed && pushStatus === 'denied' && (
         <div className="push-tip">
           <span>🔕 Notifications désactivées pour ce site — active-les dans les réglages de ton navigateur si tu veux recevoir les alertes.</span>
+          <button className="wizz-alert-close" onClick={() => setPushTipDismissed(true)} aria-label="Fermer">✕</button>
+        </div>
+      )}
+      {!pushTipDismissed && pushStatus === 'unsupported' && (
+        <div className="push-tip">
+          <span>🔕 Ce navigateur ne permet pas les notifications sur ce site.</span>
+          <button className="wizz-alert-close" onClick={() => setPushTipDismissed(true)} aria-label="Fermer">✕</button>
+        </div>
+      )}
+      {!pushTipDismissed && pushStatus === 'error' && (
+        <div className="push-tip">
+          <span>⚠️ Impossible d'activer les notifications pour l'instant.</span>
+          <button className="groups-action-btn groups-action-btn-secondary" disabled={pushEnabling} onClick={enablePushNow}>
+            {pushEnabling ? '...' : 'Réessayer'}
+          </button>
           <button className="wizz-alert-close" onClick={() => setPushTipDismissed(true)} aria-label="Fermer">✕</button>
         </div>
       )}
