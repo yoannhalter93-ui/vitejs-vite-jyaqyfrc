@@ -19,6 +19,13 @@ interface PredictionRow {
   pred_away_score: number
 }
 
+interface RevealRow {
+  profile_id: string
+  pseudo: string
+  pred_home_score: number
+  pred_away_score: number
+}
+
 interface Props {
   groupId: string
   groupName: string
@@ -34,6 +41,12 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
+
+  // révélation des pronostics des autres, uniquement pour un match résolu —
+  // même principe que pour les paris libres / le récap de quiz
+  const [reveals, setReveals] = useState<Record<string, RevealRow[]>>({})
+  const [revealLoading, setRevealLoading] = useState<string | null>(null)
+  const [revealError, setRevealError] = useState<string | null>(null)
 
   const load = async () => {
     if (!user) return
@@ -143,6 +156,23 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
     setSavingId(null)
   }
 
+  const toggleReveal = async (matchId: string) => {
+    if (reveals[matchId]) {
+      setReveals((prev) => {
+        const next = { ...prev }
+        delete next[matchId]
+        return next
+      })
+      return
+    }
+    setRevealLoading(matchId)
+    setRevealError(null)
+    const { data, error: err } = await supabase.rpc('get_match_predictions_reveal', { p_match_id: matchId })
+    if (err) setRevealError(err.message)
+    setReveals((prev) => ({ ...prev, [matchId]: (data ?? []) as RevealRow[] }))
+    setRevealLoading(null)
+  }
+
   return (
     <div className="predictions-screen">
       <div className="predictions-header">
@@ -153,6 +183,7 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
       {periodLabel && <p className="predictions-period">Période : {periodLabel}</p>}
 
       {error && <p className="groups-error">{error}</p>}
+      {revealError && <p className="groups-error">{revealError}</p>}
 
       {loading ? (
         <p className="groups-loading">Chargement des matchs...</p>
@@ -183,14 +214,36 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
                 </div>
 
                 {m.status === 'resolved' ? (
-                  <div className="match-result">
-                    Score final : {m.real_home_score} - {m.real_away_score}
-                    {hasPrediction && (
-                      <span className="match-my-pred">
-                        {' '}(ton pronostic : {predictions[m.id].pred_home_score} - {predictions[m.id].pred_away_score})
-                      </span>
+                  <>
+                    <div className="match-result">
+                      Score final : {m.real_home_score} - {m.real_away_score}
+                      {hasPrediction && (
+                        <span className="match-my-pred">
+                          {' '}(ton pronostic : {predictions[m.id].pred_home_score} - {predictions[m.id].pred_away_score})
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      className="groups-action-btn groups-action-btn-secondary bet-reveal-btn"
+                      disabled={revealLoading === m.id}
+                      onClick={() => toggleReveal(m.id)}
+                    >
+                      {revealLoading === m.id ? '...' : reveals[m.id] ? 'Masquer les pronostics' : 'Voir les pronostics des autres'}
+                    </button>
+                    {reveals[m.id] && (
+                      <ul className="bet-reveal-list">
+                        {reveals[m.id].length === 0 ? (
+                          <li className="groups-empty">Personne n'a pronostiqué ce match.</li>
+                        ) : (
+                          reveals[m.id].map((r) => (
+                            <li className="bet-reveal-row" key={r.profile_id}>
+                              {r.pseudo} — {r.pred_home_score} - {r.pred_away_score}
+                            </li>
+                          ))
+                        )}
+                      </ul>
                     )}
-                  </div>
+                  </>
                 ) : isOpen ? (
                   <div className="match-predict">
                     <input
