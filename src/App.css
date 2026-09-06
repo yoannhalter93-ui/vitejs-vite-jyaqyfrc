@@ -139,6 +139,15 @@ body {
   color: #D4A22C;
 }
 
+.login-legal-link {
+  display: block;
+  margin-top: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(27, 27, 31, 0.4);
+  text-decoration: underline;
+}
+
 .home-screen {
   min-height: 100vh;
 }
