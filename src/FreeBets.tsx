@@ -28,6 +28,7 @@ interface Props {
 
 export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCreate }: Props) {
   const { user } = useAuth()
+  const [isAdmin, setIsAdmin] = useState(false)
   const [periodId, setPeriodId] = useState<string | null>(null)
   const [bets, setBets] = useState<Bet[]>([])
   const [myVotes, setMyVotes] = useState<Record<string, string>>({})
@@ -51,6 +52,9 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     if (!user) return
     setLoading(true)
     setError(null)
+
+    const { data: mem } = await supabase.from('group_members').select('role').eq('group_id', groupId).eq('profile_id', user.id).maybeSingle()
+    setIsAdmin(mem?.role === 'owner' || mem?.role === 'admin')
 
     const { data: period } = await supabase.from('group_periods').select('id').eq('group_id', groupId).eq('is_current', true).maybeSingle()
     setPeriodId(period?.id ?? null)
@@ -100,9 +104,14 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     e.preventDefault()
     if (!user || !periodId || !text.trim() || !deadline) return
     setError(null)
+    // celui qui propose le pari est seul responsable d'en confirmer le
+    // résultat une fois l'échéance passée ("mode confiance") — en cas de
+    // litige ou d'absence de confirmation, un owner/admin du groupe peut
+    // trancher (voir resolveContested)
     const { error: err } = await supabase.from('free_bets').insert({
       group_id: groupId, author_id: user.id, text: text.trim(),
-      deadline: new Date(deadline).toISOString(), validation_mode: 'majorite', status: 'open', period_id: periodId,
+      deadline: new Date(deadline).toISOString(), validation_mode: 'confiance', validator_id: user.id,
+      status: 'open', period_id: periodId,
     })
     if (err) setError(err.message)
     setText('')
@@ -134,6 +143,17 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     if (!user) return
     setError(null)
     const { error: err } = await supabase.from('free_bet_resolutions').insert({ bet_id: betId, profile_id: user.id, confirmed_side: side })
+    if (err) setError(err.message)
+    await load()
+  }
+
+  // un pari passe en litige si personne n'a confirmé à temps (ou, pour les
+  // anciens paris en mode "majorité", en cas d'égalité) — seul un owner/admin
+  // du groupe peut alors trancher définitivement
+  const resolveContested = async (betId: string, side: string) => {
+    if (!user) return
+    setError(null)
+    const { error: err } = await supabase.rpc('resolve_contested_bet', { p_bet_id: betId, p_winning_side: side })
     if (err) setError(err.message)
     await load()
   }
@@ -179,11 +199,26 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
           </div>
         )}
         {b.status === 'closed' && (
-          <div className="match-predict">
-            <span>Confirmer le résultat :</span>
-            <button className="groups-action-btn groups-action-btn-secondary" onClick={() => confirmResult(b.id, 'oui')}>Oui</button>
-            <button className="groups-action-btn groups-action-btn-secondary" onClick={() => confirmResult(b.id, 'non')}>Non</button>
-          </div>
+          b.validation_mode === 'confiance' && user?.id !== b.validator_id ? (
+            <div className="match-cancelled">En attente de la confirmation de l'auteur du pari</div>
+          ) : (
+            <div className="match-predict">
+              <span>Confirmer le résultat :</span>
+              <button className="groups-action-btn groups-action-btn-secondary" onClick={() => confirmResult(b.id, 'oui')}>Oui</button>
+              <button className="groups-action-btn groups-action-btn-secondary" onClick={() => confirmResult(b.id, 'non')}>Non</button>
+            </div>
+          )
+        )}
+        {b.status === 'contested' && (
+          isAdmin ? (
+            <div className="match-predict">
+              <span>Pari en litige — trancher :</span>
+              <button className="groups-action-btn groups-action-btn-secondary" onClick={() => resolveContested(b.id, 'oui')}>Oui</button>
+              <button className="groups-action-btn groups-action-btn-secondary" onClick={() => resolveContested(b.id, 'non')}>Non</button>
+            </div>
+          ) : (
+            <div className="match-cancelled">Pari en litige — en attente de la décision d'un admin du groupe</div>
+          )
         )}
         {b.actual_result && <div className="match-result">Résultat : {b.actual_result}</div>}
         {locked && (
