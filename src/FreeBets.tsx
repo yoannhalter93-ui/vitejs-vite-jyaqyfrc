@@ -28,7 +28,6 @@ interface Props {
 
 export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCreate }: Props) {
   const { user } = useAuth()
-  const [isOwner, setIsOwner] = useState(false)
   const [periodId, setPeriodId] = useState<string | null>(null)
   const [bets, setBets] = useState<Bet[]>([])
   const [myVotes, setMyVotes] = useState<Record<string, string>>({})
@@ -52,9 +51,6 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     if (!user) return
     setLoading(true)
     setError(null)
-
-    const { data: mem } = await supabase.from('group_members').select('role').eq('group_id', groupId).eq('profile_id', user.id).maybeSingle()
-    setIsOwner(mem?.role === 'owner')
 
     const { data: period } = await supabase.from('group_periods').select('id').eq('group_id', groupId).eq('is_current', true).maybeSingle()
     setPeriodId(period?.id ?? null)
@@ -222,9 +218,7 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
       {error && <p className="groups-error">{error}</p>}
       {revealError && <p className="groups-error">{revealError}</p>}
 
-      {isOwner && (
-        <button className="groups-action-btn" onClick={() => setShowCreate((v) => !v)}>+ Proposer un pari</button>
-      )}
+      <button className="groups-action-btn" onClick={() => setShowCreate((v) => !v)}>+ Proposer un pari</button>
 
       {showCreate && (
         <form className="groups-form" onSubmit={createBet}>
