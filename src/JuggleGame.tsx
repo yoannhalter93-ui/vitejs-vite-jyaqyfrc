@@ -476,7 +476,7 @@ export default function JuggleGame({ groupId, groupName }: Props) {
               ),
         createElement(
                 'div',
-          { className: 'match-predict' },
+          { className: 'match-predict juggle-stats' },
                 playing
                   ? createElement(
                                 Fragment,
