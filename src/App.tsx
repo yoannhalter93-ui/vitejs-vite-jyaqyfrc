@@ -52,7 +52,15 @@ type PushStatus = 'ok' | 'unsupported' | 'ios-needs-install' | 'needs-permission
 // silencieusement ignoré ou bloqué par la plupart des navigateurs récents
 // (Chrome notamment), ce qui expliquait sans doute pourquoi personne
 // n'avait jamais d'abonnement enregistré malgré aucune erreur visible.
-async function subscribeToPush(profileId: string, promptIfDefault = false): Promise<PushStatus> {
+interface PushResult {
+  status: PushStatus
+  // message technique brut, affiché tel quel dans la bannière d'erreur pour
+  // pouvoir diagnostiquer à distance (par capture d'écran) sans avoir besoin
+  // d'ouvrir la console du navigateur
+  detail?: string
+}
+
+async function subscribeToPush(profileId: string, promptIfDefault = false): Promise<PushResult> {
   try {
     // Sur iPhone/iPad, Safari ne supporte les notifications push QUE si le
     // site a été ajouté à l'écran d'accueil et tourne en mode "app installée"
@@ -64,9 +72,9 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (navigator as any).standalone === true
-    if (isIOS && !isStandalone) return 'ios-needs-install'
+    if (isIOS && !isStandalone) return { status: 'ios-needs-install' }
 
-    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return 'unsupported'
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return { status: 'unsupported' }
 
     // On demande la permission EN TOUT PREMIER, avant le moindre `await` —
     // y compris avant l'enregistrement du service worker. Certains
@@ -79,10 +87,10 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
     // aucune erreur).
     let permission = Notification.permission
     if (permission === 'default') {
-      if (!promptIfDefault) return 'needs-permission'
+      if (!promptIfDefault) return { status: 'needs-permission' }
       permission = await Notification.requestPermission()
     }
-    if (permission !== 'granted') return 'denied'
+    if (permission !== 'granted') return { status: 'denied' }
 
     const reg = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
     await navigator.serviceWorker.ready
@@ -95,7 +103,9 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
       })
     }
     const json = sub.toJSON()
-    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return 'error'
+    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+      return { status: 'error', detail: 'Abonnement navigateur incomplet (endpoint/clés manquants)' }
+    }
 
     // Avant, l'erreur éventuelle de cet upsert (ex : bloqué par une policy
     // RLS) n'était jamais vérifiée — la fonction renvoyait 'ok' même si rien
@@ -107,12 +117,13 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
     )
     if (error) {
       console.error('Abonnement push créé côté navigateur mais refusé à l\'enregistrement', error)
-      return 'error'
+      return { status: 'error', detail: `Enregistrement refusé : ${error.message}` }
     }
-    return 'ok'
+    return { status: 'ok' }
   } catch (e) {
     console.error('Abonnement aux notifications push impossible', e)
-    return 'error'
+    const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
+    return { status: 'error', detail }
   }
 }
 
@@ -280,19 +291,21 @@ function App() {
   }, [session?.user?.id])
 
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
+  const [pushErrorDetail, setPushErrorDetail] = useState<string | null>(null)
   const [pushTipDismissed, setPushTipDismissed] = useState(false)
   const [pushEnabling, setPushEnabling] = useState(false)
 
   useEffect(() => {
     if (!session?.user?.id) return
-    subscribeToPush(session.user.id).then(setPushStatus)
+    subscribeToPush(session.user.id).then((r) => { setPushStatus(r.status); setPushErrorDetail(r.detail ?? null) })
   }, [session?.user?.id])
 
   const enablePushNow = async () => {
     if (!session?.user?.id || pushEnabling) return
     setPushEnabling(true)
-    const status = await subscribeToPush(session.user.id, true)
-    setPushStatus(status)
+    const r = await subscribeToPush(session.user.id, true)
+    setPushStatus(r.status)
+    setPushErrorDetail(r.detail ?? null)
     setPushEnabling(false)
   }
 
@@ -403,7 +416,10 @@ function App() {
       )}
       {!pushTipDismissed && pushStatus === 'error' && (
         <div className="push-tip">
-          <span>⚠️ Impossible d'activer les notifications pour l'instant.</span>
+          <span>
+            ⚠️ Impossible d'activer les notifications pour l'instant.
+            {pushErrorDetail && <><br /><small>({pushErrorDetail})</small></>}
+          </span>
           <button className="groups-action-btn groups-action-btn-secondary" disabled={pushEnabling} onClick={enablePushNow}>
             {pushEnabling ? '...' : 'Réessayer'}
           </button>
