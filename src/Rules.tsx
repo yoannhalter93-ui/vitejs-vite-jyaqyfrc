@@ -88,7 +88,7 @@ export default function Rules({ onBack }: Props) {
       <div className="rules-section">
         <h3 className="rules-section-title">🤝 Paris libres</h3>
         <p className="rules-section-text">
-          N'importe qui propose un pari « oui / non » avec une deadline, et les membres votent avant l'échéance (il faut qu'au moins la moitié du groupe vote, sinon le pari est annulé). Plus un camp est minoritaire, plus il rapporte de points. Une fois la deadline passée, il faut confirmer ce qui s'est vraiment passé — vote à la majorité ou décision d'un validateur désigné selon le mode du groupe, et en cas de litige le propriétaire du groupe tranche. Les gagnants empochent les points de la cote, doublés avec le bonus « Double ou rien ».
+          N'importe qui propose un pari « oui / non » avec une deadline, et les membres votent avant l'échéance (il faut qu'au moins la moitié du groupe vote, sinon le pari est annulé). Plus un camp est minoritaire, plus il rapporte de points. Une fois la deadline passée, c'est l'auteur du pari — et lui seul — qui confirme ce qui s'est vraiment passé. S'il ne confirme pas à temps, ou en cas de litige, un owner/admin du groupe tranche à sa place. Les gagnants empochent les points de la cote, doublés avec le bonus « Double ou rien ».
         </p>
       </div>
 
