@@ -449,6 +449,7 @@ body {
 }
 
 .group-nav-tab {
+  position: relative;
   background: #F4EFE2;
   border: 1px solid rgba(27, 27, 31, 0.15);
   color: rgba(27, 27, 31, 0.6);
@@ -1170,4 +1171,35 @@ body {
 
 .penalty-dot-current {
   background: #F4EFE2;
+}
+
+.juggle-palmares {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #E8E0CC;
+  border: 1px solid rgba(27, 27, 31, 0.1);
+}
+
+.juggle-palmares-row {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #1B1B1F;
+}
+
+.push-tip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #F4EFE2;
+  border: 1px solid rgba(212, 162, 44, 0.4);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #1B1B1F;
+}
+
+.push-tip span {
+  flex: 1;
 }
