@@ -138,6 +138,35 @@ function App() {
     name: string;
   } | null>(null);
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // Suppression de compte en 2 temps (voir la migration
+  // account_deletion_support côté base) : d'abord la RPC qui anonymise le
+  // profil et fait quitter tous les groupes (tourne avec la session en
+  // cours, pour que auth.uid() soit bien renseigné), puis la fonction Edge
+  // qui supprime réellement la ligne auth.users (email, mot de passe) — la
+  // seule étape qui coupe vraiment l'accès au compte.
+  const handleDeleteAccount = async () => {
+    setDeleteBusy(true)
+    setDeleteError(null)
+    try {
+      const { error: rpcErr } = await supabase.rpc('delete_my_account_data')
+      if (rpcErr) throw rpcErr
+      const { data: fnData, error: fnErr } = await supabase.functions.invoke('delete-account')
+      if (fnErr) throw fnErr
+      if (fnData?.error) throw new Error(fnData.error)
+      await signOut()
+    } catch (e: any) {
+      setDeleteError(
+        e?.message ||
+        'Suppression impossible pour le moment. Tes données ont peut-être déjà été effacées mais ton compte existe peut-être encore — réessaie, ou contacte-nous si ça persiste.'
+      )
+      setDeleteBusy(false)
+    }
+  }
+
   useEffect(() => {
     if (!session?.user?.id) return
     supabase.from('profiles').select('pseudo').eq('id', session.user.id).maybeSingle().then(({ data }) => setMyPseudo(data?.pseudo ?? null))
@@ -558,9 +587,39 @@ function App() {
             )}
           </>
         ) : (
-          <Groups
-            onSelectGroup={(id, name) => setSelectedGroup({ id, name })}
-          />
+          <>
+            <Groups
+              onSelectGroup={(id, name) => setSelectedGroup({ id, name })}
+            />
+            <div className="account-danger-zone">
+              {!showDeleteConfirm ? (
+                <button className="account-delete-link" onClick={() => setShowDeleteConfirm(true)}>
+                  Supprimer mon compte
+                </button>
+              ) : (
+                <div className="account-delete-confirm">
+                  <p>
+                    Cette action est définitive : tu quittes tous tes groupes, ton pseudo et tes
+                    abonnements aux notifications sont supprimés, et tu ne pourras plus te
+                    reconnecter avec ce compte.
+                  </p>
+                  {deleteError && <p className="groups-error">{deleteError}</p>}
+                  <div className="account-delete-actions">
+                    <button
+                      className="groups-action-btn groups-action-btn-secondary"
+                      disabled={deleteBusy}
+                      onClick={() => { setShowDeleteConfirm(false); setDeleteError(null) }}
+                    >
+                      Annuler
+                    </button>
+                    <button className="account-delete-confirm-btn" disabled={deleteBusy} onClick={handleDeleteAccount}>
+                      {deleteBusy ? 'Suppression...' : 'Oui, supprimer définitivement'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </main>
     </div>
