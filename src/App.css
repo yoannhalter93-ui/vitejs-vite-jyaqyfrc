@@ -404,6 +404,16 @@ body {
   gap: 8px;
 }
 
+/* Jonglages : la ligne Score / Temps / Ballons est affichée directement sur
+   le fond vert foncé de la page (pas dans une carte claire comme ailleurs),
+   donc contrairement à .match-predict elle a besoin d'une couleur de texte
+   explicite — sans ça certains navigateurs/thèmes forcés l'affichent en
+   noir, illisible sur le vert. */
+.juggle-stats {
+  color: #F4EFE2;
+  font-weight: 600;
+}
+
 .match-score-input {
   width: 48px;
   padding: 8px;
