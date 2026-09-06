@@ -44,15 +44,36 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray
 }
 
-async function subscribeToPush(profileId: string) {
+type PushStatus = 'ok' | 'unsupported' | 'ios-needs-install' | 'needs-permission' | 'denied' | 'error'
+
+// promptIfDefault ne doit être `true` que lors d'un appel déclenché par un
+// vrai clic utilisateur (bouton "Activer les notifications") : demander la
+// permission automatiquement au chargement (sans geste utilisateur) est
+// silencieusement ignoré ou bloqué par la plupart des navigateurs récents
+// (Chrome notamment), ce qui expliquait sans doute pourquoi personne
+// n'avait jamais d'abonnement enregistré malgré aucune erreur visible.
+async function subscribeToPush(profileId: string, promptIfDefault = false): Promise<PushStatus> {
   try {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    // Sur iPhone/iPad, Safari ne supporte les notifications push QUE si le
+    // site a été ajouté à l'écran d'accueil et tourne en mode "app installée"
+    // (display standalone) — dans un onglet Safari normal, PushManager
+    // n'existe même pas, donc rien ne se passe silencieusement sans ce
+    // détecteur (c'est la cause la plus probable d'un "je ne reçois pas les
+    // push" sur iPhone).
+    const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent)
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as any).standalone === true
+    if (isIOS && !isStandalone) return 'ios-needs-install'
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported'
     const reg = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
     let permission = Notification.permission
     if (permission === 'default') {
+      if (!promptIfDefault) return 'needs-permission'
       permission = await Notification.requestPermission()
     }
-    if (permission !== 'granted') return
+    if (permission !== 'granted') return 'denied'
 
     let sub = await reg.pushManager.getSubscription()
     if (!sub) {
@@ -62,13 +83,15 @@ async function subscribeToPush(profileId: string) {
       })
     }
     const json = sub.toJSON()
-    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return
+    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return 'error'
     await supabase.from('push_subscriptions').upsert(
       { profile_id: profileId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
       { onConflict: 'endpoint' }
     )
+    return 'ok'
   } catch (e) {
     console.error('Abonnement aux notifications push impossible', e)
+    return 'error'
   }
 }
 
@@ -124,6 +147,29 @@ function App() {
   }
 
   const [screen, setScreen] = useState<Screen>('pronostics');
+
+  // nombre de paris libres ouverts sur lesquels je n'ai pas encore voté,
+  // pour afficher un petit badge sur l'onglet "Paris libres" (même principe
+  // que le badge de la cloche de notifications)
+  const [openBetsToVoteCount, setOpenBetsToVoteCount] = useState(0)
+
+  const refreshOpenBetsToVoteCount = async () => {
+    if (!selectedGroup?.id || !session?.user?.id) { setOpenBetsToVoteCount(0); return }
+    const { data: b } = await supabase
+      .from('free_bets').select('id, deadline')
+      .eq('group_id', selectedGroup.id).eq('status', 'open')
+    const openIds = (b ?? []).filter((x: any) => new Date(x.deadline) > new Date()).map((x: any) => x.id)
+    if (openIds.length === 0) { setOpenBetsToVoteCount(0); return }
+    const { data: myVotes } = await supabase
+      .from('free_bet_votes').select('bet_id').eq('profile_id', session.user.id).in('bet_id', openIds)
+    const voted = new Set((myVotes ?? []).map((v: any) => v.bet_id))
+    setOpenBetsToVoteCount(openIds.filter((id: string) => !voted.has(id)).length)
+  }
+
+  useEffect(() => {
+    refreshOpenBetsToVoteCount()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGroup?.id, session?.user?.id, screen])
 
   const BONUS_CODES = ['echange_equipe', 'retirage_force', 'double_ou_rien', 'bonus_inverse']
   const [tokenBalance, setTokenBalance] = useState<number | null>(null)
@@ -212,10 +258,22 @@ function App() {
     loadNotifications()
   }, [session?.user?.id])
 
+  const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
+  const [pushTipDismissed, setPushTipDismissed] = useState(false)
+  const [pushEnabling, setPushEnabling] = useState(false)
+
   useEffect(() => {
     if (!session?.user?.id) return
-    subscribeToPush(session.user.id)
+    subscribeToPush(session.user.id).then(setPushStatus)
   }, [session?.user?.id])
+
+  const enablePushNow = async () => {
+    if (!session?.user?.id || pushEnabling) return
+    setPushEnabling(true)
+    const status = await subscribeToPush(session.user.id, true)
+    setPushStatus(status)
+    setPushEnabling(false)
+  }
 
   const markNotifRead = async (id: string) => {
     await supabase.from('notifications').update({ read: true }).eq('id', id)
@@ -295,6 +353,27 @@ function App() {
           Déconnexion
         </button>
       </header>
+      {!pushTipDismissed && pushStatus === 'ios-needs-install' && (
+        <div className="push-tip">
+          <span>📲 Pour recevoir les notifications sur iPhone : appuie sur Partager, puis « Sur l'écran d'accueil », et rouvre l'appli depuis cette icône.</span>
+          <button className="wizz-alert-close" onClick={() => setPushTipDismissed(true)} aria-label="Fermer">✕</button>
+        </div>
+      )}
+      {!pushTipDismissed && pushStatus === 'needs-permission' && (
+        <div className="push-tip">
+          <span>🔔 Active les notifications pour ne rien rater (wizz, résultats, nouveaux duels).</span>
+          <button className="groups-action-btn groups-action-btn-secondary" disabled={pushEnabling} onClick={enablePushNow}>
+            {pushEnabling ? '...' : 'Activer'}
+          </button>
+          <button className="wizz-alert-close" onClick={() => setPushTipDismissed(true)} aria-label="Fermer">✕</button>
+        </div>
+      )}
+      {!pushTipDismissed && pushStatus === 'denied' && (
+        <div className="push-tip">
+          <span>🔕 Notifications désactivées pour ce site — active-les dans les réglages de ton navigateur si tu veux recevoir les alertes.</span>
+          <button className="wizz-alert-close" onClick={() => setPushTipDismissed(true)} aria-label="Fermer">✕</button>
+        </div>
+      )}
       {juggleAlert && (
         <div className="wizz-alert-banner">
           <span>🤹 {juggleAlert.pseudo} joue aux Jonglages !</span>
@@ -373,6 +452,9 @@ function App() {
                     onClick={() => setScreen(s.key)}
                   >
                     {s.label}
+                    {s.key === 'paris' && openBetsToVoteCount > 0 && (
+                      <span className="notif-badge">{openBetsToVoteCount}</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -413,6 +495,7 @@ function App() {
               onBonusUsed={refreshTokenBalance}
                 groupId={selectedGroup.id}
                 groupName={selectedGroup.name}
+                onVoteOrCreate={refreshOpenBetsToVoteCount}
               />
             )}
             {screen === 'jonglages' && (
