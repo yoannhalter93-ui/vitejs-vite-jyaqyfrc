@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
+import TeamBadge from './TeamBadge'
 
 interface MatchRow {
   id: string
@@ -199,8 +200,10 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
             return (
               <li className="match-card" key={m.id}>
                 <div className="match-teams">
+                  <TeamBadge name={m.home_team} />
                   <span>{m.home_team}</span>
                   <span className="match-vs">vs</span>
+                  <TeamBadge name={m.away_team} />
                   <span>{m.away_team}</span>
                 </div>
                 <div className="match-kickoff">
