@@ -28,7 +28,7 @@ const SCREENS: { key: Screen; label: string }[] = [
   { key: 'penalty', label: 'Duel penalty' },
   { key: 'quiz', label: 'Quiz' },
   { key: 'paris', label: 'Paris libres' },
-  { key: 'jonglages', label: 'Jonglages' },
+  { key: 'jonglages', label: 'Mini-jeu' },
 ];
 
 const VAPID_PUBLIC_KEY = 'BODqLXOAm-EvaSnvqqQCmRdfvSPk-QEZ1SAc8BDd8x-Fn3r-AteEiUDqCcciJ5ZxG5XR1z-zd8jgca1kjKfYiVg'
