@@ -7,6 +7,8 @@ interface MatchRow {
   id: string
   home_team: string
   away_team: string
+  home_team_api_id: number | null
+  away_team_api_id: number | null
   kickoff_at: string
   status: 'open' | 'resolved' | 'cancelled'
   real_home_score: number | null
@@ -33,12 +35,31 @@ interface Props {
   onBack: () => void
 }
 
+// Regroupe les matchs par jour (clé = date locale ISO, ex. "2026-09-08"),
+// en conservant l'ordre chronologique déjà renvoyé par la requête.
+function groupByDay(matches: MatchRow[]): { key: string; label: string; matches: MatchRow[] }[] {
+  const groups: { key: string; label: string; matches: MatchRow[] }[] = []
+  for (const m of matches) {
+    const d = new Date(m.kickoff_at)
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+    let group = groups.find((g) => g.key === key)
+    if (!group) {
+      const label = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+      group = { key, label: label.charAt(0).toUpperCase() + label.slice(1), matches: [] }
+      groups.push(group)
+    }
+    group.matches.push(m)
+  }
+  return groups
+}
+
 export default function Predictions({ groupId, groupName, onBack }: Props) {
   const { user } = useAuth()
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [predictions, setPredictions] = useState<Record<string, PredictionRow>>({})
   const [drafts, setDrafts] = useState<Record<string, { home: string; away: string }>>({})
+  const [standings, setStandings] = useState<Record<number, number>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -76,7 +97,7 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
 
     const { data: matchesData, error: matchesError } = await supabase
       .from('matches')
-      .select('id, home_team, away_team, kickoff_at, status, real_home_score, real_away_score')
+      .select('id, home_team, away_team, home_team_api_id, away_team_api_id, kickoff_at, status, real_home_score, real_away_score')
       .eq('group_id', groupId)
       .eq('period_id', period.id)
       .order('kickoff_at', { ascending: true })
@@ -87,6 +108,23 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
       return
     }
     setMatches(matchesData ?? [])
+
+    // classement Ligue 1 (petit "1e", "16e"... à côté de chaque badge) —
+    // uniquement pour les équipes présentes dans les matchs affichés
+    const teamIds = Array.from(
+      new Set(
+        (matchesData ?? []).flatMap((m) => [m.home_team_api_id, m.away_team_api_id]).filter((id): id is number => id != null)
+      )
+    )
+    if (teamIds.length > 0) {
+      const { data: standingsData } = await supabase
+        .from('ligue1_standings')
+        .select('api_team_id, position')
+        .in('api_team_id', teamIds)
+      setStandings(Object.fromEntries((standingsData ?? []).map((s) => [s.api_team_id, s.position])))
+    } else {
+      setStandings({})
+    }
 
     const matchIds = (matchesData ?? []).map((m) => m.id)
     if (matchIds.length > 0) {
@@ -174,6 +212,8 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
     setRevealLoading(null)
   }
 
+  const dayGroups = groupByDay(matches)
+
   return (
     <div className="predictions-screen">
       <div className="predictions-header">
@@ -191,103 +231,136 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
       ) : matches.length === 0 ? (
         <p className="groups-empty">Aucun match pour la période en cours.</p>
       ) : (
-        <ul className="matches-list">
-          {matches.map((m) => {
-            const isOpen = m.status === 'open' && new Date(m.kickoff_at).getTime() > Date.now()
-            const draft = drafts[m.id] ?? { home: '', away: '' }
-            const hasPrediction = !!predictions[m.id]
+        dayGroups.map((group) => {
+          const doneCount = group.matches.filter((m) => !!predictions[m.id]).length
+          return (
+            <div className="match-day-group" key={group.key}>
+              <div className="match-day-header">
+                <span className="match-day-icon">⚽</span>
+                <span className="match-day-label">{group.label}</span>
+                <span className="match-day-count">{doneCount} / {group.matches.length}</span>
+              </div>
 
-            return (
-              <li className="match-card" key={m.id}>
-                <div className="match-teams">
-                  <TeamBadge name={m.home_team} />
-                  <span>{m.home_team}</span>
-                  <span className="match-vs">vs</span>
-                  <TeamBadge name={m.away_team} />
-                  <span>{m.away_team}</span>
-                </div>
-                <div className="match-kickoff">
-                  {new Date(m.kickoff_at).toLocaleString('fr-FR', {
-                    weekday: 'short',
-                    day: 'numeric',
-                    month: 'short',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </div>
+              <ul className="matches-list matches-list-v2">
+                {group.matches.map((m) => {
+                  const isOpen = m.status === 'open' && new Date(m.kickoff_at).getTime() > Date.now()
+                  const draft = drafts[m.id] ?? { home: '', away: '' }
+                  const hasPrediction = !!predictions[m.id]
+                  const homePos = m.home_team_api_id != null ? standings[m.home_team_api_id] : undefined
+                  const awayPos = m.away_team_api_id != null ? standings[m.away_team_api_id] : undefined
+                  const kickoffTime = new Date(m.kickoff_at).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 
-                {m.status === 'resolved' ? (
-                  <>
-                    <div className="match-result">
-                      Score final : {m.real_home_score} - {m.real_away_score}
-                      {hasPrediction && (
-                        <span className="match-my-pred">
-                          {' '}(ton pronostic : {predictions[m.id].pred_home_score} - {predictions[m.id].pred_away_score})
-                        </span>
+                  return (
+                    <li className="match-card-v2" key={m.id}>
+                      <div className="match-row-v2">
+                        <div className="match-meta-badge">⏱ {kickoffTime}</div>
+                      </div>
+
+                      <div className="match-row-v2 match-row-teams">
+                        <div className="match-team-v2 match-team-home">
+                          <div className="match-team-crest-wrap">
+                            {homePos != null && <span className="match-team-pos">{homePos}e</span>}
+                            <TeamBadge name={m.home_team} size={40} />
+                          </div>
+                          <span className="match-team-name-v2">{m.home_team}</span>
+                        </div>
+
+                        <div className="match-score-center">
+                          {m.status === 'resolved' ? (
+                            <div className="match-score-final">
+                              <span>{m.real_home_score}</span>
+                              <span className="match-score-sep">-</span>
+                              <span>{m.real_away_score}</span>
+                            </div>
+                          ) : isOpen ? (
+                            <>
+                              <input
+                                type="number"
+                                min={0}
+                                className="match-score-box"
+                                value={draft.home}
+                                onChange={(e) => handleDraftChange(m.id, 'home', e.target.value)}
+                              />
+                              <span className="match-score-sep">-</span>
+                              <input
+                                type="number"
+                                min={0}
+                                className="match-score-box"
+                                value={draft.away}
+                                onChange={(e) => handleDraftChange(m.id, 'away', e.target.value)}
+                              />
+                            </>
+                          ) : (
+                            <div className="match-score-box match-score-box-empty" />
+                          )}
+                        </div>
+
+                        <div className="match-team-v2 match-team-away">
+                          <span className="match-team-name-v2">{m.away_team}</span>
+                          <div className="match-team-crest-wrap">
+                            {awayPos != null && <span className="match-team-pos">{awayPos}e</span>}
+                            <TeamBadge name={m.away_team} size={40} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {m.status === 'resolved' ? (
+                        <div className="match-row-v2 match-row-footer">
+                          {hasPrediction && (
+                            <span className="match-my-pred">
+                              Ton pronostic : {predictions[m.id].pred_home_score} - {predictions[m.id].pred_away_score}
+                            </span>
+                          )}
+                          <button
+                            className="groups-action-btn groups-action-btn-secondary bet-reveal-btn"
+                            disabled={revealLoading === m.id}
+                            onClick={() => toggleReveal(m.id)}
+                          >
+                            {revealLoading === m.id ? '...' : reveals[m.id] ? 'Masquer les pronostics' : 'Voir les pronostics des autres'}
+                          </button>
+                          {reveals[m.id] && (
+                            <ul className="bet-reveal-list">
+                              {reveals[m.id].length === 0 ? (
+                                <li className="groups-empty">Personne n'a pronostiqué ce match.</li>
+                              ) : (
+                                reveals[m.id].map((r) => (
+                                  <li className="bet-reveal-row" key={r.profile_id}>
+                                    {r.pseudo} — {r.pred_home_score} - {r.pred_away_score}
+                                  </li>
+                                ))
+                              )}
+                            </ul>
+                          )}
+                        </div>
+                      ) : isOpen ? (
+                        <div className="match-row-v2 match-row-footer">
+                          <button
+                            className="match-save-btn"
+                            onClick={() => handleSave(m.id)}
+                            disabled={savingId === m.id}
+                          >
+                            {savingId === m.id ? '...' : hasPrediction ? 'Modifier' : 'Valider'}
+                          </button>
+                        </div>
+                      ) : m.status === 'cancelled' ? (
+                        <div className="match-row-v2 match-row-footer">
+                          <span className="match-cancelled">Match annulé</span>
+                        </div>
+                      ) : (
+                        <div className="match-row-v2 match-row-footer">
+                          <span className="match-cancelled">
+                            Pronostics clôturés
+                            {hasPrediction && ` (ton pronostic : ${predictions[m.id].pred_home_score} - ${predictions[m.id].pred_away_score})`}
+                          </span>
+                        </div>
                       )}
-                    </div>
-                    <button
-                      className="groups-action-btn groups-action-btn-secondary bet-reveal-btn"
-                      disabled={revealLoading === m.id}
-                      onClick={() => toggleReveal(m.id)}
-                    >
-                      {revealLoading === m.id ? '...' : reveals[m.id] ? 'Masquer les pronostics' : 'Voir les pronostics des autres'}
-                    </button>
-                    {reveals[m.id] && (
-                      <ul className="bet-reveal-list">
-                        {reveals[m.id].length === 0 ? (
-                          <li className="groups-empty">Personne n'a pronostiqué ce match.</li>
-                        ) : (
-                          reveals[m.id].map((r) => (
-                            <li className="bet-reveal-row" key={r.profile_id}>
-                              {r.pseudo} — {r.pred_home_score} - {r.pred_away_score}
-                            </li>
-                          ))
-                        )}
-                      </ul>
-                    )}
-                  </>
-                ) : isOpen ? (
-                  <div className="match-predict">
-                    <input
-                      type="number"
-                      min={0}
-                      className="match-score-input"
-                      value={draft.home}
-                      onChange={(e) => handleDraftChange(m.id, 'home', e.target.value)}
-                    />
-                    <span>-</span>
-                    <input
-                      type="number"
-                      min={0}
-                      className="match-score-input"
-                      value={draft.away}
-                      onChange={(e) => handleDraftChange(m.id, 'away', e.target.value)}
-                    />
-                    <button
-                      className="match-save-btn"
-                      onClick={() => handleSave(m.id)}
-                      disabled={savingId === m.id}
-                    >
-                      {savingId === m.id ? '...' : hasPrediction ? 'Modifier' : 'Valider'}
-                    </button>
-                  </div>
-                ) : m.status === 'cancelled' ? (
-                  <div className="match-cancelled">Match annulé</div>
-                ) : (
-                  <div className="match-cancelled">
-                    Pronostics clôturés (coup d'envoi passé)
-                    {hasPrediction && (
-                      <span className="match-my-pred">
-                        {' '}(ton pronostic : {predictions[m.id].pred_home_score} - {predictions[m.id].pred_away_score})
-                      </span>
-                    )}
-                  </div>
-                )}
-              </li>
-            )
-          })}
-        </ul>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )
+        })
       )}
     </div>
   )
