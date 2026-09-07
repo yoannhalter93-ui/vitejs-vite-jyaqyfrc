@@ -522,6 +522,164 @@ body {
   cursor: default;
 }
 
+/* ===== Pronostics v2 : cartes plus lisibles, regroupées par jour ===== */
+
+.match-day-group {
+  margin-bottom: 20px;
+}
+
+.match-day-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  background: rgba(244, 239, 226, 0.08);
+  border: 1px solid rgba(244, 239, 226, 0.15);
+  border-radius: 10px;
+}
+
+.match-day-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.match-day-label {
+  flex: 1;
+  font-weight: 700;
+  font-size: 14px;
+  color: #F4EFE2;
+}
+
+.match-day-count {
+  font-size: 12px;
+  color: rgba(244, 239, 226, 0.6);
+  font-weight: 600;
+}
+
+.matches-list-v2 {
+  gap: 10px;
+}
+
+.match-card-v2 {
+  background: #F4EFE2;
+  border: 1px solid rgba(27, 27, 31, 0.15);
+  border-radius: 12px;
+  padding: 12px 14px 14px;
+}
+
+.match-row-v2 {
+  display: flex;
+  align-items: center;
+}
+
+.match-meta-badge {
+  color: rgba(27, 27, 31, 0.5);
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+
+.match-row-teams {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.match-team-v2 {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.match-team-crest-wrap {
+  position: relative;
+}
+
+.match-team-pos {
+  position: absolute;
+  top: -6px;
+  left: -8px;
+  background: #1B1B1F;
+  color: #D4A22C;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 999px;
+  z-index: 1;
+}
+
+.match-team-name-v2 {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1B1B1F;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.match-score-center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.match-score-box {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1.5px solid rgba(27, 27, 31, 0.2);
+  background: #E8E0CC;
+  color: #1B1B1F;
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+}
+
+.match-score-box:focus {
+  border-color: #D4A22C;
+}
+
+.match-score-box-empty {
+  border-style: dashed;
+  background: transparent;
+}
+
+.match-score-final {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1B1B1F;
+}
+
+.match-score-sep {
+  color: rgba(27, 27, 31, 0.4);
+  font-weight: 400;
+}
+
+.match-row-footer {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(27, 27, 31, 0.1);
+}
+
+.match-row-footer .match-cancelled {
+  margin-top: 0;
+}
+
+.match-row-footer .match-save-btn {
+  margin-left: 0;
+}
+
 .group-nav {
   margin-bottom: 16px;
 }
@@ -1049,6 +1207,14 @@ body {
   .match-teams {
     flex-wrap: wrap;
     font-size: 14px;
+  }
+  .match-team-name-v2 {
+    font-size: 11px;
+  }
+  .match-score-box {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
   }
   .notif-panel {
     right: -8px;
