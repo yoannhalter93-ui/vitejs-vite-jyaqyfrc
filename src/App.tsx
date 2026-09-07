@@ -580,10 +580,20 @@ function App() {
               />
             )}
             {screen === 'jonglages' && (
-              <JuggleGame
-                groupId={selectedGroup.id}
-                groupName={selectedGroup.name}
-              />
+              <>
+                <div className="minigame-teaser">
+                  <span className="minigame-teaser-icon">⚽</span>
+                  <div className="minigame-teaser-text">
+                    <b>Jeu de Dribble</b>
+                    <span>Nouveau mini-jeu</span>
+                  </div>
+                  <span className="minigame-teaser-tag">Bientôt disponible</span>
+                </div>
+                <JuggleGame
+                  groupId={selectedGroup.id}
+                  groupName={selectedGroup.name}
+                />
+              </>
             )}
           </>
         ) : (
