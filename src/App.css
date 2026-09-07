@@ -429,6 +429,19 @@ body {
   font-size: 15px;
 }
 
+.team-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-family: 'Space Mono', 'Courier New', monospace;
+  letter-spacing: -0.5px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  line-height: 1;
+}
+
 .match-vs {
   color: rgba(27, 27, 31, 0.6);
   font-weight: 400;
