@@ -2,25 +2,29 @@
 // écussons officiels — les écussons réels sont des marques déposées, ces
 // badges stylisés évitent complètement la question tout en rendant les
 // pronostics beaucoup plus lisibles qu'un simple nom en texte.
+// Les clés doivent matcher EXACTEMENT les noms stockés dans matches.home_team /
+// away_team (les noms officiels complets renvoyés par football-data.org, ex.
+// "Olympique de Marseille" et pas juste "OM") — sinon la recherche échoue et
+// le badge retombe sur le gris de secours.
 const TEAM_STYLES: Record<string, { abbr: string; bg: string; fg: string }> = {
-  'Angers': { abbr: 'ANG', bg: '#1B1B1F', fg: '#F4EFE2' },
-  'Auxerre': { abbr: 'AJA', bg: '#1F5FA8', fg: '#F4EFE2' },
-  'Brest': { abbr: 'BRE', bg: '#C1443C', fg: '#F4EFE2' },
-  'Le Havre': { abbr: 'HAC', bg: '#4FB0C6', fg: '#0F3B2E' },
-  'Le Mans': { abbr: 'LEM', bg: '#1B3A6B', fg: '#F4EFE2' },
-  'Lens': { abbr: 'RCL', bg: '#8C1E1E', fg: '#D4A22C' },
-  'Lille': { abbr: 'LOSC', bg: '#B0233A', fg: '#F4EFE2' },
-  'Lorient': { abbr: 'FCL', bg: '#E07A2F', fg: '#1B1B1F' },
-  'Monaco': { abbr: 'ASM', bg: '#D0342C', fg: '#F4EFE2' },
-  'Nice': { abbr: 'OGC', bg: '#1B1B1F', fg: '#C1443C' },
-  'OL': { abbr: 'OL', bg: '#1E4DA1', fg: '#F4EFE2' },
-  'OM': { abbr: 'OM', bg: '#2E9CCB', fg: '#F4EFE2' },
+  'Angers SCO': { abbr: 'ANG', bg: '#1B1B1F', fg: '#F4EFE2' },
+  'AJ Auxerre': { abbr: 'AJA', bg: '#1F5FA8', fg: '#F4EFE2' },
+  'Stade Brestois 29': { abbr: 'BRE', bg: '#C1443C', fg: '#F4EFE2' },
+  'Le Havre AC': { abbr: 'HAC', bg: '#4FB0C6', fg: '#0F3B2E' },
+  'Le Mans FC': { abbr: 'LEM', bg: '#1B3A6B', fg: '#F4EFE2' },
+  'Racing Club de Lens': { abbr: 'RCL', bg: '#8C1E1E', fg: '#D4A22C' },
+  'Lille OSC': { abbr: 'LOSC', bg: '#B0233A', fg: '#F4EFE2' },
+  'FC Lorient': { abbr: 'FCL', bg: '#E07A2F', fg: '#1B1B1F' },
+  'AS Monaco FC': { abbr: 'ASM', bg: '#D0342C', fg: '#F4EFE2' },
+  'OGC Nice': { abbr: 'OGC', bg: '#1B1B1F', fg: '#C1443C' },
+  'Olympique Lyonnais': { abbr: 'OL', bg: '#1E4DA1', fg: '#F4EFE2' },
+  'Olympique de Marseille': { abbr: 'OM', bg: '#2E9CCB', fg: '#F4EFE2' },
   'Paris FC': { abbr: 'PFC', bg: '#2453A6', fg: '#F4EFE2' },
-  'PSG': { abbr: 'PSG', bg: '#0A1E4D', fg: '#F4EFE2' },
-  'Rennes': { abbr: 'REN', bg: '#C1272D', fg: '#1B1B1F' },
-  'Strasbourg': { abbr: 'RCS', bg: '#3F8FCB', fg: '#F4EFE2' },
-  'Toulouse': { abbr: 'TFC', bg: '#6A3FA0', fg: '#F4EFE2' },
-  'Troyes': { abbr: 'TRO', bg: '#2456A6', fg: '#E07A2F' },
+  'Paris Saint-Germain FC': { abbr: 'PSG', bg: '#0A1E4D', fg: '#F4EFE2' },
+  'Stade Rennais FC 1901': { abbr: 'REN', bg: '#C1272D', fg: '#1B1B1F' },
+  'RC Strasbourg Alsace': { abbr: 'RCS', bg: '#3F8FCB', fg: '#F4EFE2' },
+  'Toulouse FC': { abbr: 'TFC', bg: '#6A3FA0', fg: '#F4EFE2' },
+  'ES Troyes AC': { abbr: 'TRO', bg: '#2456A6', fg: '#E07A2F' },
 }
 
 const FALLBACK = { bg: '#4A4A4A', fg: '#F4EFE2' }
