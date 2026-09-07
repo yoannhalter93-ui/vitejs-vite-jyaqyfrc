@@ -1536,3 +1536,458 @@ body {
   border-radius: 20px;
   white-space: nowrap;
 }
+
+/* ===== Jeu de Dribble (mini-jeu hebdomadaire) ===== */
+.dribble-app{
+  --pitch:#0F3B2E;
+  --pitch-line:#0A2A21;
+  --cream:#F4EFE2;
+  --cream-dim:#E8E0CC;
+  --ink:#1B1B1F;
+  --ink-soft:rgba(244,239,226,0.62);
+  --gold:#D4A22C;
+  --danger:#C1443C;
+  --success:#2F8F5B;
+  --field-bg:#0d3226;
+  --lane-line:rgba(244,239,226,0.28);
+  width:100%;
+  max-width:380px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  margin:0 auto;
+}
+.dribble-eyebrow{
+  font-size:11px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:var(--ink-soft);
+  text-align:center;
+}
+.dribble-app h1{
+  font-family:'Oswald','Arial Narrow',sans-serif;
+  font-size:26px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+  text-align:center;
+  margin:0;
+  color:var(--cream);
+}
+.dribble-intro{
+  font-size:12.5px;
+  line-height:1.55;
+  color:var(--ink-soft);
+  text-align:center;
+  margin:0;
+  padding:0 4px;
+}
+.dribble-stat-row{
+  display:flex;
+  gap:10px;
+}
+.dribble-stat{
+  flex:1;
+  background:var(--cream);
+  border-radius:12px;
+  padding:10px 8px;
+  text-align:center;
+}
+.dribble-stat b{
+  display:block;
+  font-family:'Oswald','Arial Narrow',sans-serif;
+  font-size:22px;
+  color:var(--ink);
+  font-variant-numeric:tabular-nums;
+}
+.dribble-stat span{
+  font-size:10px;
+  letter-spacing:0.8px;
+  text-transform:uppercase;
+  color:rgba(27,27,31,0.55);
+}
+.dribble-stage{
+  position:relative;
+  background:var(--field-bg);
+  border:1px solid #234238;
+  border-radius:14px;
+  padding:14px;
+}
+.dribble-field{
+  position:relative;
+  width:100%;
+  aspect-ratio:3/4.3;
+  border-radius:8px;
+  overflow:hidden;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.03), transparent 30%),
+    linear-gradient(180deg, #124436, #0c2c22 85%);
+  border:1px solid rgba(244,239,226,0.15);
+}
+.dribble-field::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background-image:repeating-linear-gradient(0deg, rgba(244,239,226,0.09) 0 3px, transparent 3px 46px);
+  animation:dribble-field-scroll linear infinite;
+  animation-duration:var(--scroll-dur, 2.2s);
+  pointer-events:none;
+  z-index:1;
+}
+@keyframes dribble-field-scroll{
+  from{ background-position-y:0; }
+  to{ background-position-y:46px; }
+}
+.dribble-field::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(180deg, rgba(6,14,20,0.75), transparent 55%);
+  opacity:var(--dusk, 0);
+  transition:opacity 0.5s ease;
+  pointer-events:none;
+  z-index:1;
+}
+.dribble-lane-line{
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:0;
+  border-left:2px dashed var(--lane-line);
+  z-index:2;
+}
+.dribble-lane-1{left:33.333%;}
+.dribble-lane-2{left:66.666%;}
+.dribble-goal-strip{
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  height:7%;
+  background:repeating-linear-gradient(90deg, rgba(244,239,226,0.5) 0 10px, rgba(244,239,226,0.15) 10px 20px);
+  opacity:0.5;
+  z-index:2;
+}
+.dribble-runner{
+  position:absolute;
+  top:82%;
+  width:26px;
+  height:30px;
+  margin-left:-13px;
+  transition:left 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index:4;
+}
+.dribble-runner.dribble-running .dribble-leg{animation:dribble-leg-run 0.32s ease-in-out infinite alternate;}
+.dribble-defender{
+  position:absolute;
+  top:-8%;
+  width:26px;
+  height:30px;
+  margin-left:-13px;
+  transition:top linear, transform linear;
+  z-index:3;
+}
+.dribble-defender .dribble-leg{animation:dribble-leg-run 0.26s ease-in-out infinite alternate;}
+.dribble-p-hair{
+  position:absolute;
+  left:50%;
+  top:0;
+  width:11px;
+  height:6px;
+  margin-left:-5.5px;
+  background:#3b2213;
+  border-radius:2px 2px 0 0;
+  box-shadow:0 1px 2px rgba(0,0,0,0.4);
+}
+.dribble-p-jersey{
+  position:absolute;
+  left:50%;
+  top:5px;
+  width:16px;
+  height:11px;
+  margin-left:-8px;
+  border-radius:1px;
+  box-shadow:0 2px 5px rgba(0,0,0,0.45);
+}
+.dribble-runner .dribble-p-jersey{background:var(--gold);}
+.dribble-defender .dribble-p-jersey{background:var(--danger);}
+.dribble-runner .dribble-p-jersey::after{
+  content:"10";
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:'Oswald','Arial Narrow',sans-serif;
+  font-size:7px;
+  font-weight:700;
+  color:var(--ink);
+}
+.dribble-p-shorts{
+  position:absolute;
+  left:50%;
+  top:15px;
+  width:14px;
+  height:6px;
+  margin-left:-7px;
+  border-radius:0 0 1px 1px;
+}
+.dribble-runner .dribble-p-shorts{background:var(--ink);}
+.dribble-defender .dribble-p-shorts{background:#2a1a17;}
+.dribble-leg{
+  position:absolute;
+  bottom:5px;
+  width:3px;
+  height:6px;
+  background:#caa07a;
+  transform-origin:top center;
+}
+.dribble-leg-l{left:8px;}
+.dribble-leg-r{right:8px;}
+.dribble-leg::after{
+  content:"";
+  position:absolute;
+  bottom:-3px;
+  left:-1px;
+  width:5px;
+  height:3px;
+  border-radius:1px;
+  background:#2b1c10;
+}
+@keyframes dribble-leg-run{
+  0%{transform:translateY(0) rotate(-10deg);}
+  100%{transform:translateY(2px) rotate(12deg);}
+}
+.dribble-defender.dribble-wall .dribble-p-jersey{box-shadow:0 0 0 2px rgba(193,68,60,0.95), 0 2px 5px rgba(0,0,0,0.45);}
+.dribble-defender.dribble-fast .dribble-p-jersey{background:#e8792b;}
+.dribble-defender.dribble-fast{filter:drop-shadow(0 0 5px rgba(232,121,43,0.55));}
+.dribble-defender.dribble-diving .dribble-p-jersey{transform:skewX(-10deg);}
+.dribble-field.dribble-slowmo{filter:saturate(0.32) brightness(0.88);}
+.dribble-field.dribble-slowmo::before{animation-play-state:paused;}
+.dribble-defender.dribble-nutmegged{animation:dribble-nutmegged-out 0.46s ease-in forwards;}
+@keyframes dribble-nutmegged-out{
+  0%{opacity:1;transform:scale(1) rotate(0deg);}
+  30%{transform:scale(1.08) rotate(-5deg);}
+  100%{opacity:0;transform:scale(0.82) rotate(8deg) translateY(5px);}
+}
+.dribble-defender.dribble-nutmegged .dribble-leg-l{animation:dribble-nutmegged-leg-l 0.46s ease-out forwards;}
+.dribble-defender.dribble-nutmegged .dribble-leg-r{animation:dribble-nutmegged-leg-r 0.46s ease-out forwards;}
+@keyframes dribble-nutmegged-leg-l{to{transform:translateX(-5px) rotate(-30deg);}}
+@keyframes dribble-nutmegged-leg-r{to{transform:translateX(5px) rotate(30deg);}}
+.dribble-nutmeg-ball{
+  position:absolute;
+  top:78%;
+  width:8px;
+  height:8px;
+  margin-left:-4px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #ffffff, #d4d0c4 72%);
+  box-shadow:0 1px 3px rgba(0,0,0,0.5);
+  pointer-events:none;
+  z-index:4;
+  animation:dribble-nutmeg-roll 0.46s cubic-bezier(0.3,0.7,0.4,1) forwards;
+}
+@keyframes dribble-nutmeg-roll{
+  0%{transform:translateY(-4px) scale(0.75) rotate(0deg);opacity:0;}
+  15%{opacity:1;}
+  50%{transform:translateY(6px) scale(1.1) rotate(140deg);}
+  100%{transform:translateY(20px) scale(0.7) rotate(300deg);opacity:0;}
+}
+.dribble-ball{
+  position:absolute;
+  left:50%;
+  top:-10px;
+  width:9px;
+  height:9px;
+  margin-left:-4.5px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #ffffff, #d4d0c4 72%);
+  box-shadow:0 1px 3px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(27,27,31,0.25);
+  z-index:5;
+}
+.dribble-ball::after{
+  content:"";
+  position:absolute;
+  inset:2px;
+  border-radius:50%;
+  background:radial-gradient(circle at 50% 50%, transparent 54%, rgba(27,27,31,0.55) 55% 60%, transparent 61%);
+}
+.dribble-runner.dribble-running .dribble-ball{animation:dribble-ball-bounce 0.32s ease-in-out infinite alternate;}
+@keyframes dribble-ball-bounce{
+  0%{transform:translateY(0);}
+  100%{transform:translateY(-3px);}
+}
+.dribble-runner.dribble-roulette{animation:dribble-runner-roulette 0.42s ease;}
+@keyframes dribble-runner-roulette{
+  0%{transform:rotate(0deg) scale(1);}
+  55%{transform:rotate(360deg) scale(1.18);}
+  100%{transform:rotate(360deg) scale(1);}
+}
+.dribble-wall-msg{
+  position:absolute;
+  top:6px;
+  left:50%;
+  transform:translateX(-50%) translateY(-6px);
+  background:rgba(27,27,31,0.85);
+  color:var(--gold);
+  font-family:'Oswald','Arial Narrow',sans-serif;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:0.4px;
+  text-transform:uppercase;
+  padding:5px 10px;
+  border-radius:6px;
+  border:1px solid rgba(212,162,44,0.5);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.2s ease, transform 0.2s ease;
+  z-index:6;
+  white-space:nowrap;
+}
+.dribble-wall-msg.dribble-show{opacity:1;transform:translateX(-50%) translateY(0);}
+.dribble-wall-msg.dribble-success{color:var(--success);border-color:rgba(47,143,91,0.6);}
+.dribble-flare{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:0;
+  z-index:5;
+}
+.dribble-flare.dribble-show{animation:dribble-flare-pop 0.5s ease-out;}
+.dribble-flare.dribble-miss{background:radial-gradient(circle at 50% 82%, rgba(193,68,60,0.6), rgba(193,68,60,0) 55%);}
+.dribble-flare.dribble-dodge{background:radial-gradient(circle at var(--fx,50%) 82%, rgba(47,143,91,0.4), rgba(47,143,91,0) 55%);}
+@keyframes dribble-flare-pop{0%{opacity:0;}25%{opacity:1;}100%{opacity:0;}}
+.dribble-field.dribble-shake{animation:dribble-field-shake 0.35s;}
+@keyframes dribble-field-shake{
+  0%,100%{transform:translateX(0);}
+  20%{transform:translateX(-6px);}
+  40%{transform:translateX(5px);}
+  60%{transform:translateX(-4px);}
+  80%{transform:translateX(3px);}
+}
+.dribble-countdown{
+  position:absolute;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  font-family:'Oswald','Arial Narrow',sans-serif;
+  font-size:52px;
+  font-weight:700;
+  color:var(--gold);
+  background:rgba(12,44,34,0.35);
+  z-index:7;
+  text-shadow:0 3px 10px rgba(0,0,0,0.6);
+}
+.dribble-countdown.dribble-pop{animation:dribble-countdown-pop 0.5s ease;}
+@keyframes dribble-countdown-pop{
+  0%{transform:scale(0.4);opacity:0;}
+  30%{transform:scale(1.15);opacity:1;}
+  100%{transform:scale(1);opacity:0.85;}
+}
+.dribble-idle-msg, .dribble-end-msg{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  background:rgba(12,44,34,0.88);
+  text-align:center;
+  padding:18px;
+  z-index:6;
+}
+.dribble-end-msg .dribble-big{
+  font-family:'Oswald','Arial Narrow',sans-serif;
+  font-size:34px;
+  color:var(--gold);
+  font-weight:700;
+}
+.dribble-end-msg .dribble-sub, .dribble-idle-msg .dribble-sub{font-size:12px;color:var(--ink-soft);max-width:240px;line-height:1.5;}
+.dribble-lanes-ctl{
+  display:flex;
+  gap:8px;
+  margin-top:12px;
+}
+.dribble-lanes-ctl button{flex:1;}
+.dribble-lane-btn{
+  appearance:none;
+  border:1.5px solid rgba(244,239,226,0.18);
+  background:rgba(244,239,226,0.06);
+  color:var(--cream);
+  border-radius:10px;
+  padding:16px 0;
+  font-size:19px;
+  line-height:1;
+  cursor:pointer;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+  transition:background 0.12s, border-color 0.12s, transform 0.08s;
+}
+.dribble-lane-btn:active{transform:scale(0.94);}
+.dribble-lane-btn:disabled{opacity:0.35;cursor:default;}
+.dribble-roulette-btn{
+  background:rgba(212,162,44,0.10);
+  border-color:rgba(212,162,44,0.35);
+}
+.dribble-roulette-btn.dribble-ready{
+  background:rgba(212,162,44,0.35);
+  border-color:var(--gold);
+  animation:dribble-roulette-pulse 0.5s ease-in-out infinite;
+}
+@keyframes dribble-roulette-pulse{
+  0%,100%{transform:scale(1);}
+  50%{transform:scale(1.1);}
+}
+.dribble-roulette-btn.dribble-whiff{animation:dribble-roulette-whiff 0.2s ease;}
+@keyframes dribble-roulette-whiff{
+  0%,100%{transform:scale(1);}
+  50%{transform:scale(0.9);}
+}
+.dribble-cta{
+  appearance:none;
+  border:none;
+  border-radius:10px;
+  background:var(--gold);
+  color:var(--ink);
+  font-weight:700;
+  font-size:14px;
+  font-family:'Space Mono','Courier New',monospace;
+  padding:13px 26px;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.dribble-cta:active{transform:translateY(1px);}
+.dribble-difficulty{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:10.5px;
+  color:var(--ink-soft);
+  justify-content:center;
+}
+.dribble-difficulty .dribble-bar{
+  width:110px;
+  height:5px;
+  border-radius:3px;
+  background:rgba(244,239,226,0.12);
+  overflow:hidden;
+}
+.dribble-difficulty .dribble-bar i{
+  display:block;
+  height:100%;
+  background:var(--gold);
+  border-radius:3px;
+  transition:width 0.25s ease;
+}
+.dribble-notes{
+  font-size:11px;
+  line-height:1.6;
+  color:var(--ink-soft);
+  background:rgba(244,239,226,0.05);
+  border:1px dashed rgba(244,239,226,0.2);
+  border-radius:10px;
+  padding:10px 12px;
+}
+.dribble-notes b{color:var(--cream);}
