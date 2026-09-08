@@ -34,17 +34,21 @@ body {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: radial-gradient(circle at top, #123a2c 0%, #0A2A21 60%);
+  background:
+    linear-gradient(180deg, rgba(10, 42, 33, 0.45) 0%, rgba(10, 42, 33, 0.65) 55%, rgba(8, 32, 25, 0.88) 100%),
+    url('/vitejs-vite-jyaqyfrc/login-bg.jpg') center 25% / cover no-repeat;
 }
 
 .login-card {
   width: 100%;
   max-width: 380px;
-  background: #F4EFE2;
-  border: none;
+  background: rgba(244, 239, 226, 0.45);
+  backdrop-filter: blur(4px) saturate(1.1);
+  -webkit-backdrop-filter: blur(4px) saturate(1.1);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 16px;
   padding: 32px 28px;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15), 0 20px 60px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15), 0 20px 60px rgba(0, 0, 0, 0.45);
 }
 
 .login-title {
