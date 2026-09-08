@@ -126,10 +126,6 @@ export default function DribbleGame({ groupId, groupName }: Props) {
   const [scores, setScores] = useState<ScoreRow[]>([])
   const [lastWeekBest, setLastWeekBest] = useState<BestScore | null>(null)
   const [allTimeBest, setAllTimeBest] = useState<BestScore | null>(null)
-  const [wizzShake, setWizzShake] = useState(false)
-  const [wizzFrom, setWizzFrom] = useState<string | null>(null)
-  const [wizzCooldown, setWizzCooldown] = useState(0)
-  const wizzCooldownRef = useRef(0)
   const wizzChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   const loadScores = async () => {
@@ -180,16 +176,12 @@ export default function DribbleGame({ groupId, groupName }: Props) {
   }, [user])
 
   // Abonnement au canal temps réel du groupe (même canal `wizz-<groupId>` que
-  // les autres mini-jeux) : diffuse le début/fin de partie et reçoit les wizz
-  // envoyés par les autres membres pendant qu'on joue.
+  // les autres mini-jeux) : sert uniquement à diffuser le début/fin de partie
+  // pour le bandeau "X joue au mini-jeu !" affiché aux autres membres (via
+  // App.tsx). Le wizz (effet reçu pendant la partie) est réservé au jonglage.
   useEffect(() => {
     const channel = supabase.channel(`wizz-${groupId}`)
-    channel.on('broadcast', { event: 'wizz' }, ({ payload }) => {
-      if (!user || !payload || payload.targetProfileId !== user.id) return
-      if (!engineRef.current.playing) return
-      if (wizzCooldownRef.current > 0) return
-      triggerWizzEffect(payload.fromPseudo || 'Un ami')
-    }).subscribe()
+    channel.subscribe()
     wizzChannelRef.current = channel
     return () => {
       if (user && engineRef.current.playing) {
@@ -200,25 +192,6 @@ export default function DribbleGame({ groupId, groupName }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, user])
-
-  useEffect(() => {
-    wizzCooldownRef.current = wizzCooldown
-    if (wizzCooldown <= 0) return
-    const t = setTimeout(() => setWizzCooldown((c) => c - 1), 1000)
-    return () => clearTimeout(t)
-  }, [wizzCooldown])
-
-  // Contrairement aux jonglages (où un wizz dévie les ballons en l'air), le
-  // dribble n'a rien à "perturber" physiquement sans que ça ressemble à un
-  // bug (téléporter le joueur dans un autre couloir serait injuste et
-  // illisible) — l'effet reste donc uniquement visuel + haptique.
-  const triggerWizzEffect = (fromPseudo: string) => {
-    setWizzShake(true)
-    setWizzFrom(fromPseudo)
-    if (navigator.vibrate) navigator.vibrate([120, 60, 120, 60, 120, 60, 220])
-    setTimeout(() => { setWizzShake(false); setWizzFrom(null) }, 900)
-    setWizzCooldown(15)
-  }
 
   // ---- son (bips synthétiques, sans fichier) + vibration mobile ----
   const ensureAudio = () => {
@@ -737,7 +710,7 @@ export default function DribbleGame({ groupId, groupName }: Props) {
   }
 
   return (
-    <div className={`predictions-screen${wizzShake ? ' juggle-wizz-shake' : ''}`}>
+    <div className="predictions-screen">
       <div className="predictions-header">
         <h2>Dribble — {groupName}</h2>
       </div>
@@ -787,12 +760,6 @@ export default function DribbleGame({ groupId, groupName }: Props) {
           <div className="dribble-bar"><i ref={diffBarRef as any} style={{ width: '8%' }} /></div>
         </div>
       </div>
-
-      {wizzShake && (
-        <div className="juggle-wizz-overlay">
-          <span className="juggle-wizz-overlay-text">⚡ WIZZ de {wizzFrom || 'un ami'} !</span>
-        </div>
-      )}
 
       {(allTimeBest || lastWeekBest) && (
         <div className="juggle-palmares">
