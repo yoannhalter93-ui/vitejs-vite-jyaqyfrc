@@ -216,7 +216,7 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
         ) : question ? (
           <div className="roulette-result">
             <p className="predictions-period">Question {question.order} / 10 — {timeLeft}s</p>
-            <p className="match-teams">{question.question}</p>
+            <p className="quiz-question-live">{question.question}</p>
             <ul className="matches-list">
               {question.options.map((opt, i) => (
                 <li key={i} className="match-card groups-card-clickable" onClick={() => answer(question.order, i)}>{opt}</li>
