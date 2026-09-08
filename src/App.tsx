@@ -469,7 +469,9 @@ function App() {
       {juggleAlert && (
         <div className="wizz-alert-banner">
           <span>{juggleAlert.game === 'dribble' ? '⚽' : '🤹'} {juggleAlert.pseudo} joue au mini-jeu !</span>
-          <button className="juggle-wizz-btn" onClick={sendWizz}>🧪 Envoyer un wizz</button>
+          {juggleAlert.game !== 'dribble' && (
+            <button className="juggle-wizz-btn" onClick={sendWizz}>🧪 Envoyer un wizz</button>
+          )}
           <button className="wizz-alert-close" onClick={() => setJuggleAlert(null)} aria-label="Fermer">✕</button>
         </div>
       )}
