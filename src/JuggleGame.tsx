@@ -281,7 +281,7 @@ export default function JuggleGame({ groupId, groupName }: Props) {
                 wizzChannelRef.current?.send({
                           type: 'broadcast',
                           event: 'playing',
-                          payload: { action: 'start', profileId: user.id, pseudo: myPseudo || 'Un coéquipier' },
+                          payload: { action: 'start', profileId: user.id, pseudo: myPseudo || 'Un coéquipier', game: 'jonglage' },
                 })
                 // notification persistée + push, pour les membres du groupe qui
                 // n'ont pas l'appli ouverte en ce moment (le broadcast temps réel
