@@ -11,6 +11,7 @@ import PenaltyDuel from './PenaltyDuel';
 import WeeklyDuel from './WeeklyDuel';
 import FreeBets from './FreeBets';
 import JuggleGame from './JuggleGame';
+import DribbleGame from './DribbleGame';
 
 type Screen =
   | 'pronostics'
@@ -128,9 +129,19 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
 }
 
 function App() {
-  const [juggleAlert, setJuggleAlert] = useState<{ profileId: string; pseudo: string } | null>(null)
+  const [juggleAlert, setJuggleAlert] = useState<{ profileId: string; pseudo: string; game: string } | null>(null)
   const [myPseudo, setMyPseudo] = useState<string | null>(null)
   const [wizzChannel, setWizzChannel] = useState<ReturnType<typeof supabase.channel> | null>(null)
+  // mini-jeu hebdomadaire actif (jonglages ou dribble) : change chaque
+  // semaine via public.minigame_weeks, même classement/mêmes récompenses
+  // des deux côtés, seul le jeu affiché change.
+  const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble'>('jonglage')
+
+  useEffect(() => {
+    supabase.rpc('get_active_minigame').then(({ data, error }: any) => {
+      if (!error && data) setActiveMinigame(data)
+    })
+  }, [])
 
   const { session, loading, signOut } = useAuth();
   const [selectedGroup, setSelectedGroup] = useState<{
@@ -179,7 +190,7 @@ function App() {
     channel.on('broadcast', { event: 'playing' }, ({ payload }: any) => {
       if (!payload || payload.profileId === session.user.id) return
       if (payload.action === 'start') {
-        setJuggleAlert({ profileId: payload.profileId, pseudo: payload.pseudo || 'Un coéquipier' })
+        setJuggleAlert({ profileId: payload.profileId, pseudo: payload.pseudo || 'Un coéquipier', game: payload.game || 'jonglage' })
         if (hideTimer) clearTimeout(hideTimer)
         hideTimer = setTimeout(() => setJuggleAlert(null), 35000)
       } else if (payload.action === 'stop') {
@@ -457,7 +468,7 @@ function App() {
       )}
       {juggleAlert && (
         <div className="wizz-alert-banner">
-          <span>🤹 {juggleAlert.pseudo} joue aux Jonglages !</span>
+          <span>{juggleAlert.game === 'dribble' ? '⚽' : '🤹'} {juggleAlert.pseudo} joue au mini-jeu !</span>
           <button className="juggle-wizz-btn" onClick={sendWizz}>🧪 Envoyer un wizz</button>
           <button className="wizz-alert-close" onClick={() => setJuggleAlert(null)} aria-label="Fermer">✕</button>
         </div>
@@ -580,20 +591,27 @@ function App() {
               />
             )}
             {screen === 'jonglages' && (
-              <>
-                <div className="minigame-teaser">
-                  <span className="minigame-teaser-icon">⚽</span>
-                  <div className="minigame-teaser-text">
-                    <b>Jeu de Dribble</b>
-                    <span>Nouveau mini-jeu</span>
-                  </div>
-                  <span className="minigame-teaser-tag">Bientôt disponible</span>
-                </div>
-                <JuggleGame
+              activeMinigame === 'dribble' ? (
+                <DribbleGame
                   groupId={selectedGroup.id}
                   groupName={selectedGroup.name}
                 />
-              </>
+              ) : (
+                <>
+                  <div className="minigame-teaser">
+                    <span className="minigame-teaser-icon">⚽</span>
+                    <div className="minigame-teaser-text">
+                      <b>Jeu de Dribble</b>
+                      <span>Nouveau mini-jeu — bientôt ton tour</span>
+                    </div>
+                    <span className="minigame-teaser-tag">Bientôt disponible</span>
+                  </div>
+                  <JuggleGame
+                    groupId={selectedGroup.id}
+                    groupName={selectedGroup.name}
+                  />
+                </>
+              )
             )}
           </>
         ) : (
