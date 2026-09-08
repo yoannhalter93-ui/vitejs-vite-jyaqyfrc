@@ -11,6 +11,7 @@ interface Bet {
   validation_mode: string
   validator_id: string | null
   actual_result: string | null
+  author_id: string | null
 }
 
 interface Reveal {
@@ -31,6 +32,7 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
   const [isAdmin, setIsAdmin] = useState(false)
   const [periodId, setPeriodId] = useState<string | null>(null)
   const [bets, setBets] = useState<Bet[]>([])
+  const [pseudos, setPseudos] = useState<Record<string, string>>({})
   const [myVotes, setMyVotes] = useState<Record<string, string>>({})
   const [myBoosts, setMyBoosts] = useState<Record<string, boolean>>({})
   const [voteCounts, setVoteCounts] = useState<Record<string, { oui: number; non: number }>>({})
@@ -59,8 +61,16 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     const { data: period } = await supabase.from('group_periods').select('id').eq('group_id', groupId).eq('is_current', true).maybeSingle()
     setPeriodId(period?.id ?? null)
 
+    // pseudos des membres du groupe, pour afficher qui a proposé chaque pari
+    const { data: gm } = await supabase.from('group_members').select('profile_id').eq('group_id', groupId)
+    const memberIds = (gm ?? []).map((m) => m.profile_id)
+    if (memberIds.length > 0) {
+      const { data: profs } = await supabase.from('profiles').select('id, pseudo').in('id', memberIds)
+      setPseudos(Object.fromEntries((profs ?? []).map((p) => [p.id, p.pseudo])))
+    }
+
     const { data: b, error: bErr } = await supabase
-      .from('free_bets').select('id, text, deadline, status, validation_mode, validator_id, actual_result')
+      .from('free_bets').select('id, text, deadline, status, validation_mode, validator_id, actual_result, author_id')
       .eq('group_id', groupId).order('created_at', { ascending: false })
     if (bErr) {
       setError(bErr.message)
@@ -186,7 +196,9 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     return (
       <li className="match-card" key={b.id}>
         <div className="match-teams">{b.text}</div>
-        <div className="match-kickoff">Échéance : {new Date(b.deadline).toLocaleString('fr-FR')} — statut : {b.status}</div>
+        <div className="match-kickoff">
+          Proposé par {b.author_id ? (pseudos[b.author_id] ?? '???') : '???'} — Échéance : {new Date(b.deadline).toLocaleString('fr-FR')} — statut : {b.status}
+        </div>
         <div className="match-my-pred">Votes : {counts.oui} oui / {counts.non} non {myVotes[b.id] ? `(toi : ${myVotes[b.id]})` : ''}</div>
         {myVotes[b.id] && (b.status === 'open' || b.status === 'closed') && !myBoosts[b.id] && (
           <button className="groups-action-btn groups-action-btn-secondary bet-boost-btn" onClick={() => boostBet(b.id)}>Doubler (2 jetons)</button>
