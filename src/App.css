@@ -419,6 +419,7 @@ body {
   border: 1px solid rgba(27, 27, 31, 0.15);
   border-radius: 12px;
   padding: 14px 16px;
+  color: #1B1B1F;
 }
 
 .match-teams {
@@ -427,6 +428,17 @@ body {
   gap: 8px;
   font-weight: 700;
   font-size: 15px;
+  color: #1B1B1F;
+}
+
+/* Titre de la question affichée pendant qu'on répond au quiz : contrairement
+   aux autres usages de .match-teams (toujours sur une carte claire), ce
+   texte est posé directement sur le fond sombre de l'écran — il lui faut
+   donc une couleur claire plutôt que le #1B1B1F ci-dessus. */
+.quiz-question-live {
+  font-weight: 700;
+  font-size: 15px;
+  color: #F4EFE2;
 }
 
 .team-badge {
