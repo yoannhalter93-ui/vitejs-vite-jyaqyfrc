@@ -236,9 +236,14 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
       return
     }
 
+    // On récupère le résultat pour l'animation SANS l'appliquer tout de
+    // suite à `attempts` : si c'était le dernier arrêt, ça marquerait
+    // aussitôt `iHaveFinishedKeeping` à true et ferait disparaître l'écran
+    // d'animation (myTurnToSave passerait à false) avant même que le
+    // plongeon ait eu le temps de se jouer. `attempts` n'est donc rafraîchi
+    // qu'à la toute fin, via openDuel() plus bas.
     const { data } = await supabase.rpc('get_penalty_duel_attempts', { p_duel_id: selected })
     const fresh = (data ?? []) as Attempt[]
-    setAttempts(fresh)
     const resolved = fresh.find(
       (a) => a.phase_number === attemptRef.phase_number && a.attempt_number === attemptRef.attempt_number
     )
