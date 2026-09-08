@@ -1106,6 +1106,7 @@ body {
   justify-content: space-between;
   padding: 6px 8px 10px;
   font-weight: 600;
+  color: #1B1B1F;
   border-bottom: 1px solid rgba(27, 27, 31, 0.15);
   margin-bottom: 6px;
 }
@@ -1233,7 +1234,13 @@ body {
     font-size: 15px;
   }
   .notif-panel {
-    right: -8px;
+    position: fixed;
+    top: 64px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100vh - 84px);
   }
   h1, h2 {
     word-break: break-word;
