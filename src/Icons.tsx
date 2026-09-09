@@ -1,5 +1,5 @@
 // Petites illustrations pour habiller l'accueil : un vrai ballon de foot
-// (illustration extraite telle quelle de la maquette envoyÃ©e) et une coupe
+// (illustration extraite telle quelle de la maquette envoyée) et une coupe
 // pour le classement.
 
 import ballonImg from './assets/ballon-illustration.png'
@@ -38,7 +38,7 @@ export function SketchTrophy({ size = 44, className }: { size?: number; classNam
   )
 }
 
-// petit trait ondulÃ© "Ã  la main" utilisÃ© sous les titres de section
+// petit trait ondulé "à la main" utilisé sous les titres de section
 export function Squiggle({ width = 46, className }: { width?: number; className?: string }) {
   return (
     <svg width={width} height="10" viewBox="0 0 46 10" fill="none" className={className}>
