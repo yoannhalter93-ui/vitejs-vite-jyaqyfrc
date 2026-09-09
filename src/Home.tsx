@@ -130,7 +130,6 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const nextMatch = upcoming[0]
   const nextKickoff = nextMatch ? new Date(nextMatch.kickoff_at) : null
   const heroTitle = nextMatch?.matchday ? `Journée ${nextMatch.matchday}` : groupName
-  const medal = ['🥇', '🥈', '🥉']
 
   if (loading) {
     return <p className="groups-loading">Chargement...</p>
@@ -237,7 +236,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
             <ul className="dash-ranking-list">
               {ranking.map((r, i) => (
                 <li key={r.profile_id} className={r.profile_id === user?.id ? 'dash-ranking-row-me' : ''}>
-                  <span className="dash-ranking-medal">{medal[i]}</span>
+                  <span className={`dash-ranking-medal dash-ranking-medal-${i + 1}`}>{i + 1}</span>
                   <span className="dash-ranking-pseudo">{r.pseudo}</span>
                   <span className="dash-ranking-pts">{r.points} pts</span>
                 </li>
