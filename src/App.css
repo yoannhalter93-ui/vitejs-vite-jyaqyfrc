@@ -1611,7 +1611,7 @@ body {
 .dash-ranking-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 46px 0 0;
   display: flex;
   flex-direction: column;
   position: relative;
