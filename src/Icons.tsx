@@ -18,8 +18,8 @@ export function SketchBall({ size = 120, className }: { size?: number; className
   const outer4 = '47.7,43 32.4,43 27.7,28.5 40,19.5 52.4,28.5'
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" className={className}>
-      <circle cx={cx} cy={cy} r={r} fill="var(--cream)" stroke="var(--ink)" strokeWidth="3.5" />
-      <g fill="var(--ink)" stroke="var(--ink)" strokeWidth="1.5" strokeLinejoin="round">
+      <circle cx={cx} cy={cy} r={r} fill="#F4EFE2" stroke="#1B1B1F" strokeWidth="3.5" />
+      <g fill="#1B1B1F" stroke="#1B1B1F" strokeWidth="1.5" strokeLinejoin="round">
         <polygon points={central} />
         <polygon points={outer0} />
         <polygon points={outer1} />
@@ -27,7 +27,7 @@ export function SketchBall({ size = 120, className }: { size?: number; className
         <polygon points={outer3} />
         <polygon points={outer4} />
       </g>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--ink)" strokeOpacity="0.15" strokeWidth="1" />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#1B1B1F" strokeOpacity="0.15" strokeWidth="1" />
     </svg>
   )
 }
