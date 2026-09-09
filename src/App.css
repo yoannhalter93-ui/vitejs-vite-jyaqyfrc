@@ -1389,7 +1389,7 @@ body {
 
 .dash-hero {
   position: relative;
-  background: #F4EFE2;
+  background: rgba(244, 239, 226, 0.85);
   border-radius: 18px;
   padding: 20px;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15), 0 20px 60px rgba(0, 0, 0, 0.3);
