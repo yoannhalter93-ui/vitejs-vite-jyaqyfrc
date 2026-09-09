@@ -30,6 +30,7 @@ interface Props {
 export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCreate }: Props) {
   const { user } = useAuth()
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isOwner, setIsOwner] = useState(false)
   const [periodId, setPeriodId] = useState<string | null>(null)
   const [bets, setBets] = useState<Bet[]>([])
   const [pseudos, setPseudos] = useState<Record<string, string>>({})
@@ -57,6 +58,7 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
 
     const { data: mem } = await supabase.from('group_members').select('role').eq('group_id', groupId).eq('profile_id', user.id).maybeSingle()
     setIsAdmin(mem?.role === 'owner' || mem?.role === 'admin')
+    setIsOwner(mem?.role === 'owner')
 
     const { data: period } = await supabase.from('group_periods').select('id').eq('group_id', groupId).eq('is_current', true).maybeSingle()
     setPeriodId(period?.id ?? null)
@@ -211,8 +213,12 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
           </div>
         )}
         {b.status === 'closed' && (
-          b.validation_mode === 'confiance' && user?.id !== b.validator_id ? (
-            <div className="match-cancelled">En attente de la confirmation de l'auteur du pari</div>
+          // en mode "confiance" : l'auteur du pari OU le créateur du groupe
+          // peuvent confirmer, un seul suffit (peu importe qui des deux le
+          // fait en premier) — en mode "majorité" (anciens paris), tout le
+          // monde peut voter et il faut une majorité des membres du groupe
+          b.validation_mode === 'confiance' && user?.id !== b.validator_id && !isOwner ? (
+            <div className="match-cancelled">En attente de la confirmation de l'auteur du pari ou du créateur du groupe</div>
           ) : (
             <div className="match-predict">
               <span>Confirmer le résultat :</span>
