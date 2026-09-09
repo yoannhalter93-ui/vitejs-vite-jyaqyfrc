@@ -10,6 +10,7 @@ interface MatchRow {
   away_team: string
   kickoff_at: string
   status: 'open' | 'resolved' | 'cancelled'
+  matchday: number | null
 }
 
 interface RankRow {
@@ -52,7 +53,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
       if (period) {
         const { data: matchesData } = await supabase
           .from('matches')
-          .select('id, home_team, away_team, kickoff_at, status')
+          .select('id, home_team, away_team, kickoff_at, status, matchday')
           .eq('group_id', groupId)
           .eq('period_id', period.id)
           .neq('status', 'cancelled')
@@ -128,6 +129,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
   const nextMatch = upcoming[0]
   const nextKickoff = nextMatch ? new Date(nextMatch.kickoff_at) : null
+  const heroTitle = nextMatch?.matchday ? `Journée ${nextMatch.matchday}` : groupName
   const medal = ['🥇', '🥈', '🥉']
 
   if (loading) {
@@ -139,7 +141,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
       <div className="dash-hero">
         <div className="dash-hero-text">
           <span className="dash-hero-eyebrow">Saison {new Date().getFullYear()}{periodLabel ? ` • ${periodLabel}` : ''}</span>
-          <h2 className="dash-hero-title">{groupName}</h2>
+          <h2 className="dash-hero-title">{heroTitle}</h2>
           {totalCount > 0 ? (
             <>
               <p className="dash-hero-sub">{doneCount}/{totalCount} pronostics faits</p>
@@ -165,7 +167,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
           )}
           <span className="dash-hero-caption">On joue entre nous</span>
         </div>
-        <SketchBall size={104} className="dash-hero-ball" />
+        <SketchBall size={100} className="dash-hero-ball" />
       </div>
 
       <div className="dash-section">
