@@ -217,7 +217,7 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
   return (
     <div className="predictions-screen">
       <div className="predictions-header">
-        <button className="predictions-back" onClick={onBack}>← Groupes</button>
+        <button className="predictions-back" onClick={onBack}>← Accueil</button>
         <h2>{groupName}</h2>
       </div>
 
