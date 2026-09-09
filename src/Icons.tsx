@@ -1,28 +1,33 @@
-// Petites illustrations "façon croquis" pour habiller l'accueil : un ballon
-// dessiné au trait (repris du même dessin que l'icône de l'appli, mais en
-// version contour) et une coupe pour le classement. Volontairement simples
-// (SVG statique, une seule couleur de trait) pour rester légers et lisibles
-// à toutes les tailles.
+// Petites illustrations "façon croquis" pour habiller l'accueil : un vrai
+// ballon de foot (panneaux noirs pleins sur fond crème, façon icône
+// classique — pas juste un contour) et une coupe pour le classement.
+// Volontairement en deux couleurs (crème + encre) pour rester lisibles à
+// toutes les tailles et cohérentes avec le reste de la charte.
 
 export function SketchBall({ size = 120, className }: { size?: number; className?: string }) {
   const cx = 60
   const cy = 60
   const r = 52
+  // pentagone central + 5 panneaux extérieurs, disposition classique d'un
+  // ballon de foot vu de face (calculée géométriquement, cf. commit).
+  const central = '60,41 78.1,54.1 71.2,75.4 48.8,75.4 41.9,54.1'
+  const outer0 = '72.3,43 67.6,28.5 80,19.5 92.3,28.5 87.6,43'
+  const outer1 = '80,66.5 92.3,57.5 104.7,66.5 100,81 84.7,81'
+  const outer2 = '60,81 72.4,90 67.6,104.5 52.4,104.5 47.6,90'
+  const outer3 = '40,66.5 35.3,81 20,81 15.3,66.5 27.7,57.5'
+  const outer4 = '47.7,43 32.4,43 27.7,28.5 40,19.5 52.4,28.5'
   return (
-    <svg width={size} height={size} viewBox="0 0 120 120" fill="none" className={className}>
-      <circle cx={cx} cy={cy} r={r} stroke="currentColor" strokeWidth="3" />
-      <g stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none">
-        <path d="M60 60 L60 34 L38 20" />
-        <path d="M60 60 L84 44 L96 62" />
-        <path d="M60 60 L78 82 L66 104" />
-        <path d="M60 60 L42 82 L26 100" />
-        <path d="M60 60 L36 46 L18 52" />
-        <path d="M60 34 L84 44" />
-        <path d="M84 44 L78 82" />
-        <path d="M78 82 L42 82" />
-        <path d="M42 82 L36 46" />
-        <path d="M36 46 L60 34" />
+    <svg width={size} height={size} viewBox="0 0 120 120" className={className}>
+      <circle cx={cx} cy={cy} r={r} fill="var(--cream)" stroke="var(--ink)" strokeWidth="3.5" />
+      <g fill="var(--ink)" stroke="var(--ink)" strokeWidth="1.5" strokeLinejoin="round">
+        <polygon points={central} />
+        <polygon points={outer0} />
+        <polygon points={outer1} />
+        <polygon points={outer2} />
+        <polygon points={outer3} />
+        <polygon points={outer4} />
       </g>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--ink)" strokeOpacity="0.15" strokeWidth="1" />
     </svg>
   )
 }
