@@ -1392,7 +1392,6 @@ body {
   background: #F4EFE2;
   border-radius: 18px;
   padding: 20px;
-  overflow: hidden;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15), 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
@@ -1471,9 +1470,12 @@ body {
 
 .dash-hero-ball {
   position: absolute;
-  right: 6px;
-  top: 16px;
-  z-index: 1;
+  width: 34%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  right: -12px;
+  top: -18px;
+  z-index: 2;
   filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.25));
 }
 
