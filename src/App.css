@@ -1401,7 +1401,7 @@ body {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  max-width: 74%;
+  max-width: 62%;
 }
 
 .dash-hero-eyebrow {
@@ -1413,8 +1413,11 @@ body {
 }
 
 .dash-hero-title {
-  font-family: 'Oswald', sans-serif;
-  font-size: 24px;
+  font-family: 'Oswald', 'Arial Narrow', sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.05;
+  text-transform: uppercase;
   margin: 4px 0 6px;
   color: #1B1B1F;
 }
@@ -1468,9 +1471,10 @@ body {
 
 .dash-hero-ball {
   position: absolute;
-  right: -8px;
-  bottom: -8px;
-  color: rgba(15, 59, 46, 0.14);
+  right: 6px;
+  top: 16px;
+  z-index: 1;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.25));
 }
 
 .dash-section-title {
