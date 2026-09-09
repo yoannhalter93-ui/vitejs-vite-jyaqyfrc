@@ -4,6 +4,8 @@ import './App.css';
 import { useAuth } from './AuthContext';
 import Login from './Login';
 import Groups from './Groups';
+import Home from './Home';
+import BottomNav from './BottomNav';
 import Predictions from './Predictions';
 import Classement from './Classement';
 import Roulette from './Roulette';
@@ -12,25 +14,45 @@ import WeeklyDuel from './WeeklyDuel';
 import FreeBets from './FreeBets';
 import JuggleGame from './JuggleGame';
 import DribbleGame from './DribbleGame';
+import { SketchTrophy } from './Icons'
 
 type Screen =
+  | 'accueil'
   | 'pronostics'
   | 'classement'
+  | 'jeux'
   | 'roulette'
   | 'penalty'
   | 'quiz'
   | 'paris'
-  | 'jonglages';
+  | 'jonglages'
+  | 'profil';
 
-const SCREENS: { key: Screen; label: string }[] = [
-  { key: 'pronostics', label: 'Pronostics' },
-  { key: 'classement', label: 'Classement' },
-  { key: 'roulette', label: 'Mon équipe' },
-  { key: 'penalty', label: 'Duel penalty' },
-  { key: 'quiz', label: 'Quiz' },
-  { key: 'paris', label: 'Paris libres' },
-  { key: 'jonglages', label: 'Mini-jeu' },
-];
+// les 5 onglets de la barre de navigation en bas — "Jeux" regroupe les
+// mini-jeux (Mon équipe / Duel penalty / Quiz / Mini-jeu), atteints via le
+// hub plutôt que directement depuis la barre
+const BOTTOM_TABS: { key: Screen; label: string; icon: string }[] = [
+  { key: 'accueil', label: 'Pronos', icon: '⚽' },
+  { key: 'classement', label: 'Classement', icon: '🏆' },
+  { key: 'jeux', label: 'Jeux', icon: '🎮' },
+  { key: 'paris', label: 'Paris', icon: '🤝' },
+  { key: 'profil', label: 'Profil', icon: '👤' },
+]
+
+const JEUX_HUB: { key: Screen; label: string; icon: string; sub: string }[] = [
+  { key: 'roulette', label: 'Mon équipe', icon: '🎡', sub: 'Ton équipe tirée au sort' },
+  { key: 'penalty', label: 'Duel penalty', icon: '🥅', sub: 'Défie un membre du groupe' },
+  { key: 'quiz', label: 'Quiz', icon: '🧠', sub: 'Duel de questions foot' },
+  { key: 'jonglages', label: 'Mini-jeu', icon: '🤹', sub: 'Le défi de la semaine' },
+]
+
+// à quel onglet du bas rattacher chaque écran interne (ex. "pronostics",
+// atteint depuis le tableau de bord, reste sous l'onglet "Pronos")
+function bottomTabFor(screen: Screen): Screen {
+  if (screen === 'pronostics') return 'accueil'
+  if (screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') return 'jeux'
+  return screen
+}
 
 const VAPID_PUBLIC_KEY = 'BODqLXOAm-EvaSnvqqQCmRdfvSPk-QEZ1SAc8BDd8x-Fn3r-AteEiUDqCcciJ5ZxG5XR1z-zd8jgca1kjKfYiVg'
 
@@ -115,7 +137,7 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
     const { error } = await supabase.from('push_subscriptions').upsert(
       { profile_id: profileId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
       { onConflict: 'endpoint' }
-    )
+   ")
     if (error) {
       console.error('Abonnement push créé côté navigateur mais refusé à l\'enregistrement', error)
       return { status: 'error', detail: `Enregistrement refusé : ${error.message}` }
@@ -218,7 +240,7 @@ function App() {
     }
   }
 
-  const [screen, setScreen] = useState<Screen>('pronostics');
+  const [screen, setScreen] = useState<Screen>('accueil');
 
   // nombre de paris libres ouverts sur lesquels je n'ai pas encore voté,
   // pour afficher un petit badge sur l'onglet "Paris libres" (même principe
@@ -394,38 +416,43 @@ function App() {
   return (
     <div className="home-screen">
       <header className="home-header">
-        <h1>Entre Nous</h1>
-            <div className="notif-bell-wrap">
-              <button className="notif-bell-btn" onClick={() => setShowNotifPanel((v) => !v)}>
-                🔔{unreadNotifCount > 0 && <span className="notif-badge">{unreadNotifCount}</span>}
-              </button>
-              {showNotifPanel && (
-                <div className="notif-panel">
-                  <div className="notif-panel-header">
-                    <span>Notifications</span>
-                    {unreadNotifCount > 0 && (
-                      <button className="notif-markall-btn" onClick={markAllNotifsRead}>Tout marquer comme lu</button>
+        <div className="brand-block">
+          <span className="brand-logo">Entre Nous</span>
+          <span className="brand-tagline">Foot entre potes</span>
+        </div>
+        <div className="header-actions">
+          <div className="notif-bell-wrap">
+            <button className="notif-bell-btn" onClick={() => setShowNotifPanel((v) => !v)}>
+              🔔{unreadNotifCount > 0 && <span className="notif-badge">{unreadNotifCount}</span>}
+            </button>
+            {showNotifPanel && (
+              <div className="notif-panel">
+                <div className="notif-panel-header">
+                  <span>Notifications</span>
+                  {unreadNotifCount > 0 && (
+                    <button className="notif-markall-btn" onClick={markAllNotifsRead}>Tout marquer comme lu</button>
+                  )}
+                </div>
+                {notifications.length === 0 && <div className="notif-empty">Aucune notification</div>}
+                {notifications.map((n) => (
+                  <div key={n.id} className={`notif-row ${n.read ? '' : 'notif-unread'}`} onClick={() => !n.read && markNotifRead(n.id)}>
+                    <div className="notif-text">{n.text}</div>
+                    <div className="notif-date">{new Date(n.created_at).toLocaleString('fr-FR')}</div>
+                    {n.type === 'jongle' && n.related_profile_id && (
+                      <button
+                        className="juggle-wizz-btn"
+                        onClick={(e) => { e.stopPropagation(); sendWizzFromNotification(n) }}
+                      >🧪 Envoyer un wizz</button>
                     )}
                   </div>
-                  {notifications.length === 0 && <div className="notif-empty">Aucune notification</div>}
-                  {notifications.map((n) => (
-                    <div key={n.id} className={`notif-row ${n.read ? '' : 'notif-unread'}`} onClick={() => !n.read && markNotifRead(n.id)}>
-                      <div className="notif-text">{n.text}</div>
-                      <div className="notif-date">{new Date(n.created_at).toLocaleString('fr-FR')}</div>
-                      {n.type === 'jongle' && n.related_profile_id && (
-                        <button
-                          className="juggle-wizz-btn"
-                          onClick={(e) => { e.stopPropagation(); sendWizzFromNotification(n) }}
-                        >🧪 Envoyer un wizz</button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-        <button className="home-signout" onClick={signOut}>
-          Déconnexion
-        </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button className="avatar-badge" onClick={() => setScreen('profil')} title={myPseudo ?? undefined}>
+            {(myPseudo ?? '?').charAt(0).toUpperCase()}
+          </button>
+        </div>
       </header>
       {!pushTipDismissed && pushStatus === 'ios-needs-install' && (
         <div className="push-tip">
@@ -503,14 +530,8 @@ function App() {
         {selectedGroup ? (
           <>
             <div className="group-nav">
-              <button
-                className="predictions-back"
-                onClick={() => {
-                  setSelectedGroup(null);
-                  setScreen('pronostics');
-                }}
-              >
-                ← Groupes
+              <button className="group-selector-pill" onClick={() => setSelectedGroup(null)}>
+                🏆 {selectedGroup.name} <span className="group-selector-chevron">⌄</span>
               </button>
               <div className="token-balance-wrap">
             <button className="token-balance-btn" onClick={() => setShowBonusPanel((v) => !v)}>
@@ -535,29 +556,22 @@ function App() {
               </div>
             )}
           </div>
-          <div className="group-nav-tabs">
-                {SCREENS.map((s) => (
-                  <button
-                    key={s.key}
-                    className={
-                      'group-nav-tab' +
-                      (screen === s.key ? ' group-nav-tab-active' : '')
-                    }
-                    onClick={() => setScreen(s.key)}
-                  >
-                    {s.label}
-                    {s.key === 'paris' && openBetsToVoteCount > 0 && (
-                      <span className="notif-badge">{openBetsToVoteCount}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
             </div>
+            {(screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') && (
+              <button className="jeux-back-btn" onClick={() => setScreen('jeux')}>← Jeux</button>
+            )}
+            {screen === 'accueil' && (
+              <Home
+                groupId={selectedGroup.id}
+                groupName={selectedGroup.name}
+                onNavigate={(s) => setScreen(s)}
+              />
+            )}
             {screen === 'pronostics' && (
               <Predictions
                 groupId={selectedGroup.id}
                 groupName={selectedGroup.name}
-                onBack={() => setSelectedGroup(null)}
+                onBack={() => setScreen('accueil')}
               />
             )}
             {screen === 'classement' && (
@@ -565,6 +579,20 @@ function App() {
                 groupId={selectedGroup.id}
                 groupName={selectedGroup.name}
               />
+            )}
+            {screen === 'jeux' && (
+              <div className="jeux-hub">
+                <h2 className="jeux-hub-title">Mini-jeux</h2>
+                <div className="jeux-hub-grid">
+                  {JEUX_HUB.map((j) => (
+                    <button key={j.key} className="jeux-hub-card" onClick={() => setScreen(j.key)}>
+                      <span className="jeux-hub-icon">{j.icon}</span>
+                      <span className="jeux-hub-label">{j.label}</span>
+                      <span className="jeux-hub-sub">{j.sub}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             {screen === 'roulette' && (
               <Roulette
@@ -615,11 +643,55 @@ function App() {
                 </>
               )
             )}
+            {screen === 'profil' && (
+              <div className="profil-screen">
+                <div className="profil-card">
+                  <div className="profil-avatar">{(myPseudo ?? '?').charAt(0).toUpperCase()}</div>
+                  <div className="profil-pseudo">{myPseudo ?? 'Joueur'}</div>
+                  <div className="profil-jetons">🪙 {tokenBalance ?? 0} jetons</div>
+                  <SketchTrophy size={32} className="profil-trophy" />
+                </div>
+                <button className="groups-action-btn groups-action-btn-secondary" onClick={() => setSelectedGroup(null)}>
+                  Changer de groupe
+                </button>
+                <button className="home-signout" onClick={signOut}>
+                  Déconnexion
+                </button>
+                <div className="account-danger-zone">
+                  {!showDeleteConfirm ? (
+                    <button className="account-delete-link" onClick={() => setShowDeleteConfirm(true)}>
+                      Supprimer mon compte
+                    </button>
+                  ) : (
+                    <div className="account-delete-confirm">
+                      <p>
+                        Cette action est définitive : tu quittes tous tes groupes, ton pseudo et tes
+                        abonnements aux notifications sont supprimés, et tu ne pourras plus te
+                        reconnecter avec ce compte.
+                      </p>
+                      {deleteError && <p className="groups-error">{deleteError}</p>}
+                      <div className="account-delete-actions">
+                        <button
+                          className="groups-action-btn groups-action-btn-secondary"
+                          disabled={deleteBusy}
+                          onClick={() => { setShowDeleteConfirm(false); setDeleteError(null) }}
+                        >
+                          Annuler
+                        </button>
+                        <button className="account-delete-confirm-btn" disabled={deleteBusy} onClick={handleDeleteAccount}>
+                          {deleteBusy ? 'Suppression...' : 'Oui, supprimer définitivement'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <>
             <Groups
-              onSelectGroup={(id, name) => setSelectedGroup({ id, name })}
+              onSelectGroup={(id, name) => { setSelectedGroup({ id, name }); setScreen('accueil') }}
             />
             <div className="account-danger-zone">
               {!showDeleteConfirm ? (
@@ -652,6 +724,13 @@ function App() {
           </>
         )}
       </main>
+      {selectedGroup && (
+        <BottomNav
+          tabs={BOTTOM_TABS.map((t) => (t.key === 'paris' ? { ...t, badge: openBetsToVoteCount } : t))}
+          active={bottomTabFor(screen)}
+          onSelect={(key) => setScreen(key as Screen)}
+        />
+      )}
     </div>
   );
 }
