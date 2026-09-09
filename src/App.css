@@ -1400,7 +1400,7 @@ body {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  max-width: 62%;
+  max-width: 66%;
 }
 
 .dash-hero-eyebrow {
@@ -1409,6 +1409,10 @@ body {
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: rgba(27, 27, 31, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .dash-hero-title {
@@ -1454,9 +1458,10 @@ body {
   color: #1B1B1F;
   border: none;
   border-radius: 10px;
-  padding: 11px 16px;
+  padding: 11px 14px;
   font-weight: 700;
   font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -1473,8 +1478,8 @@ body {
   width: 34%;
   height: auto;
   aspect-ratio: 1 / 1;
-  right: -12px;
-  top: -18px;
+  right: -8px;
+  top: -6px;
   z-index: 2;
   filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.25));
 }
@@ -1596,9 +1601,10 @@ body {
 
 .dash-ranking-card {
   position: relative;
-  background: #F4EFE2;
+  background: #0F3B2E;
+  border: 1px solid rgba(244, 239, 226, 0.1);
   border-radius: 14px;
-  padding: 14px 16px;
+  padding: 16px;
   overflow: hidden;
 }
 
@@ -1608,25 +1614,57 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  position: relative;
+  z-index: 1;
 }
 
 .dash-ranking-list li {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(244, 239, 226, 0.12);
+}
+
+.dash-ranking-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.dash-ranking-list li:first-child {
+  padding-top: 0;
 }
 
 .dash-ranking-medal {
-  font-size: 16px;
-  width: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1B1B1F;
+  flex-shrink: 0;
+}
+
+.dash-ranking-medal-1 {
+  background: #D4A22C;
+}
+
+.dash-ranking-medal-2 {
+  background: #C9C9C9;
+}
+
+.dash-ranking-medal-3 {
+  background: #C1743C;
 }
 
 .dash-ranking-pseudo {
   flex: 1;
   font-weight: 600;
   font-size: 14px;
-  color: #1B1B1F;
+  color: #F4EFE2;
 }
 
 .dash-ranking-pts {
@@ -1635,15 +1673,15 @@ body {
   color: #D4A22C;
 }
 
-.dash-ranking-row-me .dash-ranking-pseudo {
-  color: #0F3B2E;
+.dash-ranking-row-me .dash-ranking-pts {
+  color: #F4EFE2;
 }
 
 .dash-ranking-trophy {
   position: absolute;
   right: 12px;
   bottom: 8px;
-  color: rgba(15, 59, 46, 0.12);
+  color: rgba(212, 162, 44, 0.35);
 }
 
 .groups-rules-btn {
