@@ -167,7 +167,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
           )}
           <span className="dash-hero-caption">On joue entre nous</span>
         </div>
-        <SketchBall size={100} className="dash-hero-ball" />
+        <SketchBall size={130} className="dash-hero-ball" />
       </div>
 
       <div className="dash-section">
