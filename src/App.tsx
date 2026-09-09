@@ -137,7 +137,7 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
     const { error } = await supabase.from('push_subscriptions').upsert(
       { profile_id: profileId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
       { onConflict: 'endpoint' }
-   ")
+    )
     if (error) {
       console.error('Abonnement push créé côté navigateur mais refusé à l\'enregistrement', error)
       return { status: 'error', detail: `Enregistrement refusé : ${error.message}` }
