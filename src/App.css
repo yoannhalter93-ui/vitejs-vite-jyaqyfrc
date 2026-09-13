@@ -743,6 +743,22 @@ body {
   margin-left: 0;
 }
 
+.match-autosave-status {
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(27, 27, 31, 0.5);
+}
+
+.match-autosave-saving {
+  font-style: normal;
+  color: #D4A22C;
+}
+
+.match-autosave-saved {
+  font-style: normal;
+  color: #2F7A4D;
+}
+
 .group-nav {
   display: flex;
   align-items: center;
