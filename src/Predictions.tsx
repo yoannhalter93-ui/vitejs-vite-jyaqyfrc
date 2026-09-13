@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import TeamBadge from './TeamBadge'
@@ -63,6 +63,11 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
+  // Enregistrement automatique : plus besoin de bouton "Valider"/"Modifier",
+  // dès qu'un score est saisi il est sauvegardé tout seul après une courte
+  // pause de frappe (évite d'oublier de valider après avoir rempli tous les
+  // scores). Un timer par match, redémarré à chaque frappe.
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   // révélation des pronostics des autres, uniquement pour un match résolu —
   // même principe que pour les paris libres / le récap de quiz
@@ -158,16 +163,31 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, user])
 
+  // Nettoie les enregistrements en attente si on quitte l'écran avant la
+  // fin du délai, pour ne pas déclencher de sauvegarde (ni d'appel setState)
+  // après le démontage du composant.
+  useEffect(() => {
+    return () => {
+      Object.values(saveTimers.current).forEach(clearTimeout)
+    }
+  }, [])
+
   const handleDraftChange = (matchId: string, field: 'home' | 'away', value: string) => {
-    setDrafts((prev) => ({
-      ...prev,
-      [matchId]: { ...(prev[matchId] ?? { home: '', away: '' }), [field]: value },
-    }))
+    const nextDraft = { ...(drafts[matchId] ?? { home: '', away: '' }), [field]: value }
+    setDrafts((prev) => ({ ...prev, [matchId]: nextDraft }))
+
+    if (saveTimers.current[matchId]) clearTimeout(saveTimers.current[matchId])
+    if (nextDraft.home === '' || nextDraft.away === '') return
+    // On peut changer le score librement tant que le match n'a pas commencé :
+    // chaque frappe redémarre le délai, seule la dernière valeur est envoyée.
+    saveTimers.current[matchId] = setTimeout(() => {
+      handleSave(matchId, nextDraft)
+    }, 700)
   }
 
-  const handleSave = async (matchId: string) => {
+  const handleSave = async (matchId: string, overrideDraft?: { home: string; away: string }) => {
     if (!user) return
-    const draft = drafts[matchId]
+    const draft = overrideDraft ?? drafts[matchId]
     if (!draft || draft.home === '' || draft.away === '') return
 
     setSavingId(matchId)
@@ -334,13 +354,26 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
                         </div>
                       ) : isOpen ? (
                         <div className="match-row-v2 match-row-footer">
-                          <button
-                            className="match-save-btn"
-                            onClick={() => handleSave(m.id)}
-                            disabled={savingId === m.id}
+                          {/* Plus de bouton "Valider"/"Modifier" : le score est
+                              enregistré tout seul dès qu'il est saisi (voir
+                              handleDraftChange), modifiable librement jusqu'au
+                              coup d'envoi. */}
+                          <span
+                            className={
+                              'match-autosave-status' +
+                              (savingId === m.id
+                                ? ' match-autosave-saving'
+                                : hasPrediction
+                                ? ' match-autosave-saved'
+                                : '')
+                            }
                           >
-                            {savingId === m.id ? '...' : hasPrediction ? 'Modifier' : 'Valider'}
-                          </button>
+                            {savingId === m.id
+                              ? 'Enregistrement...'
+                              : hasPrediction
+                              ? '✓ Pronostic enregistré'
+                              : 'Entre un score, il est enregistré automatiquement'}
+                          </span>
                         </div>
                       ) : m.status === 'cancelled' ? (
                         <div className="match-row-v2 match-row-footer">
