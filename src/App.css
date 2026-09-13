@@ -233,14 +233,19 @@ body {
 .account-danger-zone {
   margin-top: 40px;
   padding-top: 16px;
-  border-top: 1px solid rgba(27, 27, 31, 0.1);
+  /* Ce bloc n'a pas de fond à lui : il s'affiche directement sur le fond
+     vert foncé de l'écran (accueil sans groupe, ou onglet Profil), jamais
+     sur une carte claire — d'où les couleurs "crème" ci-dessous plutôt que
+     les rgba(27, 27, 31, ...) sombres utilisés ailleurs sur fond clair,
+     qui rendaient ce texte quasi invisible. */
+  border-top: 1px solid rgba(244, 239, 226, 0.15);
   text-align: center;
 }
 
 .account-delete-link {
   background: none;
   border: none;
-  color: rgba(27, 27, 31, 0.45);
+  color: rgba(244, 239, 226, 0.55);
   font-size: 13px;
   text-decoration: underline;
   cursor: pointer;
