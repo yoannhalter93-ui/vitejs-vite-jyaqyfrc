@@ -49,3 +49,36 @@ export function Squiggle({ width = 46, className }: { width?: number; className?
     </svg>
   )
 }
+
+// icône "œil" : bascule d'affichage du mot de passe (connexion / inscription)
+export function EyeIcon({ size = 20, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M2 12C2 12 5.5 5.5 12 5.5C18.5 5.5 22 12 22 12C22 12 18.5 18.5 12 18.5C5.5 18.5 2 12 2 12Z"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
+      />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  )
+}
+
+// même icône, barrée : le mot de passe est actuellement affiché en clair
+export function EyeOffIcon({ size = 20, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M3.5 3.5L20.5 20.5"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+      />
+      <path
+        d="M10.6 5.65C11.05 5.55 11.52 5.5 12 5.5C18.5 5.5 22 12 22 12C22 12 21.16 13.55 19.6 15.05M6.9 6.9C4.2 8.55 2 12 2 12C2 12 5.5 18.5 12 18.5C13.8 18.5 15.3 18 16.55 17.3"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
+      />
+      <path
+        d="M9.9 9.9C9.34 10.46 9 11.19 9 12C9 13.66 10.34 15 12 15C12.81 15 13.54 14.66 14.1 14.1"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
+      />
+    </svg>
+  )
+}
