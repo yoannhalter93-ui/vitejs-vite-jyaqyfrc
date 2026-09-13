@@ -1,7 +1,50 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
+
+// Aperçu en direct de la cote (mêmes calculs que close_expired_free_bets()
+// côté base) : le camp majoritaire rapporte 1 point, le camp minoritaire
+// jusqu'à 5 selon à quel point il est minoritaire. Tant qu'il n'y a aucun
+// vote, la cote n'est pas encore calculable.
+function computeLiveOdds(ouiCount: number, nonCount: number): { oui: number; non: number } | null {
+  const total = ouiCount + nonCount
+  if (total === 0) return null
+  let oddsOui = Math.round(1 + ((100 - (ouiCount / total) * 100) / 100) * 4)
+  let oddsNon = Math.round(1 + ((ouiCount / total) * 100 / 100) * 4)
+  if (ouiCount > nonCount) oddsOui = 1
+  else if (nonCount > ouiCount) oddsNon = 1
+  return { oui: Math.max(1, oddsOui), non: Math.max(1, oddsNon) }
+}
+
+// Petite animation de comptage : à chaque changement de valeur (quelqu'un
+// vote, la cote bouge), le chiffre défile jusqu'à la nouvelle valeur au lieu
+// de sauter brutalement.
+function AnimatedPoints({ value }: { value: number }) {
+  const [display, setDisplay] = useState(value)
+  const fromRef = useRef(value)
+
+  useEffect(() => {
+    const from = fromRef.current
+    const to = value
+    if (from === to) { setDisplay(to); return }
+    const start = performance.now()
+    const duration = 420
+    let raf = 0
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setDisplay(Math.round(from + (to - from) * eased))
+      if (t < 1) raf = requestAnimationFrame(tick)
+      else fromRef.current = to
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+
+  return <span className="bet-odds-value">{display}</span>
+}
 
 interface Bet {
   id: string
@@ -161,7 +204,10 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
   const vote = async (betId: string, side: string) => {
     if (!user) return
     setError(null)
-    const { error: err } = await supabase.from('free_bet_votes').insert({ bet_id: betId, profile_id: user.id, side })
+    // RPC plutôt qu'un insert direct : elle fait un upsert, donc voter à
+    // nouveau change simplement le choix précédent (permet de changer
+    // d'avis librement tant que le pari est ouvert, jusqu'à l'échéance)
+    const { error: err } = await supabase.rpc('cast_free_bet_vote', { p_bet_id: betId, p_side: side })
     if (err) setError(err.message)
     await load()
     onVoteOrCreate?.()
@@ -222,7 +268,10 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
 
   const renderBet = (b: Bet, locked: boolean) => {
     const counts = voteCounts[b.id] ?? { oui: 0, non: 0 }
-    const canVote = b.status === 'open' && new Date() < new Date(b.deadline) && !myVotes[b.id]
+    // on peut voter — et changer d'avis — tant que le pari est ouvert et que
+    // l'échéance n'est pas passée, plus seulement au tout premier vote
+    const canVote = b.status === 'open' && new Date() < new Date(b.deadline)
+    const liveOdds = computeLiveOdds(counts.oui, counts.non)
     const reveal = reveals[b.id]
     return (
       <li className="match-card" key={b.id}>
@@ -236,9 +285,33 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
         )}
         {myBoosts[b.id] && <div className="bet-boosted-tag">Boosté : double ou rien 🪙</div>}
         {canVote && (
-          <div className="match-predict">
-            <button className="groups-action-btn groups-action-btn-secondary" onClick={() => vote(b.id, 'oui')}>Oui</button>
-            <button className="groups-action-btn groups-action-btn-secondary" onClick={() => vote(b.id, 'non')}>Non</button>
+          <div className="bet-vote-block">
+            <div className="bet-vote-options">
+              {(['oui', 'non'] as const).map((side) => {
+                const pts = liveOdds ? liveOdds[side] : null
+                const active = myVotes[b.id] === side
+                return (
+                  <button
+                    key={side}
+                    type="button"
+                    className={'bet-vote-btn' + (active ? ' bet-vote-btn-active' : '')}
+                    onClick={() => vote(b.id, side)}
+                  >
+                    <span className="bet-vote-label">{side === 'oui' ? 'Oui' : 'Non'}</span>
+                    <span className="bet-vote-pts">
+                      {pts !== null ? <>+<AnimatedPoints value={pts} /> pts</> : '—'}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            <div className="bet-vote-hint">
+              {myVotes[b.id]
+                ? "Tu peux changer d'avis jusqu'à l'échéance"
+                : liveOdds
+                  ? 'La cote évolue selon les votes des autres'
+                  : 'La cote apparaît dès le premier pari'}
+            </div>
           </div>
         )}
         {b.status === 'closed' && (
