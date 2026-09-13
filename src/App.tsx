@@ -693,6 +693,15 @@ function App() {
             <Groups
               onSelectGroup={(id, name) => { setSelectedGroup({ id, name }); setScreen('accueil') }}
             />
+            {/* Sans groupe, la barre de navigation du bas (et donc l'onglet
+                Profil où vit normalement le bouton Déconnexion) ne s'affiche
+                pas : sans ce bouton ici, un compte à 0 groupe (nouveau
+                compte, ou suppression de compte ratée en cours de route)
+                n'a aucun moyen de se déconnecter pour se reconnecter avec
+                un autre compte. */}
+            <button className="home-signout" onClick={signOut}>
+              Déconnexion
+            </button>
             <div className="account-danger-zone">
               {!showDeleteConfirm ? (
                 <button className="account-delete-link" onClick={() => setShowDeleteConfirm(true)}>
