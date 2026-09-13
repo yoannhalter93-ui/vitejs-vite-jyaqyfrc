@@ -1162,6 +1162,76 @@ body {
   margin-bottom: 14px;
 }
 
+/* Bloc de vote des paris libres : deux boutons Oui/Non affichant la cote
+   (points à gagner) en direct, avec une petite animation de comptage
+   quand la valeur change — et le choix courant reste modifiable jusqu'à
+   l'échéance (bouton mis en avant plutôt que désactivé). */
+.bet-vote-block {
+  margin-top: 10px;
+}
+
+.bet-vote-options {
+  display: flex;
+  gap: 8px;
+}
+
+.bet-vote-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(27, 27, 31, 0.15);
+  background: #F4EFE2;
+  color: #1B1B1F;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  animation: bet-vote-pop 0.35s ease;
+}
+
+.bet-vote-btn:active {
+  transform: scale(0.97);
+}
+
+.bet-vote-btn-active {
+  border-color: #D4A22C;
+  background: rgba(212, 162, 44, 0.14);
+}
+
+.bet-vote-label {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.bet-vote-pts {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2F7A4D;
+  font-variant-numeric: tabular-nums;
+}
+
+.bet-vote-btn-active .bet-vote-pts {
+  color: #8a6410;
+}
+
+.bet-odds-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.bet-vote-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: rgba(27, 27, 31, 0.5);
+  font-style: italic;
+}
+
+@keyframes bet-vote-pop {
+  from { transform: scale(0.92); opacity: 0.4; }
+  to { transform: scale(1); opacity: 1; }
+}
+
 .bet-reveal-btn {
   margin-top: 8px;
 }
