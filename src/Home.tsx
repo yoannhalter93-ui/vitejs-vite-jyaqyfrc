@@ -33,13 +33,6 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const [donePredIds, setDonePredIds] = useState<Set<string>>(new Set())
   const [myNextPred, setMyNextPred] = useState<{ home: number; away: number } | null>(null)
   const [ranking, setRanking] = useState<RankRow[]>([])
-  const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble'>('jonglage')
-
-  useEffect(() => {
-    supabase.rpc('get_active_minigame').then(({ data, error }: any) => {
-      if (!error && data) setActiveMinigame(data)
-    })
-  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -152,14 +145,16 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
 
   return (
     <div className="dash-screen">
+      <div className="dash-v3-ambient" aria-hidden="true">
+        <span className="dash-v3-crown">♔</span>
+        <span>Plus qu'un jeu<br />entre potes</span>
+      </div>
+
       <section className="dash-v2-hero" aria-labelledby="dashboard-title">
         <div className="dash-v2-hero-top">
           <span className="dash-v2-eyebrow">
             Saison {new Date().getFullYear()}{periodLabel ? ` • ${periodLabel}` : ''}
           </span>
-          {totalCount > 0 && (
-            <span className="dash-v2-progress-chip">{progressPct}% fait</span>
-          )}
         </div>
 
         <div className="dash-v2-hero-main">
@@ -167,52 +162,49 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
             <h2 id="dashboard-title" className="dash-v2-title">{heroTitle}</h2>
             <p className="dash-v2-subtitle">
               {totalCount > 0
-                ? remainingCount > 0
-                  ? `${remainingCount} prono${remainingCount > 1 ? 's' : ''} à compléter`
-                  : 'Tous tes pronos sont prêts ✓'
+                ? `${doneCount}/${totalCount} pronostic${totalCount > 1 ? 's' : ''} fait${doneCount > 1 ? 's' : ''}`
                 : 'Les prochains matchs arrivent bientôt'}
             </p>
           </div>
 
           <div className="dash-v2-ball-wrap">
-            <span className="dash-v2-ball-lines" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>
-            <SketchBall size={96} className="dash-v2-hero-ball" />
-            <span className="dash-v2-ball-caption">On joue entre nous</span>
+            <span className="dash-v2-ball-lines dash-v2-ball-lines-left" aria-hidden="true"><span /><span /></span>
+            <SketchBall size={106} className="dash-v2-hero-ball" />
+            <span className="dash-v2-ball-lines dash-v2-ball-lines-right" aria-hidden="true"><span /><span /></span>
+            <span className="dash-v2-ball-caption">On joue<br />entre nous</span>
           </div>
         </div>
 
         {totalCount > 0 ? (
           <>
             <div className="dash-v2-progress-wrap">
-              <div className="dash-v2-progress-row">
-                <span>{doneCount}/{totalCount} pronostics faits</span>
-                <span>{progressPct}%</span>
-              </div>
               <div className="dash-v2-progress-track" aria-label={`${progressPct}% des pronostics complétés`}>
                 <div className="dash-v2-progress-fill" style={{ width: `${progressPct}%` }} />
               </div>
+              <span className="dash-v3-progress-value">{progressPct}%</span>
             </div>
 
             {nextDateLabel && nextTimeLabel && (
               <p className="dash-v2-nextline">
-                <span className="dash-v2-nextline-icon" aria-hidden="true">◷</span>
+                <span className="dash-v2-nextline-icon" aria-hidden="true">▣</span>
                 <span>Prochain match {nextDateLabel} à {nextTimeLabel}</span>
               </p>
             )}
 
             <button className="dash-v2-cta" onClick={() => onNavigate('pronostics')}>
-              {remainingCount > 0 ? 'Continuer mes pronos →' : 'Voir mes pronos →'}
+              {remainingCount > 0 ? 'Continuer mes pronos  →' : 'Voir mes pronos  →'}
             </button>
           </>
         ) : (
           <button className="dash-v2-cta" onClick={() => onNavigate('pronostics')}>
-            Voir les pronostics →
+            Voir les pronostics  →
           </button>
         )}
+
+        <div className="dash-v3-pitch-strip" aria-hidden="true">
+          <span className="dash-v3-pitch-line" />
+          <span className="dash-v3-pitch-arc" />
+        </div>
       </section>
 
       <section className="dash-v2-section" aria-labelledby="play-title">
@@ -220,20 +212,23 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
           <h3 id="play-title">À toi de jouer</h3>
         </div>
         <div className="dash-v2-actions">
-          <button className="dash-v2-action dash-v2-action-primary" onClick={() => onNavigate('jonglages')}>
-            <span className="dash-v2-action-icon" aria-hidden="true">{activeMinigame === 'dribble' ? '⚽' : '🤹'}</span>
-            <span className="dash-v2-action-title">Mini-jeu</span>
-            <span className="dash-v2-action-sub">{activeMinigame === 'dribble' ? 'Dribble' : 'Jonglage'}</span>
+          <button className="dash-v2-action dash-v2-action-primary" onClick={() => onNavigate('pronostics')}>
+            <span className="dash-v2-action-icon" aria-hidden="true">⚽</span>
+            <span className="dash-v2-action-title">Pronos</span>
+            <span className="dash-v2-action-sub">{remainingCount > 0 ? `${remainingCount} match${remainingCount > 1 ? 's' : ''} à faire` : 'Tout est prêt'}</span>
+            <span className="dash-v3-action-arrow">›</span>
           </button>
           <button className="dash-v2-action dash-v2-action-accent" onClick={() => onNavigate('penalty')}>
             <span className="dash-v2-action-icon" aria-hidden="true">🥅</span>
-            <span className="dash-v2-action-title">Penalty</span>
-            <span className="dash-v2-action-sub">Défie un pote</span>
+            <span className="dash-v2-action-title">Duel penalty</span>
+            <span className="dash-v2-action-sub">Un pote t'attend</span>
+            <span className="dash-v3-action-arrow">›</span>
           </button>
           <button className="dash-v2-action" onClick={() => onNavigate('quiz')}>
             <span className="dash-v2-action-icon" aria-hidden="true">🧠</span>
             <span className="dash-v2-action-title">Quiz</span>
             <span className="dash-v2-action-sub">Nouveau duel</span>
+            <span className="dash-v3-action-arrow">›</span>
           </button>
         </div>
       </section>
@@ -241,26 +236,26 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
       {nextMatch && (
         <section className="dash-v2-section" aria-labelledby="next-match-title">
           <div className="dash-v2-section-heading">
-            <h3 id="next-match-title">Prochain match</h3>
+            <h3 id="next-match-title">Matchs à venir</h3>
             <button className="dash-v2-section-link" onClick={() => onNavigate('pronostics')}>Voir tout →</button>
           </div>
 
           <div className="dash-v2-match-card">
             <div className="dash-v2-match-meta">
-              <span className="dash-v2-match-kicker">Ligue 1{nextMatch.matchday ? ` • J${nextMatch.matchday}` : ''}</span>
               {nextDateLabel && nextTimeLabel && (
-                <span className="dash-v2-match-date">{nextDateLabel} • {nextTimeLabel}</span>
+                <span className="dash-v2-match-date">▣ {nextDateLabel} {nextTimeLabel}</span>
               )}
+              <span className="dash-v2-match-kicker">Ligue 1{nextMatch.matchday ? `  •  Journée ${nextMatch.matchday}` : ''}</span>
             </div>
 
             <div className="dash-v2-match-body">
-              <div className="dash-v2-team">
-                <TeamBadge name={nextMatch.home_team} size={48} />
+              <div className="dash-v2-team dash-v3-team-home">
+                <TeamBadge name={nextMatch.home_team} size={56} />
                 <span className="dash-v2-team-name">{nextMatch.home_team}</span>
               </div>
 
               <div className="dash-v2-prediction">
-                <span className="dash-v2-prediction-label">Mon prono</span>
+                <span className="dash-v2-prediction-label">Mon pronostic</span>
                 {myNextPred ? (
                   <span className="dash-v2-prediction-score">{myNextPred.home} - {myNextPred.away}</span>
                 ) : (
@@ -268,14 +263,14 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
                 )}
               </div>
 
-              <div className="dash-v2-team">
-                <TeamBadge name={nextMatch.away_team} size={48} />
+              <div className="dash-v2-team dash-v3-team-away">
                 <span className="dash-v2-team-name">{nextMatch.away_team}</span>
+                <TeamBadge name={nextMatch.away_team} size={56} />
               </div>
             </div>
 
             <button className="dash-v2-match-footer" onClick={() => onNavigate('pronostics')}>
-              {myNextPred ? 'Modifier / voir mon pronostic →' : 'Faire mon pronostic →'}
+              Voir les pronostics des potes  →
             </button>
           </div>
         </section>
@@ -284,17 +279,13 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
       <section className="dash-v2-section" aria-labelledby="ranking-title">
         <div className="dash-v2-section-heading">
           <h3 id="ranking-title">Classement</h3>
-          <button className="dash-v2-section-link" onClick={() => onNavigate('classement')}>Voir tout →</button>
+          <button className="dash-v2-section-link" onClick={() => onNavigate('classement')}>Voir le classement →</button>
         </div>
 
         {ranking.length === 0 ? (
           <p className="groups-empty">Pas encore de points marqués sur cette période.</p>
         ) : (
-          <div className="dash-v2-ranking-card">
-            <div className="dash-v2-ranking-head">
-              <span className="dash-v2-ranking-kicker">Podium du groupe</span>
-              <span className="dash-v2-ranking-note">Entre nous</span>
-            </div>
+          <div className="dash-v2-ranking-card dash-v3-ranking-card">
             <ul className="dash-v2-ranking-list">
               {ranking.map((r, i) => {
                 const isMe = r.profile_id === user?.id
@@ -302,14 +293,18 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
                   <li key={r.profile_id} className={`dash-v2-ranking-row${isMe ? ' is-me' : ''}`}>
                     <span className={`dash-v2-rank rank-${i + 1}`}>{i + 1}</span>
                     <span className="dash-v2-player">
+                      <span className="dash-v3-player-avatar">{r.pseudo.slice(0, 1).toUpperCase()}</span>
                       <span>{r.pseudo}</span>
-                      {isMe && <span className="dash-v2-me-badge">toi</span>}
                     </span>
                     <span className="dash-v2-points">{r.points} pts</span>
                   </li>
                 )
               })}
             </ul>
+            <div className="dash-v3-ranking-note" aria-hidden="true">
+              <span className="dash-v3-crown">♔</span>
+              <span>Des points<br />mais surtout<br />des potes</span>
+            </div>
           </div>
         )}
       </section>
