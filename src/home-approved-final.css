@@ -1,0 +1,343 @@
+/* FINAL — écran d'accueil calé sur la maquette validée du 13/09/2026. */
+
+/* Le faux terrain de la passe précédente disparaît : on utilise maintenant un vrai SVG dédié. */
+.dash-v3-pitch-strip,
+.home-screen:has(.dash-screen) .home-main::before,
+.home-screen:has(.dash-screen) .home-main::after {
+  display: none !important;
+}
+
+.home-screen:has(.dash-screen) .home-main {
+  overflow: visible !important;
+}
+
+.dash-screen {
+  position: relative;
+  overflow: visible;
+}
+
+/* Petit terrain griffonné en haut à droite, comme sur la maquette. */
+.dash-v4-field-sketch {
+  position: absolute;
+  top: -76px;
+  right: -34px;
+  width: 88px;
+  height: 118px;
+  z-index: 0;
+  overflow: visible;
+  fill: none;
+  stroke: rgba(244,239,226,.43);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.dash-v4-field-sketch .dash-v4-field-dot {
+  fill: rgba(244,239,226,.43);
+  stroke: none;
+}
+
+.dash-v3-ambient {
+  z-index: 2 !important;
+}
+
+/* HERO : proportions proches de la maquette de référence. */
+.dash-v2-hero {
+  overflow: hidden !important;
+  padding: 14px 14px 14px !important;
+  border-radius: 14px !important;
+}
+
+.dash-v2-hero-main {
+  grid-template-columns: minmax(0,1fr) 108px !important;
+  gap: 7px !important;
+  align-items: center !important;
+}
+
+.dash-v2-title {
+  font-size: clamp(38px, 10.7vw, 50px) !important;
+  line-height: .91 !important;
+  white-space: nowrap;
+}
+
+.dash-v2-subtitle {
+  font-size: 16px !important;
+  margin-top: 5px !important;
+}
+
+/* Ballon : les anciennes petites barres droites sont désactivées. */
+.dash-v2-ball-lines {
+  display: none !important;
+}
+
+.dash-v2-ball-wrap {
+  position: relative !important;
+  width: 108px !important;
+  height: 118px !important;
+  min-height: 118px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+.dash-v2-hero-ball,
+.dash-v2-ball-wrap .dash-v2-hero-ball {
+  position: relative;
+  z-index: 2;
+  width: 101px !important;
+  height: 101px !important;
+  transform: rotate(-5deg) !important;
+}
+
+/* Vraies courbes de mouvement autour du ballon. */
+.dash-v4-ball-motion {
+  position: absolute;
+  inset: -9px -11px -10px -17px;
+  width: 142px;
+  height: 142px;
+  z-index: 1;
+  fill: none;
+  stroke: #0F3B2E;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  opacity: .92;
+  pointer-events: none;
+}
+
+.dash-v2-ball-caption {
+  position: absolute !important;
+  z-index: 3;
+  right: -1px !important;
+  bottom: -7px !important;
+  margin: 0 !important;
+  color: #0F3B2E !important;
+  font: 700 10.5px/.94 'Space Mono', monospace !important;
+  text-transform: uppercase !important;
+  letter-spacing: .015em !important;
+  transform: rotate(-7deg) !important;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.dash-v2-ball-caption::after {
+  content: '';
+  display: block;
+  width: 38px;
+  height: 2.5px;
+  margin: 3px 0 0 auto;
+  border-radius: 99px;
+  background: #D4A22C;
+  transform: rotate(-8deg);
+}
+
+/* Progression */
+.dash-v2-progress-wrap {
+  margin-top: 6px !important;
+}
+
+.dash-v2-progress-track {
+  height: 8px !important;
+}
+
+.dash-v3-progress-value {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+/* Calendrier dessiné, à la place du carré ▣. */
+.dash-v4-calendar {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: #0F3B2E;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: middle;
+}
+
+.dash-v4-calendar-day {
+  fill: #0F3B2E;
+  stroke: none;
+}
+
+.dash-v2-nextline-icon {
+  display: grid !important;
+  place-items: center !important;
+  width: 26px !important;
+  height: 26px !important;
+  flex-basis: 26px !important;
+  color: #0F3B2E !important;
+  font-size: 0 !important;
+}
+
+.dash-v2-nextline-icon .dash-v4-calendar {
+  width: 22px;
+  height: 22px;
+}
+
+.dash-v2-nextline {
+  gap: 8px !important;
+  margin-top: 9px !important;
+  font-size: 10px !important;
+}
+
+.dash-v2-cta {
+  margin-top: 8px !important;
+  min-height: 48px !important;
+  font-size: 18px !important;
+}
+
+/* Titres : un peu plus proches de la référence. */
+.dash-v2-section-heading h3 {
+  font-size: 24px !important;
+}
+
+.dash-v2-section-heading h3::after {
+  width: 31px !important;
+  height: 3px !important;
+}
+
+/* Cartes de jeu : plus propres / équilibrées. */
+.dash-v2-action {
+  min-height: 103px !important;
+  padding: 10px 10px 9px !important;
+}
+
+.dash-v2-action-icon {
+  width: 38px !important;
+  height: 38px !important;
+  font-size: 21px !important;
+  margin-bottom: 8px !important;
+}
+
+.dash-v2-action-title {
+  font-size: 15px !important;
+}
+
+.dash-v2-action-sub {
+  font-size: 8.5px !important;
+}
+
+/* Ligne date de la carte match avec le même vrai calendrier. */
+.dash-v2-match-date {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+}
+
+.dash-v4-calendar-small {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2;
+}
+
+.dash-v2-match-meta {
+  align-items: center !important;
+}
+
+/* Classement : donne plus d'air à la phrase et la rend réellement lisible. */
+.dash-v3-ranking-card {
+  grid-template-columns: minmax(0,1fr) 116px !important;
+}
+
+.dash-v3-ranking-note {
+  position: relative;
+  padding: 8px 8px 9px !important;
+  color: rgba(244,239,226,.96) !important;
+  font: 400 15px/1.03 'Pacifico', cursive !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  transform: rotate(-4deg) !important;
+}
+
+.dash-v4-note-crown {
+  width: 31px;
+  height: 24px;
+  margin-bottom: 4px;
+  fill: none;
+  stroke: rgba(244,239,226,.92);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dash-v4-note-underline {
+  display: block;
+  width: 39px;
+  height: 3px;
+  margin-top: 7px;
+  border-radius: 99px;
+  background: #D4A22C;
+  transform: rotate(-6deg);
+}
+
+/* La zone joueurs garde sa largeur malgré l'agrandissement de la note. */
+.dash-v2-ranking-row {
+  grid-template-columns: 26px minmax(0,1fr) 45px !important;
+  gap: 6px !important;
+}
+
+.dash-v2-player {
+  font-size: 11.5px !important;
+}
+
+.dash-v2-points {
+  width: 45px !important;
+  font-size: 8.5px !important;
+}
+
+@media (max-width: 390px) {
+  .dash-v4-field-sketch {
+    top: -70px;
+    right: -38px;
+    width: 82px;
+    height: 110px;
+  }
+
+  .dash-v2-hero-main {
+    grid-template-columns: minmax(0,1fr) 101px !important;
+  }
+
+  .dash-v2-title {
+    font-size: 36px !important;
+  }
+
+  .dash-v2-ball-wrap {
+    width: 101px !important;
+    height: 111px !important;
+    min-height: 111px !important;
+  }
+
+  .dash-v2-hero-ball,
+  .dash-v2-ball-wrap .dash-v2-hero-ball {
+    width: 94px !important;
+    height: 94px !important;
+  }
+
+  .dash-v4-ball-motion {
+    inset: -10px -12px -10px -18px;
+    width: 136px;
+    height: 136px;
+  }
+
+  .dash-v2-ball-caption {
+    font-size: 9.7px !important;
+    right: -2px !important;
+  }
+
+  .dash-v3-ranking-card {
+    grid-template-columns: minmax(0,1fr) 106px !important;
+  }
+
+  .dash-v3-ranking-note {
+    font-size: 13.5px !important;
+  }
+
+  .dash-v4-note-crown {
+    width: 28px;
+    height: 22px;
+  }
+}
