@@ -25,10 +25,6 @@ interface Props {
   onNavigate: (screen: 'pronostics' | 'classement' | 'penalty' | 'quiz' | 'jonglages') => void
 }
 
-// Calendrier officiel L1 2026/27. On s'en sert uniquement comme secours
-// visuel lorsque les lignes `matches` n'ont pas encore de `matchday` rempli.
-// Ça permet au gros titre de rester sur la journée réellement en cours
-// (ex. le 13 septembre = J4, même si le prochain match affiché est déjà J5).
 const LIGUE1_2627_STARTS: Array<[string, number]> = [
   ['2026-08-21', 1],
   ['2026-08-28', 2],
@@ -77,6 +73,16 @@ function inferLigue1Matchday(date: Date | null): number | null {
     else break
   }
   return current
+}
+
+function CalendarIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={`dash-v4-calendar ${className}`} viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3.25" y="5.25" width="17.5" height="15.25" rx="2.25" />
+      <path d="M7 3.5v4M17 3.5v4M3.5 9.25h17" />
+      <rect x="7" y="12" width="3" height="2.7" rx=".45" className="dash-v4-calendar-day" />
+    </svg>
+  )
 }
 
 export default function Home({ groupId, groupName, onNavigate }: Props) {
@@ -206,6 +212,19 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
         <span>Plus qu'un jeu<br />entre potes</span>
       </div>
 
+      <svg className="dash-v4-field-sketch" viewBox="0 0 120 160" aria-hidden="true">
+        <g transform="rotate(8 60 80)">
+          <rect x="13" y="8" width="94" height="144" rx="1" />
+          <path d="M13 80h94" />
+          <circle cx="60" cy="80" r="15" />
+          <circle cx="60" cy="80" r="1.7" className="dash-v4-field-dot" />
+          <rect x="34" y="8" width="52" height="24" />
+          <rect x="45" y="8" width="30" height="10" />
+          <rect x="34" y="128" width="52" height="24" />
+          <rect x="45" y="142" width="30" height="10" />
+        </g>
+      </svg>
+
       <section className="dash-v2-hero" aria-labelledby="dashboard-title">
         <div className="dash-v2-hero-top">
           <span className="dash-v2-eyebrow">
@@ -224,9 +243,15 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
           </div>
 
           <div className="dash-v2-ball-wrap">
-            <span className="dash-v2-ball-lines dash-v2-ball-lines-left" aria-hidden="true"><span /><span /></span>
+            <svg className="dash-v4-ball-motion" viewBox="0 0 150 150" aria-hidden="true">
+              <path d="M35 24C18 36 10 53 10 70" />
+              <path d="M43 31C29 41 22 53 21 66" />
+              <path d="M50 39C39 47 34 55 33 64" />
+              <path d="M43 119C55 132 69 139 84 141" />
+              <path d="M51 111C61 121 72 127 84 129" />
+              <path d="M60 104C68 111 76 115 85 117" />
+            </svg>
             <SketchBall size={106} className="dash-v2-hero-ball" />
-            <span className="dash-v2-ball-lines dash-v2-ball-lines-right" aria-hidden="true"><span /><span /></span>
             <span className="dash-v2-ball-caption">On joue<br />entre nous</span>
           </div>
         </div>
@@ -242,7 +267,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
 
             {nextDateLabel && nextTimeLabel && (
               <p className="dash-v2-nextline">
-                <span className="dash-v2-nextline-icon" aria-hidden="true">▣</span>
+                <span className="dash-v2-nextline-icon" aria-hidden="true"><CalendarIcon /></span>
                 <span>Prochain match {nextDateLabel} à {nextTimeLabel}</span>
               </p>
             )}
@@ -256,11 +281,6 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
             Voir les pronostics  →
           </button>
         )}
-
-        <div className="dash-v3-pitch-strip" aria-hidden="true">
-          <span className="dash-v3-pitch-line" />
-          <span className="dash-v3-pitch-arc" />
-        </div>
       </section>
 
       <section className="dash-v2-section" aria-labelledby="play-title">
@@ -299,7 +319,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
           <div className="dash-v2-match-card">
             <div className="dash-v2-match-meta">
               {nextDateLabel && nextTimeLabel && (
-                <span className="dash-v2-match-date">▣ {nextDateLabel} {nextTimeLabel}</span>
+                <span className="dash-v2-match-date"><CalendarIcon className="dash-v4-calendar-small" /> {nextDateLabel} {nextTimeLabel}</span>
               )}
               <span className="dash-v2-match-kicker">Ligue 1{nextMatchday ? `  •  Journée ${nextMatchday}` : ''}</span>
             </div>
@@ -358,8 +378,12 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
               })}
             </ul>
             <div className="dash-v3-ranking-note" aria-hidden="true">
-              <span className="dash-v3-crown">♔</span>
-              <span>Des points<br />mais surtout<br />des potes</span>
+              <svg className="dash-v4-note-crown" viewBox="0 0 48 34">
+                <path d="M5 27L2 8l13 10L24 3l9 15L46 8l-3 19z" />
+                <path d="M7 31h34" />
+              </svg>
+              <span>Des points,<br />mais surtout<br />des potes</span>
+              <i className="dash-v4-note-underline" />
             </div>
           </div>
         )}
