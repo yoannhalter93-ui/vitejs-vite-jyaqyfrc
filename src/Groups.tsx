@@ -308,7 +308,6 @@ export default function Groups({ onSelectGroup }: Props) {
                 <span className="groups-card-role">{m.role === 'owner' ? 'Propriétaire' : 'Membre'}</span>
               </div>
               <div className="groups-card-meta">
-                <span>Validation : {m.groups.validation_mode}</span>
                 <span>Période : {formatPeriod(m.groups.period_type, m.groups.period_custom_days)}</span>
               </div>
               {m.role === 'owner' && (
