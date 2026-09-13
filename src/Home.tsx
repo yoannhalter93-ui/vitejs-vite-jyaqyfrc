@@ -25,6 +25,60 @@ interface Props {
   onNavigate: (screen: 'pronostics' | 'classement' | 'penalty' | 'quiz' | 'jonglages') => void
 }
 
+// Calendrier officiel L1 2026/27. On s'en sert uniquement comme secours
+// visuel lorsque les lignes `matches` n'ont pas encore de `matchday` rempli.
+// Ça permet au gros titre de rester sur la journée réellement en cours
+// (ex. le 13 septembre = J4, même si le prochain match affiché est déjà J5).
+const LIGUE1_2627_STARTS: Array<[string, number]> = [
+  ['2026-08-21', 1],
+  ['2026-08-28', 2],
+  ['2026-09-04', 3],
+  ['2026-09-11', 4],
+  ['2026-09-18', 5],
+  ['2026-10-09', 6],
+  ['2026-10-16', 7],
+  ['2026-10-23', 8],
+  ['2026-10-30', 9],
+  ['2026-11-06', 10],
+  ['2026-11-20', 11],
+  ['2026-11-27', 12],
+  ['2026-12-04', 13],
+  ['2026-12-11', 14],
+  ['2027-01-02', 15],
+  ['2027-01-15', 16],
+  ['2027-01-22', 17],
+  ['2027-01-29', 18],
+  ['2027-02-05', 19],
+  ['2027-02-12', 20],
+  ['2027-02-19', 21],
+  ['2027-02-26', 22],
+  ['2027-03-05', 23],
+  ['2027-03-12', 24],
+  ['2027-03-19', 25],
+  ['2027-04-02', 26],
+  ['2027-04-09', 27],
+  ['2027-04-16', 28],
+  ['2027-04-23', 29],
+  ['2027-04-30', 30],
+  ['2027-05-07', 31],
+  ['2027-05-15', 32],
+  ['2027-05-22', 33],
+  ['2027-05-29', 34],
+]
+
+function inferLigue1Matchday(date: Date | null): number | null {
+  if (!date || Number.isNaN(date.getTime())) return null
+  const stamp = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  let current: number | null = null
+  for (const [iso, matchday] of LIGUE1_2627_STARTS) {
+    const [year, month, day] = iso.split('-').map(Number)
+    const start = new Date(year, month - 1, day).getTime()
+    if (stamp >= start) current = matchday
+    else break
+  }
+  return current
+}
+
 export default function Home({ groupId, groupName, onNavigate }: Props) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
@@ -129,8 +183,10 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
   const nextMatch = upcoming[0]
   const nextKickoff = nextMatch ? new Date(nextMatch.kickoff_at) : null
-  const currentMatchday = upcoming.find((match) => match.matchday != null)?.matchday ?? null
-  const heroTitle = currentMatchday ? `Journée ${currentMatchday}` : 'Journée en cours'
+  const storedMatchday = upcoming.find((match) => match.matchday != null)?.matchday ?? null
+  const currentMatchday = inferLigue1Matchday(new Date()) ?? storedMatchday
+  const nextMatchday = nextMatch?.matchday ?? inferLigue1Matchday(nextKickoff)
+  const heroTitle = currentMatchday ? `Journée ${currentMatchday}` : 'Journée'
 
   const nextDateLabel = nextKickoff
     ? nextKickoff.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', '')
@@ -245,7 +301,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
               {nextDateLabel && nextTimeLabel && (
                 <span className="dash-v2-match-date">▣ {nextDateLabel} {nextTimeLabel}</span>
               )}
-              <span className="dash-v2-match-kicker">Ligue 1{nextMatch.matchday ? `  •  Journée ${nextMatch.matchday}` : ''}</span>
+              <span className="dash-v2-match-kicker">Ligue 1{nextMatchday ? `  •  Journée ${nextMatchday}` : ''}</span>
             </div>
 
             <div className="dash-v2-match-body">
@@ -294,7 +350,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
                     <span className={`dash-v2-rank rank-${i + 1}`}>{i + 1}</span>
                     <span className="dash-v2-player">
                       <span className="dash-v3-player-avatar">{r.pseudo.slice(0, 1).toUpperCase()}</span>
-                      <span>{r.pseudo}</span>
+                      <span className="dash-v3-player-name">{r.pseudo}</span>
                     </span>
                     <span className="dash-v2-points">{r.points} pts</span>
                   </li>
