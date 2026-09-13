@@ -99,6 +99,39 @@ body {
   border-color: #D4A22C;
 }
 
+/* Champ mot de passe avec bouton œil pour afficher/masquer la saisie,
+   comme sur la plupart des sites. */
+.login-password-wrap {
+  position: relative;
+  display: flex;
+}
+
+.login-input-password {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.login-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: rgba(27, 27, 31, 0.45);
+  cursor: pointer;
+}
+
+.login-password-toggle:hover {
+  color: #D4A22C;
+}
+
 .login-error {
   margin: 10px 0 0;
   color: #C1443C;
