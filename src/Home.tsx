@@ -22,7 +22,7 @@ interface RankRow {
 interface Props {
   groupId: string
   groupName: string
-  onNavigate: (screen: 'pronostics' | 'classement' | 'penalty' | 'quiz') => void
+  onNavigate: (screen: 'pronostics' | 'classement' | 'penalty' | 'quiz' | 'jonglages') => void
 }
 
 export default function Home({ groupId, groupName, onNavigate }: Props) {
@@ -33,6 +33,14 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const [donePredIds, setDonePredIds] = useState<Set<string>>(new Set())
   const [myNextPred, setMyNextPred] = useState<{ home: number; away: number } | null>(null)
   const [ranking, setRanking] = useState<RankRow[]>([])
+  // mini-jeu hebdomadaire actif (jonglages ou dribble), même logique que App.tsx
+  const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble'>('jonglage')
+
+  useEffect(() => {
+    supabase.rpc('get_active_minigame').then(({ data, error }: any) => {
+      if (!error && data) setActiveMinigame(data)
+    })
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -125,7 +133,6 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
 
   const totalCount = upcoming.length
   const doneCount = upcoming.filter((m) => donePredIds.has(m.id)).length
-  const todoCount = totalCount - doneCount
   const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
   const nextMatch = upcoming[0]
   const nextKickoff = nextMatch ? new Date(nextMatch.kickoff_at) : null
@@ -175,10 +182,10 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
           <Squiggle />
         </div>
         <div className="dash-actions">
-          <button className="dash-action-card" onClick={() => onNavigate('pronostics')}>
-            <span className="dash-action-icon">⚽</span>
-            <span className="dash-action-label">Pronos</span>
-            <span className="dash-action-sub">{todoCount > 0 ? `${todoCount} match${todoCount > 1 ? 's' : ''} à faire` : 'À jour'}</span>
+          <button className="dash-action-card" onClick={() => onNavigate('jonglages')}>
+            <span className="dash-action-icon">{activeMinigame === 'dribble' ? '⚽' : '🤹'}</span>
+            <span className="dash-action-label">Jeu de la semaine</span>
+            <span className="dash-action-sub">{activeMinigame === 'dribble' ? 'Dribble' : 'Jonglage'}</span>
           </button>
           <button className="dash-action-card dash-action-card-accent" onClick={() => onNavigate('penalty')}>
             <span className="dash-action-icon">🥅</span>
