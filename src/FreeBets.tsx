@@ -37,6 +37,14 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
   const [myVotes, setMyVotes] = useState<Record<string, string>>({})
   const [myBoosts, setMyBoosts] = useState<Record<string, boolean>>({})
   const [voteCounts, setVoteCounts] = useState<Record<string, { oui: number; non: number }>>({})
+  // confirmations du résultat (après échéance) : ce que MOI j'ai confirmé
+  // pour chaque pari, et le décompte de tout le monde pour les paris en
+  // mode "majorité" — avant ce correctif, rien n'indiquait qu'un clic sur
+  // Oui/Non avait bien été pris en compte, ni combien de confirmations
+  // manquaient encore, donc ça semblait ne "rien faire"
+  const [myConfirmations, setMyConfirmations] = useState<Record<string, string>>({})
+  const [confirmCounts, setConfirmCounts] = useState<Record<string, { oui: number; non: number }>>({})
+  const [groupSize, setGroupSize] = useState(0)
   const [showCreate, setShowCreate] = useState(false)
   const [text, setText] = useState('')
   const [deadline, setDeadline] = useState('')
@@ -66,6 +74,7 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     // pseudos des membres du groupe, pour afficher qui a proposé chaque pari
     const { data: gm } = await supabase.from('group_members').select('profile_id').eq('group_id', groupId)
     const memberIds = (gm ?? []).map((m) => m.profile_id)
+    setGroupSize(memberIds.length)
     if (memberIds.length > 0) {
       const { data: profs } = await supabase.from('profiles').select('id, pseudo').in('id', memberIds)
       setPseudos(Object.fromEntries((profs ?? []).map((p) => [p.id, p.pseudo])))
@@ -103,6 +112,22 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
       const boostSet: Record<string, boolean> = {}
       for (const bo of boosts ?? []) boostSet[bo.bet_id] = true
       setMyBoosts(boostSet)
+
+      // qui a confirmé quoi (après échéance) — visible pour tout membre du
+      // groupe, sert à afficher "tu as confirmé : ..." et le décompte en
+      // mode majorité au lieu de laisser les boutons Oui/Non sans retour
+      const { data: allResolutions } = await supabase.from('free_bet_resolutions').select('bet_id, profile_id, confirmed_side').in('bet_id', ids)
+      const confirmCountsMap: Record<string, { oui: number; non: number }> = {}
+      const myConfirmMap: Record<string, string> = {}
+      for (const r of allResolutions ?? []) {
+        const c = confirmCountsMap[r.bet_id] ?? { oui: 0, non: 0 }
+        if (r.confirmed_side === 'oui') c.oui++
+        else if (r.confirmed_side === 'non') c.non++
+        confirmCountsMap[r.bet_id] = c
+        if (r.profile_id === user.id) myConfirmMap[r.bet_id] = r.confirmed_side
+      }
+      setConfirmCounts(confirmCountsMap)
+      setMyConfirmations(myConfirmMap)
     }
     setLoading(false)
   }
@@ -152,7 +177,11 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
   }
 
   const confirmResult = async (betId: string, side: string) => {
-    if (!user) return
+    // déjà confirmé par moi (ex: double-clic, ou re-render entre deux
+    // clics) : on ne retente pas l'insert, qui échouerait silencieusement
+    // sur la contrainte (bet_id, profile_id) et donnait l'impression que
+    // le clic "ne faisait rien"
+    if (!user || myConfirmations[betId]) return
     setError(null)
     const { error: err } = await supabase.from('free_bet_resolutions').insert({ bet_id: betId, profile_id: user.id, confirmed_side: side })
     if (err) setError(err.message)
@@ -219,11 +248,22 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
           // monde peut voter et il faut une majorité des membres du groupe
           b.validation_mode === 'confiance' && user?.id !== b.validator_id && !isOwner ? (
             <div className="match-cancelled">En attente de la confirmation de l'auteur du pari ou du créateur du groupe</div>
+          ) : myConfirmations[b.id] ? (
+            <div className="match-cancelled">
+              Tu as confirmé : {myConfirmations[b.id]}
+              {b.validation_mode === 'majorite' &&
+                ` — en attente des autres membres (${confirmCounts[b.id]?.oui ?? 0} oui / ${confirmCounts[b.id]?.non ?? 0} non sur ${groupSize} membres)`}
+            </div>
           ) : (
             <div className="match-predict">
               <span>Confirmer le résultat :</span>
               <button className="groups-action-btn groups-action-btn-secondary" onClick={() => confirmResult(b.id, 'oui')}>Oui</button>
               <button className="groups-action-btn groups-action-btn-secondary" onClick={() => confirmResult(b.id, 'non')}>Non</button>
+              {b.validation_mode === 'majorite' && (
+                <span className="match-my-pred">
+                  ({confirmCounts[b.id]?.oui ?? 0} oui / {confirmCounts[b.id]?.non ?? 0} non confirmés)
+                </span>
+              )}
             </div>
           )
         )}
