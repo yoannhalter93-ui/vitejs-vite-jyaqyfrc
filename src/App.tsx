@@ -427,6 +427,46 @@ function App() {
     setScreen('accueil')
   }
 
+  // Le bouton Déconnexion / la zone "Supprimer mon compte" doivent rester
+  // accessibles dans tous les cas (avec ou sans groupe sélectionné, sur
+  // l'écran Profil comme sur la liste des groupes) — d'où ce petit bloc
+  // partagé plutôt que trois copies qui risqueraient de diverger.
+  const renderAccountFooter = () => (
+    <>
+      <button className="home-signout" onClick={signOut}>
+        Déconnexion
+      </button>
+      <div className="account-danger-zone">
+        {!showDeleteConfirm ? (
+          <button className="account-delete-link" onClick={() => setShowDeleteConfirm(true)}>
+            Supprimer mon compte
+          </button>
+        ) : (
+          <div className="account-delete-confirm">
+            <p>
+              Cette action est définitive : tu quittes tous tes groupes, ton pseudo et tes
+              abonnements aux notifications sont supprimés, et tu ne pourras plus te
+              reconnecter avec ce compte.
+            </p>
+            {deleteError && <p className="groups-error">{deleteError}</p>}
+            <div className="account-delete-actions">
+              <button
+                className="groups-action-btn groups-action-btn-secondary"
+                disabled={deleteBusy}
+                onClick={() => { setShowDeleteConfirm(false); setDeleteError(null) }}
+              >
+                Annuler
+              </button>
+              <button className="account-delete-confirm-btn" disabled={deleteBusy} onClick={handleDeleteAccount}>
+                {deleteBusy ? 'Suppression...' : 'Oui, supprimer définitivement'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  )
+
   if (loading) {
     return (
       <div className="app-loading">
@@ -686,85 +726,38 @@ function App() {
                   <div className="profil-jetons">🪙 {tokenBalance ?? 0} jetons</div>
                   <SketchTrophy size={32} className="profil-trophy" />
                 </div>
-                <button className="groups-action-btn groups-action-btn-secondary" onClick={() => setSelectedGroup(null)}>
+                <button
+                  className="groups-action-btn groups-action-btn-secondary"
+                  onClick={() => { setSelectedGroup(null); setScreen('accueil') }}
+                >
                   Changer de groupe
                 </button>
-                <button className="home-signout" onClick={signOut}>
-                  Déconnexion
-                </button>
-                <div className="account-danger-zone">
-                  {!showDeleteConfirm ? (
-                    <button className="account-delete-link" onClick={() => setShowDeleteConfirm(true)}>
-                      Supprimer mon compte
-                    </button>
-                  ) : (
-                    <div className="account-delete-confirm">
-                      <p>
-                        Cette action est définitive : tu quittes tous tes groupes, ton pseudo et tes
-                        abonnements aux notifications sont supprimés, et tu ne pourras plus te
-                        reconnecter avec ce compte.
-                      </p>
-                      {deleteError && <p className="groups-error">{deleteError}</p>}
-                      <div className="account-delete-actions">
-                        <button
-                          className="groups-action-btn groups-action-btn-secondary"
-                          disabled={deleteBusy}
-                          onClick={() => { setShowDeleteConfirm(false); setDeleteError(null) }}
-                        >
-                          Annuler
-                        </button>
-                        <button className="account-delete-confirm-btn" disabled={deleteBusy} onClick={handleDeleteAccount}>
-                          {deleteBusy ? 'Suppression...' : 'Oui, supprimer définitivement'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {renderAccountFooter()}
               </div>
             )}
           </>
+        ) : screen === 'profil' ? (
+          // Le bouton profil (avatar rond, en haut à droite) reste cliquable
+          // même avant d'avoir rejoint un groupe — jusqu'ici, cliquer dessus
+          // ici ne faisait rien puisque seul <Groups /> était rendu, quel que
+          // soit l'écran demandé.
+          <div className="profil-screen">
+            <div className="profil-card">
+              <div className="profil-avatar">{(myPseudo ?? '?').charAt(0).toUpperCase()}</div>
+              <div className="profil-pseudo">{myPseudo ?? 'Joueur'}</div>
+              <SketchTrophy size={32} className="profil-trophy" />
+            </div>
+            <button className="groups-action-btn groups-action-btn-secondary" onClick={() => setScreen('accueil')}>
+              Retour à mes groupes
+            </button>
+            {renderAccountFooter()}
+          </div>
         ) : (
           <>
             <Groups
               onSelectGroup={handleSelectGroup}
             />
-            {/* Sans groupe, la barre de navigation du bas (et donc l'onglet
-                Profil où vit normalement le bouton Déconnexion) ne s'affiche
-                pas : sans ce bouton ici, un compte à 0 groupe (nouveau
-                compte, ou suppression de compte ratée en cours de route)
-                n'a aucun moyen de se déconnecter pour se reconnecter avec
-                un autre compte. */}
-            <button className="home-signout" onClick={signOut}>
-              Déconnexion
-            </button>
-            <div className="account-danger-zone">
-              {!showDeleteConfirm ? (
-                <button className="account-delete-link" onClick={() => setShowDeleteConfirm(true)}>
-                  Supprimer mon compte
-                </button>
-              ) : (
-                <div className="account-delete-confirm">
-                  <p>
-                    Cette action est définitive : tu quittes tous tes groupes, ton pseudo et tes
-                    abonnements aux notifications sont supprimés, et tu ne pourras plus te
-                    reconnecter avec ce compte.
-                  </p>
-                  {deleteError && <p className="groups-error">{deleteError}</p>}
-                  <div className="account-delete-actions">
-                    <button
-                      className="groups-action-btn groups-action-btn-secondary"
-                      disabled={deleteBusy}
-                      onClick={() => { setShowDeleteConfirm(false); setDeleteError(null) }}
-                    >
-                      Annuler
-                    </button>
-                    <button className="account-delete-confirm-btn" disabled={deleteBusy} onClick={handleDeleteAccount}>
-                      {deleteBusy ? 'Suppression...' : 'Oui, supprimer définitivement'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            {renderAccountFooter()}
           </>
         )}
       </main>
