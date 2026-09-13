@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './supabaseClient'
+import { EyeIcon, EyeOffIcon } from './Icons'
 
 type Mode = 'signin' | 'signup'
 
@@ -8,6 +9,7 @@ export default function Login() {
   const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
@@ -66,16 +68,27 @@ export default function Login() {
           <label className="login-label" htmlFor="password">
             Mot de passe
           </label>
-          <input
-            id="password"
-            type="password"
-            className="login-input"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-          />
+          <div className="login-password-wrap">
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              className="login-input login-input-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+            />
+            <button
+              type="button"
+              className="login-password-toggle"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOffIcon size={19} /> : <EyeIcon size={19} />}
+            </button>
+          </div>
 
           {error && <p className="login-error">{error}</p>}
           {info && <p className="login-info">{info}</p>}
