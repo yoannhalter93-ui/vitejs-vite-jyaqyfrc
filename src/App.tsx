@@ -9,6 +9,7 @@ import BottomNav from './BottomNav';
 import Predictions from './Predictions';
 import Classement from './Classement';
 import Roulette from './Roulette';
+import TeamReveal from './TeamReveal';
 import PenaltyDuel from './PenaltyDuel';
 import WeeklyDuel from './WeeklyDuel';
 import FreeBets from './FreeBets';
@@ -26,7 +27,10 @@ type Screen =
   | 'quiz'
   | 'paris'
   | 'jonglages'
-  | 'profil';
+  | 'profil'
+  // écran d'accueil de groupe (une seule fois, à la première entrée dans
+  // un groupe) : explique + révèle l'équipe tirée au sort, voir TeamReveal
+  | 'team-reveal';
 
 // les 5 onglets de la barre de navigation en bas — "Jeux" regroupe les
 // mini-jeux (Mon équipe / Duel penalty / Quiz / Mini-jeu), atteints via le
@@ -401,6 +405,28 @@ function App() {
     openBonusTargetPicker(code)
   }
 
+  // Quand on entre dans un groupe : si on ne l'a encore jamais vu (nouveau
+  // membre), on passe par l'écran "team-reveal" qui explique le tirage au
+  // sort d'équipe et l'anime, avant l'accueil normal. Les membres qui l'ont
+  // déjà vu (flag posé par mark_team_reveal_seen, ou backfillé à true pour
+  // tous les membres existant avant ce correctif) vont directement à l'accueil.
+  const handleSelectGroup = async (id: string, name: string) => {
+    setSelectedGroup({ id, name })
+    if (session?.user?.id) {
+      const { data } = await supabase
+        .from('group_members')
+        .select('team_reveal_seen')
+        .eq('group_id', id)
+        .eq('profile_id', session.user.id)
+        .maybeSingle()
+      if (data?.team_reveal_seen === false) {
+        setScreen('team-reveal')
+        return
+      }
+    }
+    setScreen('accueil')
+  }
+
   if (loading) {
     return (
       <div className="app-loading">
@@ -529,6 +555,7 @@ function App() {
       <main className="home-main">
         {selectedGroup ? (
           <>
+            {screen !== 'team-reveal' && (
             <div className="group-nav">
               <button className="group-selector-pill" onClick={() => setSelectedGroup(null)}>
                 🏆 {selectedGroup.name} <span className="group-selector-chevron">⌄</span>
@@ -557,6 +584,7 @@ function App() {
             )}
           </div>
             </div>
+            )}
             {(screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') && (
               <button className="jeux-back-btn" onClick={() => setScreen('jeux')}>← Jeux</button>
             )}
@@ -593,6 +621,13 @@ function App() {
                   ))}
                 </div>
               </div>
+            )}
+            {screen === 'team-reveal' && (
+              <TeamReveal
+                groupId={selectedGroup.id}
+                groupName={selectedGroup.name}
+                onDone={() => setScreen('accueil')}
+              />
             )}
             {screen === 'roulette' && (
               <Roulette
@@ -691,7 +726,7 @@ function App() {
         ) : (
           <>
             <Groups
-              onSelectGroup={(id, name) => { setSelectedGroup({ id, name }); setScreen('accueil') }}
+              onSelectGroup={handleSelectGroup}
             />
             {/* Sans groupe, la barre de navigation du bas (et donc l'onglet
                 Profil où vit normalement le bouton Déconnexion) ne s'affiche
@@ -733,7 +768,7 @@ function App() {
           </>
         )}
       </main>
-      {selectedGroup && (
+      {selectedGroup && screen !== 'team-reveal' && (
         <BottomNav
           tabs={BOTTOM_TABS.map((t) => (t.key === 'paris' ? { ...t, badge: openBetsToVoteCount } : t))}
           active={bottomTabFor(screen)}
