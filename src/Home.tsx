@@ -136,7 +136,8 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
   const nextMatch = upcoming[0]
   const nextKickoff = nextMatch ? new Date(nextMatch.kickoff_at) : null
-  const heroTitle = nextMatch?.matchday ? `Journée ${nextMatch.matchday}` : groupName
+  const currentMatchday = upcoming.find((match) => match.matchday != null)?.matchday ?? null
+  const heroTitle = currentMatchday ? `Journée ${currentMatchday}` : 'Journée en cours'
 
   const nextDateLabel = nextKickoff
     ? nextKickoff.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', '')
@@ -172,7 +173,16 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
                 : 'Les prochains matchs arrivent bientôt'}
             </p>
           </div>
-          <SketchBall size={96} className="dash-v2-hero-ball" />
+
+          <div className="dash-v2-ball-wrap">
+            <span className="dash-v2-ball-lines" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+            <SketchBall size={96} className="dash-v2-hero-ball" />
+            <span className="dash-v2-ball-caption">On joue entre nous</span>
+          </div>
         </div>
 
         {totalCount > 0 ? (
