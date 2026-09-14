@@ -55,7 +55,7 @@ function useSynth() {
 interface Duel {
   id: string
   player_a_id: string
-  player_b_id: string
+  player_b_id: string | null
   phase: string
   score_a: number
   score_b: number
@@ -179,8 +179,8 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
   const opponentHasShot = myKeepAttempts.length > 0 && myKeepAttempts.every((a) => a.shot_taken)
   const iHaveFinishedKeeping = myKeepAttempts.length > 0 && myKeepAttempts.every((a) => a.resolved)
 
-  const myTurnToShoot = !!duel && duel.phase !== 'done' && !iHaveShot
-  const myTurnToSave = !!duel && duel.phase !== 'done' && opponentHasShot && !iHaveFinishedKeeping
+  const myTurnToShoot = !!duel && duel.phase !== 'done' && duel.phase !== 'waiting_opponent' && !iHaveShot
+  const myTurnToSave = !!duel && duel.phase !== 'done' && duel.phase !== 'waiting_opponent' && opponentHasShot && !iHaveFinishedKeeping
 
   const nextShotAttempt = myShotAttempts.find((a) => a.shooter_zone === null) ?? null
   const nextKeepAttempt = myKeepAttempts.find((a) => a.shot_taken && !a.resolved) ?? null
@@ -309,11 +309,16 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
       <div className="predictions-screen">
         <div className="predictions-header">
           <button className="predictions-back" onClick={() => setSelected(null)}>← Duels</button>
-          <h2>vs {opponentId ? pseudos[opponentId] ?? '???' : '???'}</h2>
+          <h2>{duel?.phase === 'waiting_opponent' ? '🎲 Duel de la semaine' : `vs ${opponentId ? pseudos[opponentId] ?? '???' : '???'}`}</h2>
         </div>
         {error && <p className="groups-error">{error}</p>}
 
-        {duel?.phase === 'done' ? (
+        {duel?.phase === 'waiting_opponent' ? (
+          <div className="roulette-result">
+            <p className="quiz-question-live">En attente d'un adversaire…</p>
+            <p className="predictions-period">Dès qu'un nouveau joueur rejoint le groupe, le duel sera créé automatiquement.</p>
+          </div>
+        ) : duel?.phase === 'done' ? (
           <p className="match-result">Score final : {duel.score_a} - {duel.score_b}
             {duel.winner_id ? (duel.winner_id === user?.id ? ' — Tu as gagné !' : ' — Tu as perdu.') : ' — Match nul.'}</p>
         ) : myTurnToShoot || myTurnToSave ? (
@@ -406,13 +411,22 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
             const opponentId = d.player_a_id === user?.id ? d.player_b_id : d.player_a_id
             return (
               <li className="match-card groups-card-clickable" key={d.id} onClick={() => openDuel(d.id)}>
-                <div className="match-teams">
-                  <span>vs {pseudos[opponentId] ?? '???'}</span>
-                </div>
-                {d.phase === 'done' ? (
-                  <div className="match-result">Terminé : {d.score_a} - {d.score_b}</div>
+                {d.phase === 'waiting_opponent' ? (
+                  <>
+                    <div className="match-teams"><span>⏳ En attente d'un adversaire</span></div>
+                    <div className="match-kickoff">Duel créé dès qu'un nouveau joueur rejoint</div>
+                  </>
                 ) : (
-                  <div className="match-kickoff">En cours</div>
+                  <>
+                    <div className="match-teams">
+                      <span>vs {opponentId ? pseudos[opponentId] ?? '???' : '???'}</span>
+                    </div>
+                    {d.phase === 'done' ? (
+                      <div className="match-result">Terminé : {d.score_a} - {d.score_b}</div>
+                    ) : (
+                      <div className="match-kickoff">En cours</div>
+                    )}
+                  </>
                 )}
               </li>
             )
@@ -427,10 +441,12 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
             {allDuels.map((d) => (
               <li className="match-card" key={d.id}>
                 <div className="match-teams">
-                  <span>{pseudos[d.player_a_id] ?? '???'} vs {pseudos[d.player_b_id] ?? '???'}</span>
+                  <span>{pseudos[d.player_a_id] ?? '???'} vs {d.player_b_id ? (pseudos[d.player_b_id] ?? '???') : 'en attente…'}</span>
                 </div>
                 {d.phase === 'done' ? (
                   <div className="match-result">{d.score_a} - {d.score_b}</div>
+                ) : d.phase === 'waiting_opponent' ? (
+                  <div className="match-kickoff">En attente d'un adversaire</div>
                 ) : (
                   <div className="match-kickoff">En cours ({d.score_a} - {d.score_b})</div>
                 )}
