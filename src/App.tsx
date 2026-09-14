@@ -413,6 +413,28 @@ function App() {
     markNotifRead(n.id)
   }
 
+  // Clique sur une notif de duel (quiz ou penalty) : avant, ça se contentait
+  // de la marquer comme lue, donc avec plusieurs groupes ayant chacun leur
+  // propre duel de la semaine, impossible de savoir lequel la notif
+  // concernait — on tombait facilement sur "en attente de l'adversaire"
+  // d'un AUTRE duel que celui visé par la notif. Maintenant ça emmène
+  // directement vers le bon groupe + le bon jeu.
+  const goToNotification = async (n: any) => {
+    if (!n.read) markNotifRead(n.id)
+    if (n.ref_table === 'weekly_duels' || n.ref_table === 'penalty_duels') {
+      const { data: duelRow } = await supabase.from(n.ref_table).select('group_id').eq('id', n.ref_id).maybeSingle()
+      if (!duelRow?.group_id) return
+      const { data: groupRow } = await supabase.from('groups').select('name').eq('id', duelRow.group_id).maybeSingle()
+      await handleSelectGroup(duelRow.group_id, groupRow?.name ?? '')
+      setScreen(n.ref_table === 'weekly_duels' ? 'quiz' : 'penalty')
+      setShowNotifPanel(false)
+    } else if (n.ref_table === 'groups' && n.ref_id) {
+      const { data: groupRow } = await supabase.from('groups').select('name').eq('id', n.ref_id).maybeSingle()
+      await handleSelectGroup(n.ref_id, groupRow?.name ?? '')
+      setShowNotifPanel(false)
+    }
+  }
+
   const handleUseBonus = (code: string) => {
     if (code === 'double_ou_rien') {
       setShowBonusPanel(false)
@@ -522,7 +544,7 @@ function App() {
                 </div>
                 {notifications.length === 0 && <div className="notif-empty">Aucune notification</div>}
                 {notifications.map((n) => (
-                  <div key={n.id} className={`notif-row ${n.read ? '' : 'notif-unread'}`} onClick={() => !n.read && markNotifRead(n.id)}>
+                  <div key={n.id} className={`notif-row ${n.read ? '' : 'notif-unread'}`} onClick={() => goToNotification(n)}>
                     <div className="notif-text">{n.text}</div>
                     <div className="notif-date">{new Date(n.created_at).toLocaleString('fr-FR')}</div>
                     {n.type === 'jongle' && n.related_profile_id && (
