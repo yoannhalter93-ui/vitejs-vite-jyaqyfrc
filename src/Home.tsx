@@ -93,6 +93,25 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const [donePredIds, setDonePredIds] = useState<Set<string>>(new Set())
   const [myNextPred, setMyNextPred] = useState<{ home: number; away: number } | null>(null)
   const [ranking, setRanking] = useState<RankRow[]>([])
+  // mini-jeu hebdomadaire actif (jonglages ou dribble), même logique que App.tsx
+  const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble'>('jonglage')
+
+  useEffect(() => {
+    const checkActiveMinigame = () => {
+      supabase.rpc('get_active_minigame').then(({ data, error }: any) => {
+        if (!error && data) setActiveMinigame(data)
+      })
+    }
+    checkActiveMinigame()
+    // Le mini-jeu actif change chaque lundi à minuit UTC : sans ceci, une
+    // appli restée ouverte en arrière-plan à ce moment-là (PWA relancée
+    // depuis le multitâche plutôt que vraiment fermée) continuerait
+    // d'afficher l'ancien jeu jusqu'à un vrai redémarrage — on revérifie
+    // donc aussi à chaque retour au premier plan.
+    const onVisible = () => { if (document.visibilityState === 'visible') checkActiveMinigame() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -286,10 +305,10 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
           <h3 id="play-title">À toi de jouer</h3>
         </div>
         <div className="dash-v2-actions">
-          <button className="dash-v2-action dash-v2-action-primary" onClick={() => onNavigate('pronostics')}>
-            <span className="dash-v2-action-icon" aria-hidden="true">⚽</span>
+          <button className="dash-v2-action dash-v2-action-primary" onClick={() => onNavigate('jonglages')}>
+            <span className="dash-v2-action-icon" aria-hidden="true">{activeMinigame === 'dribble' ? '⚽' : '🤹'}</span>
             <span className="dash-v2-action-title">Jeu de la semaine</span>
-            <span className="dash-v2-action-sub">{remainingCount > 0 ? `${remainingCount} match${remainingCount > 1 ? 's' : ''} à faire` : 'Tout est prêt'}</span>
+            <span className="dash-v2-action-sub">{activeMinigame === 'dribble' ? 'Dribble' : 'Jonglage'}</span>
             <span className="dash-v3-action-arrow">›</span>
           </button>
           <button className="dash-v2-action dash-v2-action-accent" onClick={() => onNavigate('penalty')}>
