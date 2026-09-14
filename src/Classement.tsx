@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
+import Avatar from './Avatar'
 
 interface Row {
   profile_id: string
   total_points: number
   pseudo: string
+  avatar_url: string | null
+  avatar_emoji: string | null
 }
 
 interface Props {
@@ -28,7 +31,7 @@ const CATEGORIES: { key: string; label: string }[] = [
 export default function Classement({ groupId, groupName }: Props) {
   const { user } = useAuth()
   const [tab, setTab] = useState<'general' | string>('general')
-  const [members, setMembers] = useState<{ profile_id: string; pseudo: string }[]>([])
+  const [members, setMembers] = useState<{ profile_id: string; pseudo: string; avatar_url: string | null; avatar_emoji: string | null }[]>([])
   const [generalPoints, setGeneralPoints] = useState<Record<string, number>>({})
   const [categoryPoints, setCategoryPoints] = useState<Record<string, Record<string, number>>>({})
   const [loading, setLoading] = useState(true)
@@ -41,7 +44,7 @@ export default function Classement({ groupId, groupName }: Props) {
 
       const { data: mem, error: membersError } = await supabase
         .from('group_members')
-        .select('profile_id, profiles(pseudo)')
+        .select('profile_id, profiles(pseudo, avatar_url, avatar_emoji)')
         .eq('group_id', groupId)
 
       if (membersError) {
@@ -50,10 +53,19 @@ export default function Classement({ groupId, groupName }: Props) {
         return
       }
 
-      type MemberRow = { profile_id: string; profiles: { pseudo: string } | { pseudo: string }[] | null }
+      type MemberRow = {
+        profile_id: string
+        profiles: { pseudo: string; avatar_url: string | null; avatar_emoji: string | null }
+          | { pseudo: string; avatar_url: string | null; avatar_emoji: string | null }[] | null
+      }
       const memberRows = ((mem ?? []) as unknown as MemberRow[]).map((m) => {
         const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
-        return { profile_id: m.profile_id, pseudo: prof?.pseudo ?? '???' }
+        return {
+          profile_id: m.profile_id,
+          pseudo: prof?.pseudo ?? '???',
+          avatar_url: prof?.avatar_url ?? null,
+          avatar_emoji: prof?.avatar_emoji ?? null,
+        }
       })
       setMembers(memberRows)
 
@@ -137,15 +149,42 @@ export default function Classement({ groupId, groupName }: Props) {
       ) : visibleRows.length === 0 ? (
         <p className="groups-empty">Personne n'a encore marqué de points ici.</p>
       ) : (
-        <ul className="matches-list">
-          {visibleRows.map((r, i) => (
-            <li className={"match-card classement-row" + (r.profile_id === user?.id ? " classement-row-me" : "")} key={r.profile_id}>
-              <span className="classement-rank">{i + 1}.</span>
-              <span className="classement-pseudo">{r.pseudo}</span>
-              <span className="classement-points">{r.total_points} pts</span>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="classement-board">
+            {visibleRows.map((r, i) => {
+              const rank = i + 1
+              const rankClass = rank <= 3 ? ` classement-board-rank-${rank}` : ''
+              return (
+                <li
+                  key={r.profile_id}
+                  className={"classement-board-row" + (r.profile_id === user?.id ? " classement-board-row-me" : "")}
+                >
+                  <span className={"classement-board-rank" + rankClass}>{rank}</span>
+                  <Avatar
+                    pseudo={r.pseudo}
+                    avatarUrl={r.avatar_url}
+                    avatarEmoji={r.avatar_emoji}
+                    size={38}
+                    className="classement-board-avatar"
+                  />
+                  <span className="classement-board-name">{r.pseudo}</span>
+                  <span className={"classement-board-points" + (rank <= 3 ? " classement-board-points-top" : "")}>
+                    {r.total_points} pts
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+
+          <div className="classement-board-note" aria-hidden="true">
+            <svg className="classement-board-crown" viewBox="0 0 48 34">
+              <path d="M5 27L2 8l13 10L24 3l9 15L46 8l-3 19z" />
+              <path d="M7 31h34" />
+            </svg>
+            <span>Des points, mais surtout des potes</span>
+            <i className="classement-board-underline" />
+          </div>
+        </>
       )}
     </div>
   )
