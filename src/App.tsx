@@ -37,7 +37,7 @@ type Screen =
 // mini-jeux (Mon équipe / Duel penalty / Quiz / Mini-jeu), atteints via le
 // hub plutôt que directement depuis la barre
 const BOTTOM_TABS: { key: Screen; label: string; icon: string }[] = [
-  { key: 'accueil', label: 'Pronos', icon: '⚽' },
+  { key: 'accueil', label: 'Accueil', icon: '⚽' },
   { key: 'classement', label: 'Classement', icon: '🏆' },
   { key: 'jeux', label: 'Jeux', icon: '🎮' },
   { key: 'paris', label: 'Paris', icon: '🤝' },
