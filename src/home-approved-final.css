@@ -71,14 +71,21 @@
   display: none !important;
 }
 
+/* Le ballon et sa légende sont désormais empilés (ballon puis texte en-dessous)
+   plutôt que la légende posée en absolu sur un coin du ballon : avec les deux
+   lignes "On joue / entre nous" en gros Pacifico, l'ancien positionnement en
+   coin les faisait chevaucher. */
 .dash-v2-ball-wrap {
   position: relative !important;
-  width: 128px !important;
-  height: 138px !important;
-  min-height: 138px !important;
+  width: 108px !important;
+  height: auto !important;
+  min-height: 0 !important;
   padding: 0 !important;
-  display: grid !important;
-  place-items: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 3px;
   overflow: visible !important;
 }
 
@@ -86,8 +93,9 @@
 .dash-v2-ball-wrap .dash-v2-hero-ball {
   position: relative;
   z-index: 2;
-  width: 108px !important;
-  height: 108px !important;
+  flex: 0 0 auto;
+  width: 100px !important;
+  height: 100px !important;
   transform: rotate(-5deg) !important;
   filter: drop-shadow(0 6px 10px rgba(4,21,16,.28));
 }
@@ -96,8 +104,8 @@
 .dash-v2-ball-swoosh {
   position: absolute;
   z-index: 1;
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 2.2px solid #0F3B2E;
   border-color: #0F3B2E transparent transparent transparent;
@@ -106,41 +114,41 @@
 }
 
 .dash-v2-ball-swoosh-top {
-  top: 0;
-  left: -8px;
+  top: -4px;
+  left: -10px;
   transform: rotate(-38deg);
 }
 
 .dash-v2-ball-swoosh-bottom {
-  bottom: 4px;
-  right: -10px;
+  top: 58px;
+  right: -12px;
   transform: rotate(148deg);
 }
 
 .dash-v2-ball-caption {
-  position: absolute !important;
+  position: relative !important;
   z-index: 3;
-  right: -3px !important;
-  bottom: -2px !important;
-  margin: 0 !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 2px 0 0 !important;
   color: #0F3B2E !important;
-  font: 400 15px/1 'Pacifico', cursive !important;
+  font: 400 14px/1.15 'Pacifico', cursive !important;
   text-transform: none !important;
   letter-spacing: 0 !important;
-  transform: rotate(8deg) !important;
+  transform: rotate(6deg) !important;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .dash-v2-ball-caption::after {
   content: '';
   display: block;
-  width: 38px;
+  width: 34px;
   height: 2.5px;
-  margin: 4px 0 0 auto;
+  margin: 3px auto 0;
   border-radius: 99px;
   background: #D4A22C;
-  transform: rotate(8deg);
+  transform: rotate(6deg);
 }
 
 /* Progression */
@@ -376,25 +384,32 @@
   }
 
   .dash-v2-ball-wrap {
-    width: 118px !important;
-    height: 128px !important;
-    min-height: 128px !important;
+    width: 101px !important;
   }
 
   .dash-v2-hero-ball,
   .dash-v2-ball-wrap .dash-v2-hero-ball {
-    width: 100px !important;
-    height: 100px !important;
+    width: 92px !important;
+    height: 92px !important;
   }
 
   .dash-v2-ball-swoosh {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .dash-v2-ball-swoosh-top {
+    top: -3px;
+    left: -9px;
+  }
+
+  .dash-v2-ball-swoosh-bottom {
+    top: 53px;
+    right: -10px;
   }
 
   .dash-v2-ball-caption {
-    font-size: 13.5px !important;
-    right: -2px !important;
+    font-size: 12.5px !important;
   }
 
   .dash-v3-ranking-card {
