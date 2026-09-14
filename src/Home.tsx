@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import TeamBadge from './TeamBadge'
 import { SketchBall } from './Icons'
+import Avatar from './Avatar'
 
 interface MatchRow {
   id: string
@@ -17,6 +18,8 @@ interface RankRow {
   profile_id: string
   pseudo: string
   points: number
+  avatar_url: string | null
+  avatar_emoji: string | null
 }
 
 interface Props {
@@ -164,14 +167,23 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
 
         const { data: mem } = await supabase
           .from('group_members')
-          .select('profile_id, profiles(pseudo)')
+          .select('profile_id, profiles(pseudo, avatar_url, avatar_emoji)')
           .eq('group_id', groupId)
 
         if (cancelled) return
-        type MemberRow = { profile_id: string; profiles: { pseudo: string } | { pseudo: string }[] | null }
+        type MemberRow = {
+          profile_id: string
+          profiles: { pseudo: string; avatar_url: string | null; avatar_emoji: string | null }
+            | { pseudo: string; avatar_url: string | null; avatar_emoji: string | null }[] | null
+        }
         const members = ((mem ?? []) as unknown as MemberRow[]).map((m) => {
           const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
-          return { profile_id: m.profile_id, pseudo: prof?.pseudo ?? '???' }
+          return {
+            profile_id: m.profile_id,
+            pseudo: prof?.pseudo ?? '???',
+            avatar_url: prof?.avatar_url ?? null,
+            avatar_emoji: prof?.avatar_emoji ?? null,
+          }
         })
 
         const { data: ledger } = await supabase
@@ -386,7 +398,13 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
                   <li key={r.profile_id} className={`dash-v2-ranking-row${isMe ? ' is-me' : ''}`}>
                     <span className={`dash-v2-rank rank-${i + 1}`}>{i + 1}</span>
                     <span className="dash-v2-player">
-                      <span className="dash-v3-player-avatar">{r.pseudo.slice(0, 1).toUpperCase()}</span>
+                      <Avatar
+                        pseudo={r.pseudo}
+                        avatarUrl={r.avatar_url}
+                        avatarEmoji={r.avatar_emoji}
+                        size={25}
+                        className="dash-v3-player-avatar"
+                      />
                       <span className="dash-v3-player-name">{r.pseudo}</span>
                     </span>
                     <span className="dash-v2-points">{r.points} pts</span>
