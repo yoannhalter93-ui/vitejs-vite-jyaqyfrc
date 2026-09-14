@@ -204,10 +204,20 @@
   font-size: 10px !important;
 }
 
+/* Le "visual-reference" précédent avait mis box-shadow:none sur ce bouton,
+   ce qui l'avait rendu complètement plat. On lui redonne un vrai relief de
+   bouton (bord épais en dessous + ombre portée) qui s'aplatit à l'appui. */
 .dash-v2-cta {
   margin-top: 8px !important;
   min-height: 48px !important;
   font-size: 18px !important;
+  box-shadow: 0 4px 0 #8F6A1D, 0 8px 18px rgba(0,0,0,.25) !important;
+  transition: transform .08s ease, box-shadow .08s ease !important;
+}
+
+.dash-v2-cta:active {
+  transform: translateY(4px) !important;
+  box-shadow: 0 0 0 #8F6A1D, 0 3px 8px rgba(0,0,0,.18) !important;
 }
 
 /* Titres : un peu plus proches de la référence. */
