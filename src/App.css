@@ -1460,7 +1460,7 @@ body {
 }
 
 .bottom-nav-tab-active .bottom-nav-icon {
-  filter: drop-shadow(0 0 0 #D4A22C);
+  transform: scale(1.1);
 }
 
 .bottom-nav-badge {
