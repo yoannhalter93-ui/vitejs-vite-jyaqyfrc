@@ -17,6 +17,35 @@ import FreeBets from './FreeBets';
 import JuggleGame from './JuggleGame';
 import DribbleGame from './DribbleGame';
 import { SketchTrophy } from './Icons'
+import Avatar, { AVATAR_EMOJIS } from './Avatar'
+
+// Recadre l'image importée en carré (centré) et la redimensionne, pour que
+// toutes les photos de profil aient le même format avant l'upload — évite
+// d'envoyer des fichiers énormes ou des rectangles déformés par le CSS.
+function cropImageToSquare(file: File, size: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const side = Math.min(img.width, img.height)
+      const sx = (img.width - side) / 2
+      const sy = (img.height - side) / 2
+      const canvas = document.createElement('canvas')
+      canvas.width = size
+      canvas.height = size
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { reject(new Error('Canvas non disponible sur cet appareil.')); return }
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size)
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob)
+        else reject(new Error("Échec de la conversion de l'image."))
+      }, 'image/jpeg', 0.85)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Impossible de lire cette image.")) }
+    img.src = url
+  })
+}
 
 type Screen =
   | 'accueil'
@@ -163,6 +192,15 @@ function App() {
   const [isRecovery, setIsRecovery] = useState(() => window.location.hash.includes('type=recovery'))
   const [juggleAlert, setJuggleAlert] = useState<{ profileId: string; pseudo: string; game: string } | null>(null)
   const [myPseudo, setMyPseudo] = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null)
+  const [editingPseudo, setEditingPseudo] = useState(false)
+  const [pseudoInput, setPseudoInput] = useState('')
+  const [pseudoSaving, setPseudoSaving] = useState(false)
+  const [pseudoError, setPseudoError] = useState<string | null>(null)
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false)
+  const [avatarSaving, setAvatarSaving] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
   const [wizzChannel, setWizzChannel] = useState<ReturnType<typeof supabase.channel> | null>(null)
   // mini-jeu hebdomadaire actif (jonglages ou dribble) : change chaque
   // semaine via public.minigame_weeks, même classement/mêmes récompenses
@@ -223,8 +261,95 @@ function App() {
 
   useEffect(() => {
     if (!session?.user?.id) return
-    supabase.from('profiles').select('pseudo').eq('id', session.user.id).maybeSingle().then(({ data }) => setMyPseudo(data?.pseudo ?? null))
+    supabase
+      .from('profiles')
+      .select('pseudo, avatar_url, avatar_emoji')
+      .eq('id', session.user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setMyPseudo(data?.pseudo ?? null)
+        setAvatarUrl(data?.avatar_url ?? null)
+        setAvatarEmoji(data?.avatar_emoji ?? null)
+      })
   }, [session?.user?.id])
+
+  // Choix du pseudo : validation légère (longueur) puis mise à jour directe
+  // de la ligne profiles — la policy RLS "modifier son profil" (id =
+  // auth.uid()) autorise déjà ce self-service, aucun changement côté base
+  // n'a été nécessaire pour ça.
+  const handleSavePseudo = async () => {
+    const trimmed = pseudoInput.trim()
+    if (trimmed.length < 2) {
+      setPseudoError('Le pseudo doit faire au moins 2 caractères.')
+      return
+    }
+    if (trimmed.length > 20) {
+      setPseudoError('Le pseudo doit faire au plus 20 caractères.')
+      return
+    }
+    if (!session?.user?.id) return
+    setPseudoSaving(true)
+    setPseudoError(null)
+    const { error } = await supabase.from('profiles').update({ pseudo: trimmed }).eq('id', session.user.id)
+    setPseudoSaving(false)
+    if (error) {
+      setPseudoError(error.message)
+      return
+    }
+    setMyPseudo(trimmed)
+    setEditingPseudo(false)
+  }
+
+  // Choix d'un avatar emoji parmi les préréglages : instantané, et efface
+  // une éventuelle photo précédente (les deux champs sont mutuellement
+  // exclusifs, voir le composant Avatar).
+  const handleSelectEmoji = async (emoji: string) => {
+    if (!session?.user?.id) return
+    setAvatarSaving(true)
+    setAvatarError(null)
+    const { error } = await supabase.from('profiles').update({ avatar_emoji: emoji, avatar_url: null }).eq('id', session.user.id)
+    setAvatarSaving(false)
+    if (error) {
+      setAvatarError(error.message)
+      return
+    }
+    setAvatarEmoji(emoji)
+    setAvatarUrl(null)
+    setShowAvatarPicker(false)
+  }
+
+  // Import d'une vraie photo : recadrage carré côté client, upload dans le
+  // bucket public "avatars" (chemin {user_id}/avatar.jpg, upsert pour
+  // remplacer une ancienne photo), puis on stocke l'URL publique. Le "?v="
+  // force le navigateur à recharger l'image après un remplacement, vu que
+  // le chemin de fichier ne change jamais.
+  const handlePhotoInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !session?.user?.id) return
+    setAvatarSaving(true)
+    setAvatarError(null)
+    try {
+      const blob = await cropImageToSquare(file, 256)
+      const path = `${session.user.id}/avatar.jpg`
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, blob, {
+        upsert: true,
+        contentType: 'image/jpeg',
+      })
+      if (uploadError) throw uploadError
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+      const publicUrl = `${data.publicUrl}?v=${Date.now()}`
+      const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl, avatar_emoji: null }).eq('id', session.user.id)
+      if (updateError) throw updateError
+      setAvatarUrl(publicUrl)
+      setAvatarEmoji(null)
+      setShowAvatarPicker(false)
+    } catch (err: any) {
+      setAvatarError(err?.message || "Impossible d'importer cette photo.")
+    } finally {
+      setAvatarSaving(false)
+    }
+  }
 
   useEffect(() => {
     if (!selectedGroup?.id || !session?.user?.id) return
@@ -466,6 +591,88 @@ function App() {
     setScreen('accueil')
   }
 
+  // Carte profil (photo/emoji + pseudo, éditables) — partagée entre les deux
+  // écrans Profil (avec et sans groupe sélectionné) pour ne pas dupliquer
+  // toute la logique d'édition ; showJetons masque juste la ligne jetons
+  // quand aucun groupe n'est sélectionné (le solde est par groupe).
+  const renderProfilCard = (showJetons: boolean) => (
+    <div className="profil-card">
+      <div className="profil-avatar-wrap">
+        <Avatar pseudo={myPseudo ?? '?'} avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} size={84} className="profil-avatar-big" />
+        <button
+          className="profil-avatar-edit-btn"
+          onClick={() => { setShowAvatarPicker(true); setAvatarError(null) }}
+          aria-label="Changer de photo"
+          title="Changer de photo"
+        >
+          📷
+        </button>
+      </div>
+      {editingPseudo ? (
+        <div className="profil-pseudo-edit">
+          <input
+            className="profil-pseudo-input"
+            value={pseudoInput}
+            maxLength={20}
+            autoFocus
+            onChange={(e) => setPseudoInput(e.target.value)}
+          />
+          {pseudoError && <p className="groups-error">{pseudoError}</p>}
+          <div className="profil-pseudo-edit-actions">
+            <button
+              className="groups-action-btn groups-action-btn-secondary"
+              disabled={pseudoSaving}
+              onClick={() => { setEditingPseudo(false); setPseudoError(null) }}
+            >
+              Annuler
+            </button>
+            <button className="groups-action-btn" disabled={pseudoSaving} onClick={handleSavePseudo}>
+              {pseudoSaving ? '...' : 'Valider'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          className="profil-pseudo-btn"
+          onClick={() => { setPseudoInput(myPseudo ?? ''); setPseudoError(null); setEditingPseudo(true) }}
+        >
+          <span className="profil-pseudo">{myPseudo ?? 'Joueur'}</span>
+          <span className="profil-pseudo-edit-icon">✏️</span>
+        </button>
+      )}
+      {showJetons && <div className="profil-jetons">🪙 {tokenBalance ?? 0} jetons</div>}
+      <SketchTrophy size={32} className="profil-trophy" />
+      {showAvatarPicker && (
+        <div className="avatar-picker-overlay" onClick={() => setShowAvatarPicker(false)}>
+          <div className="avatar-picker-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Choisis ta photo</h3>
+            {avatarError && <p className="groups-error">{avatarError}</p>}
+            <label className={"avatar-upload-btn" + (avatarSaving ? " avatar-upload-btn-disabled" : "")}>
+              {avatarSaving ? 'Envoi...' : '📤 Importer une photo'}
+              <input type="file" accept="image/*" hidden disabled={avatarSaving} onChange={handlePhotoInputChange} />
+            </label>
+            <p className="avatar-picker-or">ou choisis un avatar</p>
+            <div className="avatar-emoji-grid">
+              {AVATAR_EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  className={"avatar-emoji-option" + (avatarEmoji === e && !avatarUrl ? " avatar-emoji-option-active" : "")}
+                  disabled={avatarSaving}
+                  onClick={() => handleSelectEmoji(e)}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+            <button className="groups-action-btn groups-action-btn-secondary" onClick={() => setShowAvatarPicker(false)}>
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
   // Le bouton Déconnexion / la zone "Supprimer mon compte" doivent rester
   // accessibles dans tous les cas (avec ou sans groupe sélectionné, sur
   // l'écran Profil comme sur la liste des groupes) — d'où ce petit bloc
@@ -559,7 +766,7 @@ function App() {
             )}
           </div>
           <button className="avatar-badge" onClick={() => setScreen('profil')} title={myPseudo ?? undefined}>
-            {(myPseudo ?? '?').charAt(0).toUpperCase()}
+            <Avatar pseudo={myPseudo ?? '?'} avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} size={36} />
           </button>
         </div>
       </header>
@@ -763,12 +970,7 @@ function App() {
             )}
             {screen === 'profil' && (
               <div className="profil-screen">
-                <div className="profil-card">
-                  <div className="profil-avatar">{(myPseudo ?? '?').charAt(0).toUpperCase()}</div>
-                  <div className="profil-pseudo">{myPseudo ?? 'Joueur'}</div>
-                  <div className="profil-jetons">🪙 {tokenBalance ?? 0} jetons</div>
-                  <SketchTrophy size={32} className="profil-trophy" />
-                </div>
+                {renderProfilCard(true)}
                 <button
                   className="groups-action-btn groups-action-btn-secondary"
                   onClick={() => { setSelectedGroup(null); setScreen('accueil') }}
@@ -785,11 +987,7 @@ function App() {
           // ici ne faisait rien puisque seul <Groups /> était rendu, quel que
           // soit l'écran demandé.
           <div className="profil-screen">
-            <div className="profil-card">
-              <div className="profil-avatar">{(myPseudo ?? '?').charAt(0).toUpperCase()}</div>
-              <div className="profil-pseudo">{myPseudo ?? 'Joueur'}</div>
-              <SketchTrophy size={32} className="profil-trophy" />
-            </div>
+            {renderProfilCard(false)}
             <button className="groups-action-btn groups-action-btn-secondary" onClick={() => setScreen('accueil')}>
               Retour à mes groupes
             </button>
