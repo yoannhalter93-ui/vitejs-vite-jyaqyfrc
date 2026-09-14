@@ -211,7 +211,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const storedMatchday = upcoming.find((match) => match.matchday != null)?.matchday ?? null
   const currentMatchday = inferLigue1Matchday(new Date()) ?? storedMatchday
   const nextMatchday = nextMatch?.matchday ?? inferLigue1Matchday(nextKickoff)
-  const heroTitle = currentMatchday ? `Journée ${currentMatchday}` : 'Journée'
+  const heroTitle = currentMatchday ? `Journée ${currentMatchday}` : (groupName || 'Journée')
 
   const nextDateLabel = nextKickoff
     ? nextKickoff.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', '')
