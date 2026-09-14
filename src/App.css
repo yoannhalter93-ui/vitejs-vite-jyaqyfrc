@@ -280,6 +280,38 @@ body {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Composant Avatar partagé (photo importée, emoji choisi, ou repli sur
+   l'initiale du pseudo) — utilisé dans le bouton profil de l'en-tête, le
+   classement et l'écran Profil. */
+.avatar-circle {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatar-circle-photo {
+  object-fit: cover;
+}
+
+.avatar-circle-emoji,
+.avatar-circle-initial {
+  background: rgba(212, 162, 44, 0.18);
+  color: #F4EFE2;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+}
+
+/* Dans le bouton avatar de l'en-tête (rond doré déjà stylé), la photo doit
+   remplir tout le rond sans laisser de marge blanche. */
+.avatar-badge .avatar-circle-photo {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .home-signout {
@@ -891,33 +923,113 @@ body {
   font-weight: 700;
 }
 
-.classement-row {
+.classement-tabs {
+  margin-bottom: 14px;
+}
+
+/* Classement "board" : liste façon tableau de classement sur fond vert
+   foncé (photos/avatars ronds, médailles or/argent/bronze pour le podium),
+   au lieu des cartes crème utilisées pour les duels/pronos. */
+.classement-board {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(244, 239, 226, 0.06);
+  border: 1px solid rgba(244, 239, 226, 0.14);
+  border-radius: 16px;
+}
+
+.classement-board-row {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(244, 239, 226, 0.08);
 }
 
-.classement-row-me {
-  border-color: #D4A22C;
+.classement-board-row:last-child {
+  border-bottom: 0;
 }
 
-.classement-rank {
-  color: rgba(27, 27, 31, 0.6);
-  width: 24px;
+.classement-board-row-me {
+  background: rgba(212, 162, 44, 0.08);
+  border-radius: 10px;
 }
 
-.classement-pseudo {
-  flex: 1;
-  font-weight: 600;
-}
-
-.classement-points {
-  color: #D4A22C;
+.classement-board-rank {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(244, 239, 226, 0.14);
+  color: #F4EFE2;
   font-weight: 700;
+  font-size: 13px;
 }
 
-.classement-tabs {
-  margin-bottom: 14px;
+.classement-board-rank-1 { background: #D4A22C; color: #1B1B1F; }
+.classement-board-rank-2 { background: #D8D9D5; color: #1B1B1F; }
+.classement-board-rank-3 { background: #C8783D; color: #fff; }
+
+.classement-board-name {
+  flex: 1;
+  min-width: 0;
+  color: #F4EFE2;
+  font-weight: 700;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classement-board-points {
+  flex-shrink: 0;
+  color: rgba(244, 239, 226, 0.85);
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.classement-board-points-top {
+  color: #E9BE4B;
+}
+
+.classement-board-note {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+  margin: 8px auto 4px;
+  transform: rotate(-2deg);
+  color: rgba(244, 239, 226, 0.9);
+  font-family: 'Pacifico', cursive;
+  font-size: 15px;
+}
+
+.classement-board-crown {
+  width: 30px;
+  height: 22px;
+  fill: none;
+  stroke: rgba(244, 239, 226, 0.85);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.classement-board-underline {
+  display: block;
+  width: 40px;
+  height: 3px;
+  margin-top: 4px;
+  border-radius: 99px;
+  background: #D4A22C;
+  transform: rotate(-3deg);
 }
 
 .roulette-result {
@@ -1583,6 +1695,160 @@ body {
   right: 14px;
   color: #D4A22C;
   opacity: 0.5;
+}
+
+/* ===== Profil : photo/emoji + pseudo éditables ===== */
+.profil-avatar-wrap {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 14px;
+}
+
+.profil-avatar-wrap .avatar-circle {
+  width: 84px;
+  height: 84px;
+}
+
+.profil-avatar-edit-btn {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #1B1B1F;
+  color: #F4EFE2;
+  border: 2px solid #F4EFE2;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.profil-pseudo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+
+.profil-pseudo-btn:hover {
+  background: rgba(27, 27, 31, 0.06);
+}
+
+.profil-pseudo-edit-icon {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.profil-pseudo-edit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.profil-pseudo-input {
+  width: 100%;
+  max-width: 220px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(27, 27, 31, 0.2);
+  background: #FFFFFF;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  text-align: center;
+  color: #1B1B1F;
+}
+
+.profil-pseudo-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ===== Sélecteur de photo/avatar (modale) ===== */
+.avatar-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 20px;
+}
+
+.avatar-picker-modal {
+  background: #F4EFE2;
+  border-radius: 16px;
+  padding: 22px 20px;
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.avatar-picker-modal h3 {
+  margin: 0 0 14px;
+  font-family: 'Oswald', sans-serif;
+  color: #1B1B1F;
+}
+
+.avatar-upload-btn {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #D4A22C;
+  color: #1B1B1F;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.avatar-upload-btn-disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.avatar-picker-or {
+  margin: 14px 0 8px;
+  font-size: 12px;
+  color: rgba(27, 27, 31, 0.6);
+}
+
+.avatar-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.avatar-emoji-option {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: rgba(212, 162, 44, 0.15);
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.avatar-emoji-option-active {
+  border-color: #D4A22C;
+  background: rgba(212, 162, 44, 0.35);
 }
 
 /* ===== Tableau de bord (accueil du groupe) ===== */
