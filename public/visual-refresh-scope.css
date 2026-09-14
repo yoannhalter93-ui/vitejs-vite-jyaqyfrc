@@ -1,0 +1,40 @@
+/*
+ * Scope guard for the visual refresh.
+ * The redesigned dashboard background must not leak into the other screens.
+ * Keep the app-wide base exactly as defined in src/App.css, and only apply
+ * the new clubhouse background when the Home dashboard (.dash-screen) exists.
+ */
+
+html,
+#root {
+  background: transparent !important;
+}
+
+body {
+  color: #F4EFE2 !important;
+  background-color: #0F3B2E !important;
+  background-image: repeating-linear-gradient(
+    0deg,
+    #0A2A21,
+    #0A2A21 2px,
+    #0F3B2E 2px,
+    #0F3B2E 40px
+  ) !important;
+  background-attachment: fixed !important;
+}
+
+/* Neutralise le background global ajouté par visual-refresh.css. */
+.home-screen {
+  background: transparent !important;
+}
+
+/* Le nouveau décor n'existe que sur l'accueil du groupe. */
+.home-screen:has(.dash-screen) {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(47,143,91,.16), transparent 30rem),
+    radial-gradient(circle at 95% 35%, rgba(212,162,44,.07), transparent 24rem),
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+    #0F3B2E !important;
+  background-size: auto, auto, 56px 56px, 56px 56px, auto !important;
+}
