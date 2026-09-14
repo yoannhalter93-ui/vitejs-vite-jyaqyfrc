@@ -243,16 +243,14 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
           </div>
 
           <div className="dash-v2-ball-wrap">
-            <svg className="dash-v4-ball-motion" viewBox="0 0 150 150" aria-hidden="true">
-              <path d="M35 24C18 36 10 53 10 70" />
-              <path d="M43 31C29 41 22 53 21 66" />
-              <path d="M50 39C39 47 34 55 33 64" />
-              <path d="M43 119C55 132 69 139 84 141" />
-              <path d="M51 111C61 121 72 127 84 129" />
-              <path d="M60 104C68 111 76 115 85 117" />
-            </svg>
-            <SketchBall size={106} className="dash-v2-hero-ball" />
-            <span className="dash-v2-ball-caption">On joue<br />entre nous</span>
+            <span className="dash-v2-ball-swoosh dash-v2-ball-swoosh-top" aria-hidden="true" />
+            <span className="dash-v2-ball-swoosh dash-v2-ball-swoosh-bottom" aria-hidden="true" />
+            <SketchBall size={118} className="dash-v2-hero-ball" />
+            <span className="dash-v2-ball-caption">
+              On joue
+              <br />
+              entre nous
+            </span>
           </div>
         </div>
 
