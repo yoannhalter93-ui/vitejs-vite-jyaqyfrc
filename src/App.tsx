@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import './App.css';
 import { useAuth } from './AuthContext';
 import Login from './Login';
+import PasswordRecovery from './PasswordRecovery';
 import Groups from './Groups';
 import Home from './Home';
 import BottomNav from './BottomNav';
@@ -155,6 +156,11 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
 }
 
 function App() {
+  // Lien de réinitialisation de mot de passe : Supabase redirige ici avec
+  // "type=recovery" dans le hash et connecte temporairement la personne le
+  // temps qu'elle choisisse un nouveau mot de passe — on l'intercepte avant
+  // tout le reste pour lui montrer l'écran dédié plutôt que l'appli.
+  const [isRecovery, setIsRecovery] = useState(() => window.location.hash.includes('type=recovery'))
   const [juggleAlert, setJuggleAlert] = useState<{ profileId: string; pseudo: string; game: string } | null>(null)
   const [myPseudo, setMyPseudo] = useState<string | null>(null)
   const [wizzChannel, setWizzChannel] = useState<ReturnType<typeof supabase.channel> | null>(null)
@@ -477,6 +483,10 @@ function App() {
       </div>
     </>
   )
+
+  if (isRecovery) {
+    return <PasswordRecovery onDone={() => setIsRecovery(false)} />;
+  }
 
   if (loading) {
     return (
