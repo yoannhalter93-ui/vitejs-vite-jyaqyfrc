@@ -69,6 +69,11 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
   // scores). Un timer par match, redémarré à chaque frappe.
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
+  // Pour scroller automatiquement jusqu'au prochain match à jouer plutôt que
+  // de rester sur le premier match de la période (qui peut être déjà passé).
+  const matchRefs = useRef<Record<string, HTMLLIElement | null>>({})
+  const hasScrolledRef = useRef(false)
+
   // révélation des pronostics des autres, uniquement pour un match résolu —
   // même principe que pour les paris libres / le récap de quiz
   const [reveals, setReveals] = useState<Record<string, RevealRow[]>>({})
@@ -79,6 +84,7 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
     if (!user) return
     setLoading(true)
     setError(null)
+    hasScrolledRef.current = false
 
     const { data: period, error: periodError } = await supabase
       .from('group_periods')
@@ -171,6 +177,19 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
       Object.values(saveTimers.current).forEach(clearTimeout)
     }
   }, [])
+
+  // Une fois les matchs chargés, on saute directement au prochain match à
+  // jouer plutôt que de laisser l'utilisateur sur le tout premier match de
+  // la période (potentiellement déjà joué il y a une semaine).
+  useEffect(() => {
+    if (loading || matches.length === 0 || hasScrolledRef.current) return
+    hasScrolledRef.current = true
+    const now = Date.now()
+    const target = matches.find((m) => new Date(m.kickoff_at).getTime() > now) ?? matches[matches.length - 1]
+    requestAnimationFrame(() => {
+      matchRefs.current[target.id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [loading, matches])
 
   const handleDraftChange = (matchId: string, field: 'home' | 'away', value: string) => {
     const nextDraft = { ...(drafts[matchId] ?? { home: '', away: '' }), [field]: value }
@@ -271,7 +290,7 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
                   const kickoffTime = new Date(m.kickoff_at).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 
                   return (
-                    <li className="match-card-v2" key={m.id}>
+                    <li className="match-card-v2" key={m.id} ref={(el) => { matchRefs.current[m.id] = el }}>
                       <div className="match-row-v2">
                         <div className="match-meta-badge">⏱ {kickoffTime}</div>
                       </div>
