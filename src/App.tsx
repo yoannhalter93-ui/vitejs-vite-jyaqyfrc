@@ -16,7 +16,6 @@ import WeeklyDuel from './WeeklyDuel';
 import FreeBets from './FreeBets';
 import JuggleGame from './JuggleGame';
 import DribbleGame from './DribbleGame';
-import { SketchTrophy } from './Icons'
 import Avatar, { AVATAR_EMOJIS } from './Avatar'
 import PredictionsHistory from './PredictionsHistory'
 import Help from './Help'
