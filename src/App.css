@@ -185,6 +185,46 @@ body {
   text-decoration: underline;
 }
 
+.login-link-error {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(193, 68, 60, 0.08);
+  border: 1px solid rgba(193, 68, 60, 0.25);
+}
+
+.login-link-error .login-error {
+  margin-top: 0;
+}
+
+.login-link-error .login-switch {
+  margin-top: 8px;
+  width: auto;
+  color: #C1443C;
+  font-weight: 600;
+  text-align: left;
+}
+
+.login-link-error .login-switch:hover {
+  color: #A82F2A;
+}
+
+.login-forgot-link {
+  align-self: flex-end;
+  margin-top: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: rgba(27, 27, 31, 0.5);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.login-forgot-link:hover {
+  color: #D4A22C;
+}
+
 .home-screen {
   min-height: 100vh;
 }
