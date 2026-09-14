@@ -93,9 +93,16 @@ export default function Rules({ onBack }: Props) {
       </div>
 
       <div className="rules-section">
-        <h3 className="rules-section-title">🤹 Jonglages</h3>
+        <h3 className="rules-section-title">🎮 Jeu de la semaine</h3>
         <p className="rules-section-text">
-          Mini-jeu solo : garde les ballons en l'air en tapant dessus au bon moment. Pas de chrono : un 2e ballon entre en jeu au bout de 30 secondes, un 3e au bout d'une minute, et la partie s'arrête dès qu'un seul ballon touche le sol. Chaque semaine, le meilleur score du groupe rapporte 3 points au classement et 2 🪙 jetons à son auteur (en cas d'égalité au sommet, tous les joueurs à égalité gagnent).
+          Mini-jeu solo, un différent chaque semaine — jonglage ou dribble :
+        </p>
+        <ul className="rules-points">
+          <li>🤹 Jonglage — garde les ballons en l'air en tapant dessus au bon moment. Pas de chrono : un 2e ballon entre en jeu au bout de 30 secondes, un 3e au bout d'une minute, et la partie s'arrête dès qu'un seul ballon touche le sol.</li>
+          <li>⚽ Dribble — des défenseurs descendent sur le terrain, ◀ / ▶ pour changer de couloir et les éviter. Certains sont plus rapides ou plongent au dernier moment, et quand les 3 couloirs se bloquent d'un coup, il faut déclencher le dribble 🌀 au bon moment pour passer en force.</li>
+        </ul>
+        <p className="rules-section-text">
+          Chaque semaine, le meilleur score du groupe au jeu du moment rapporte 3 points au classement et 2 🪙 jetons à son auteur (en cas d'égalité au sommet, tous les joueurs à égalité gagnent).
         </p>
       </div>
 
