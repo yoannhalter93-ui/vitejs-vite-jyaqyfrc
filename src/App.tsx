@@ -164,9 +164,20 @@ function App() {
   const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble'>('jonglage')
 
   useEffect(() => {
-    supabase.rpc('get_active_minigame').then(({ data, error }: any) => {
-      if (!error && data) setActiveMinigame(data)
-    })
+    const checkActiveMinigame = () => {
+      supabase.rpc('get_active_minigame').then(({ data, error }: any) => {
+        if (!error && data) setActiveMinigame(data)
+      })
+    }
+    checkActiveMinigame()
+    // Le mini-jeu actif change chaque lundi à minuit UTC : sans ceci, une
+    // appli restée ouverte en arrière-plan à ce moment-là (PWA relancée
+    // depuis le multitâche plutôt que vraiment fermée) continuerait
+    // d'afficher l'ancien jeu jusqu'à un vrai redémarrage — on revérifie
+    // donc aussi à chaque retour au premier plan.
+    const onVisible = () => { if (document.visibilityState === 'visible') checkActiveMinigame() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
   const { session, loading, signOut } = useAuth();
