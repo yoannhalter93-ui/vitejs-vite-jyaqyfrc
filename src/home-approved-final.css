@@ -73,49 +73,61 @@
 
 .dash-v2-ball-wrap {
   position: relative !important;
-  width: 108px !important;
-  height: 118px !important;
-  min-height: 118px !important;
+  width: 128px !important;
+  height: 138px !important;
+  min-height: 138px !important;
   padding: 0 !important;
   display: grid !important;
   place-items: center !important;
+  overflow: visible !important;
 }
 
 .dash-v2-hero-ball,
 .dash-v2-ball-wrap .dash-v2-hero-ball {
   position: relative;
   z-index: 2;
-  width: 101px !important;
-  height: 101px !important;
+  width: 108px !important;
+  height: 108px !important;
   transform: rotate(-5deg) !important;
+  filter: drop-shadow(0 6px 10px rgba(4,21,16,.28));
 }
 
-/* Vraies courbes de mouvement autour du ballon. */
-.dash-v4-ball-motion {
+/* Arcs griffonnés autour du ballon, façon "swoosh" de mouvement. */
+.dash-v2-ball-swoosh {
   position: absolute;
-  inset: -9px -11px -10px -17px;
-  width: 142px;
-  height: 142px;
   z-index: 1;
-  fill: none;
-  stroke: #0F3B2E;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  opacity: .92;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2.2px solid #0F3B2E;
+  border-color: #0F3B2E transparent transparent transparent;
+  opacity: .9;
   pointer-events: none;
+}
+
+.dash-v2-ball-swoosh-top {
+  top: 0;
+  left: -8px;
+  transform: rotate(-38deg);
+}
+
+.dash-v2-ball-swoosh-bottom {
+  bottom: 4px;
+  right: -10px;
+  transform: rotate(148deg);
 }
 
 .dash-v2-ball-caption {
   position: absolute !important;
   z-index: 3;
-  right: -1px !important;
-  bottom: -7px !important;
+  right: -3px !important;
+  bottom: -2px !important;
   margin: 0 !important;
   color: #0F3B2E !important;
-  font: 700 10.5px/.94 'Space Mono', monospace !important;
-  text-transform: uppercase !important;
-  letter-spacing: .015em !important;
-  transform: rotate(-7deg) !important;
+  font: 400 15px/1 'Pacifico', cursive !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  transform: rotate(8deg) !important;
   text-align: center;
   white-space: nowrap;
 }
@@ -125,10 +137,10 @@
   display: block;
   width: 38px;
   height: 2.5px;
-  margin: 3px 0 0 auto;
+  margin: 4px 0 0 auto;
   border-radius: 99px;
   background: #D4A22C;
-  transform: rotate(-8deg);
+  transform: rotate(8deg);
 }
 
 /* Progression */
@@ -202,15 +214,73 @@
 
 /* Cartes de jeu : plus propres / équilibrées. */
 .dash-v2-action {
+  position: relative !important;
+  overflow: hidden !important;
+  isolation: isolate;
   min-height: 103px !important;
   padding: 10px 10px 9px !important;
 }
 
+/* Le contenu (icône, titres) reste toujours au-dessus des textures ci-dessous. */
+.dash-v2-action > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Voile doux en haut à gauche, façon lumière rasante. */
+.dash-v2-action::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(120% 140% at 18% 0%, rgba(255,255,255,.32), transparent 62%);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+/* Grain fin en pointillé, pour casser l'aplat des cartes. */
+.dash-v2-action::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: radial-gradient(rgba(0,0,0,.5) 1px, transparent 1.4px);
+  background-size: 5px 5px;
+  mix-blend-mode: overlay;
+  opacity: .1;
+  pointer-events: none;
+}
+
+.dash-v2-action-accent {
+  background: linear-gradient(135deg, #C1443C 0%, #BE3E37 38%, #A82F2A 100%) !important;
+}
+
+.dash-v2-action:not(.dash-v2-action-primary):not(.dash-v2-action-accent) {
+  background: linear-gradient(135deg, #1B5A45 0%, #0F3B2E 48%, #0B2F25 100%) !important;
+}
+
+.dash-v2-action-primary {
+  background: linear-gradient(180deg, #F4EFE2 0%, #EEE7D7 100%) !important;
+}
+
+.dash-v2-action-primary::before {
+  opacity: .5;
+}
+
+.dash-v2-action-primary::after {
+  opacity: .05;
+}
+
 .dash-v2-action-icon {
-  width: 38px !important;
-  height: 38px !important;
+  width: 42px !important;
+  height: 42px !important;
   font-size: 21px !important;
   margin-bottom: 8px !important;
+  background: rgba(244,239,226,.10) !important;
+}
+
+.dash-v2-action-primary .dash-v2-action-icon {
+  background: rgba(27,27,31,.06) !important;
 }
 
 .dash-v2-action-title {
@@ -306,25 +376,24 @@
   }
 
   .dash-v2-ball-wrap {
-    width: 101px !important;
-    height: 111px !important;
-    min-height: 111px !important;
+    width: 118px !important;
+    height: 128px !important;
+    min-height: 128px !important;
   }
 
   .dash-v2-hero-ball,
   .dash-v2-ball-wrap .dash-v2-hero-ball {
-    width: 94px !important;
-    height: 94px !important;
+    width: 100px !important;
+    height: 100px !important;
   }
 
-  .dash-v4-ball-motion {
-    inset: -10px -12px -10px -18px;
-    width: 136px;
-    height: 136px;
+  .dash-v2-ball-swoosh {
+    width: 44px;
+    height: 44px;
   }
 
   .dash-v2-ball-caption {
-    font-size: 9.7px !important;
+    font-size: 13.5px !important;
     right: -2px !important;
   }
 
