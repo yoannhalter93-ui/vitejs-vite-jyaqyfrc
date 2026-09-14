@@ -288,7 +288,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
         <div className="dash-v2-actions">
           <button className="dash-v2-action dash-v2-action-primary" onClick={() => onNavigate('pronostics')}>
             <span className="dash-v2-action-icon" aria-hidden="true">⚽</span>
-            <span className="dash-v2-action-title">Pronos</span>
+            <span className="dash-v2-action-title">Jeu de la semaine</span>
             <span className="dash-v2-action-sub">{remainingCount > 0 ? `${remainingCount} match${remainingCount > 1 ? 's' : ''} à faire` : 'Tout est prêt'}</span>
             <span className="dash-v3-action-arrow">›</span>
           </button>
