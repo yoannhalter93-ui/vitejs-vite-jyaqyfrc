@@ -66,6 +66,9 @@ export default function Login() {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
+        },
       })
       if (signUpError) {
         setError(signUpError.message)
@@ -84,7 +87,13 @@ export default function Login() {
     }
     setResending(true)
     setError(null)
-    const { error: resendError } = await supabase.auth.resend({ type: 'signup', email })
+    const { error: resendError } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
+      },
+    })
     setResending(false)
     if (resendError) {
       setError(resendError.message)
