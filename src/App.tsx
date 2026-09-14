@@ -18,6 +18,8 @@ import JuggleGame from './JuggleGame';
 import DribbleGame from './DribbleGame';
 import { SketchTrophy } from './Icons'
 import Avatar, { AVATAR_EMOJIS } from './Avatar'
+import PredictionsHistory from './PredictionsHistory'
+import Help from './Help'
 
 // Recadre l'image importée en carré (centré) et la redimensionne, pour que
 // toutes les photos de profil aient le même format avant l'upload — évite
@@ -58,6 +60,9 @@ type Screen =
   | 'paris'
   | 'jonglages'
   | 'profil'
+  | 'parametres'
+  | 'historique-pronos'
+  | 'aide'
   // écran d'accueil de groupe (une seule fois, à la première entrée dans
   // un groupe) : explique + révèle l'équipe tirée au sort, voir TeamReveal
   | 'team-reveal';
@@ -85,6 +90,7 @@ const JEUX_HUB: { key: Screen; label: string; icon: string; sub: string }[] = [
 function bottomTabFor(screen: Screen): Screen {
   if (screen === 'pronostics') return 'accueil'
   if (screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') return 'jeux'
+  if (screen === 'parametres' || screen === 'historique-pronos' || screen === 'aide') return 'profil'
   return screen
 }
 
@@ -201,6 +207,10 @@ function App() {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false)
   const [avatarSaving, setAvatarSaving] = useState(false)
   const [avatarError, setAvatarError] = useState<string | null>(null)
+  // Petites fonctionnalités du nouvel écran Paramètres pas encore
+  // développées (thème, confidentialité...) : au lieu de masquer la ligne,
+  // on l'affiche mais elle ouvre juste ce petit message générique.
+  const [comingSoon, setComingSoon] = useState<string | null>(null)
   const [wizzChannel, setWizzChannel] = useState<ReturnType<typeof supabase.channel> | null>(null)
   // mini-jeu hebdomadaire actif (jonglages ou dribble) : change chaque
   // semaine via public.minigame_weeks, même classement/mêmes récompenses
@@ -595,81 +605,75 @@ function App() {
   // écrans Profil (avec et sans groupe sélectionné) pour ne pas dupliquer
   // toute la logique d'édition ; showJetons masque juste la ligne jetons
   // quand aucun groupe n'est sélectionné (le solde est par groupe).
-  const renderProfilCard = (showJetons: boolean) => (
-    <div className="profil-card">
-      <div className="profil-avatar-wrap">
-        <Avatar pseudo={myPseudo ?? '?'} avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} size={84} className="profil-avatar-big" />
-        <button
-          className="profil-avatar-edit-btn"
-          onClick={() => { setShowAvatarPicker(true); setAvatarError(null) }}
-          aria-label="Changer de photo"
-          title="Changer de photo"
-        >
-          📷
-        </button>
-      </div>
-      {editingPseudo ? (
-        <div className="profil-pseudo-edit">
-          <input
-            className="profil-pseudo-input"
-            value={pseudoInput}
-            maxLength={20}
-            autoFocus
-            onChange={(e) => setPseudoInput(e.target.value)}
-          />
-          {pseudoError && <p className="groups-error">{pseudoError}</p>}
-          <div className="profil-pseudo-edit-actions">
-            <button
-              className="groups-action-btn groups-action-btn-secondary"
-              disabled={pseudoSaving}
-              onClick={() => { setEditingPseudo(false); setPseudoError(null) }}
-            >
-              Annuler
-            </button>
-            <button className="groups-action-btn" disabled={pseudoSaving} onClick={handleSavePseudo}>
-              {pseudoSaving ? '...' : 'Valider'}
-            </button>
-          </div>
+  // Écran Profil : grande photo + pseudo (édition via la modale de pseudo
+  // partagée, voir plus bas), puis le menu de navigation vers les autres
+  // écrans liés au compte. hasGroup affiche en plus "Retour à mes groupes"
+  // quand on y accède sans avoir encore rejoint de groupe.
+  const renderProfilScreen = (hasGroup: boolean) => (
+    <div className="profil-v2-screen">
+      <div className="profil-v2-hero">
+        <div className="profil-avatar-wrap profil-v2-avatar-wrap">
+          <Avatar pseudo={myPseudo ?? '?'} avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} size={110} className="profil-v2-avatar" />
+          <button
+            className="profil-avatar-edit-btn"
+            onClick={() => { setShowAvatarPicker(true); setAvatarError(null) }}
+            aria-label="Changer de photo"
+            title="Changer de photo"
+          >
+            📷
+          </button>
         </div>
-      ) : (
         <button
-          className="profil-pseudo-btn"
+          className="profil-v2-name-btn"
           onClick={() => { setPseudoInput(myPseudo ?? ''); setPseudoError(null); setEditingPseudo(true) }}
         >
-          <span className="profil-pseudo">{myPseudo ?? 'Joueur'}</span>
-          <span className="profil-pseudo-edit-icon">✏️</span>
+          {myPseudo ?? 'Joueur'}
+        </button>
+      </div>
+
+      <div className="profil-v2-menu">
+        <button className="profil-v2-menu-row" onClick={() => setComingSoon('Mes statistiques')}>
+          <span className="profil-v2-menu-icon">📊</span>
+          <span className="profil-v2-menu-label">Mes statistiques</span>
+          <span className="profil-v2-menu-chevron">›</span>
+        </button>
+        <button className="profil-v2-menu-row" onClick={() => setComingSoon('Mes badges')}>
+          <span className="profil-v2-menu-icon">🛡️</span>
+          <span className="profil-v2-menu-label">Mes badges</span>
+          <span className="profil-v2-menu-chevron">›</span>
+        </button>
+        <button className="profil-v2-menu-row" onClick={() => setScreen('historique-pronos')}>
+          <span className="profil-v2-menu-icon">📋</span>
+          <span className="profil-v2-menu-label">Historique de mes pronos</span>
+          <span className="profil-v2-menu-chevron">›</span>
+        </button>
+        <button className="profil-v2-menu-row" onClick={() => setScreen('parametres')}>
+          <span className="profil-v2-menu-icon">⚙️</span>
+          <span className="profil-v2-menu-label">Paramètres</span>
+          <span className="profil-v2-menu-chevron">›</span>
+        </button>
+        <button className="profil-v2-menu-row" onClick={() => setScreen('aide')}>
+          <span className="profil-v2-menu-icon">❓</span>
+          <span className="profil-v2-menu-label">Aide</span>
+          <span className="profil-v2-menu-chevron">›</span>
+        </button>
+        <button className="profil-v2-menu-row profil-v2-menu-row-danger" onClick={signOut}>
+          <span className="profil-v2-menu-icon">🚪</span>
+          <span className="profil-v2-menu-label">Déconnexion</span>
+          <span className="profil-v2-menu-chevron">›</span>
+        </button>
+      </div>
+
+      {!hasGroup && (
+        <button className="groups-action-btn groups-action-btn-secondary profil-v2-back-groups" onClick={() => setScreen('accueil')}>
+          Retour à mes groupes
         </button>
       )}
-      {showJetons && <div className="profil-jetons">🪙 {tokenBalance ?? 0} jetons</div>}
-      <SketchTrophy size={32} className="profil-trophy" />
-      {showAvatarPicker && (
-        <div className="avatar-picker-overlay" onClick={() => setShowAvatarPicker(false)}>
-          <div className="avatar-picker-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Choisis ta photo</h3>
-            {avatarError && <p className="groups-error">{avatarError}</p>}
-            <label className={"avatar-upload-btn" + (avatarSaving ? " avatar-upload-btn-disabled" : "")}>
-              {avatarSaving ? 'Envoi...' : '📤 Importer une photo'}
-              <input type="file" accept="image/*" hidden disabled={avatarSaving} onChange={handlePhotoInputChange} />
-            </label>
-            <p className="avatar-picker-or">ou choisis un avatar</p>
-            <div className="avatar-emoji-grid">
-              {AVATAR_EMOJIS.map((e) => (
-                <button
-                  key={e}
-                  className={"avatar-emoji-option" + (avatarEmoji === e && !avatarUrl ? " avatar-emoji-option-active" : "")}
-                  disabled={avatarSaving}
-                  onClick={() => handleSelectEmoji(e)}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-            <button className="groups-action-btn groups-action-btn-secondary" onClick={() => setShowAvatarPicker(false)}>
-              Fermer
-            </button>
-          </div>
-        </div>
-      )}
+
+      <div className="profil-v2-tagline" aria-hidden="true">
+        <span>Toujours plus de foot<br />entre potes</span>
+        <span className="profil-v2-tagline-smiley">🙂</span>
+      </div>
     </div>
   )
 
@@ -842,8 +846,183 @@ function App() {
           </div>
         </div>
        )}
+      {showAvatarPicker && (
+        <div className="avatar-picker-overlay" onClick={() => setShowAvatarPicker(false)}>
+          <div className="avatar-picker-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Choisis ta photo</h3>
+            {avatarError && <p className="groups-error">{avatarError}</p>}
+            <label className={"avatar-upload-btn" + (avatarSaving ? " avatar-upload-btn-disabled" : "")}>
+              {avatarSaving ? 'Envoi...' : '📤 Importer une photo'}
+              <input type="file" accept="image/*" hidden disabled={avatarSaving} onChange={handlePhotoInputChange} />
+            </label>
+            <p className="avatar-picker-or">ou choisis un avatar</p>
+            <div className="avatar-emoji-grid">
+              {AVATAR_EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  className={"avatar-emoji-option" + (avatarEmoji === e && !avatarUrl ? " avatar-emoji-option-active" : "")}
+                  disabled={avatarSaving}
+                  onClick={() => handleSelectEmoji(e)}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+            <button className="groups-action-btn groups-action-btn-secondary" onClick={() => setShowAvatarPicker(false)}>
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+      {editingPseudo && (
+        <div className="avatar-picker-overlay" onClick={() => { setEditingPseudo(false); setPseudoError(null) }}>
+          <div className="avatar-picker-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Ton pseudo</h3>
+            <input
+              className="profil-pseudo-input"
+              value={pseudoInput}
+              maxLength={20}
+              autoFocus
+              onChange={(e) => setPseudoInput(e.target.value)}
+            />
+            {pseudoError && <p className="groups-error">{pseudoError}</p>}
+            <div className="profil-pseudo-edit-actions">
+              <button
+                className="groups-action-btn groups-action-btn-secondary"
+                disabled={pseudoSaving}
+                onClick={() => { setEditingPseudo(false); setPseudoError(null) }}
+              >
+                Annuler
+              </button>
+              <button className="groups-action-btn" disabled={pseudoSaving} onClick={handleSavePseudo}>
+                {pseudoSaving ? '...' : 'Valider'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {comingSoon && (
+        <div className="avatar-picker-overlay" onClick={() => setComingSoon(null)}>
+          <div className="avatar-picker-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{comingSoon}</h3>
+            <p className="coming-soon-text">Bientôt disponible !</p>
+            <button className="groups-action-btn groups-action-btn-secondary" onClick={() => setComingSoon(null)}>
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
       <main className="home-main">
-        {selectedGroup ? (
+        {screen === 'parametres' ? (
+          <div className="parametres-screen">
+            <div className="predictions-header">
+              <button className="predictions-back" onClick={() => setScreen('profil')}>← Profil</button>
+              <h2>Paramètres</h2>
+            </div>
+
+            <div className="parametres-card">
+              <h3 className="parametres-card-title">Compte</h3>
+              <button
+                className="parametres-row"
+                onClick={() => { setPseudoInput(myPseudo ?? ''); setPseudoError(null); setEditingPseudo(true) }}
+              >
+                <span className="parametres-row-icon">👤</span>
+                <span className="parametres-row-label">Nom d'utilisateur</span>
+                <span className="parametres-row-value">{myPseudo ?? '—'}</span>
+                <span className="parametres-row-chevron">›</span>
+              </button>
+              <div className="parametres-row parametres-row-static">
+                <span className="parametres-row-icon">✉️</span>
+                <span className="parametres-row-label">E-mail</span>
+                <span className="parametres-row-value">{session?.user?.email ?? '—'}</span>
+              </div>
+              <button className="parametres-row" onClick={() => setComingSoon('Mot de passe')}>
+                <span className="parametres-row-icon">🔒</span>
+                <span className="parametres-row-label">Mot de passe</span>
+                <span className="parametres-row-value">••••••••</span>
+                <span className="parametres-row-chevron">›</span>
+              </button>
+              <div className="parametres-row parametres-row-static">
+                <span className="parametres-row-icon">🔔</span>
+                <span className="parametres-row-label">Notifications</span>
+                <button
+                  className={"parametres-toggle" + (pushStatus === 'ok' ? " parametres-toggle-on" : "")}
+                  disabled={pushStatus === 'ok' || pushEnabling}
+                  onClick={enablePushNow}
+                  aria-label="Activer les notifications"
+                  title={pushStatus === 'ok' ? 'Activées (désactivation depuis les réglages de ton appareil)' : 'Activer les notifications'}
+                >
+                  <span className="parametres-toggle-knob" />
+                </button>
+              </div>
+            </div>
+
+            <div className="parametres-card">
+              <h3 className="parametres-card-title">Préférences</h3>
+              <button
+                className="parametres-row"
+                disabled={!selectedGroup}
+                onClick={() => setScreen('roulette')}
+              >
+                <span className="parametres-row-icon">🛡️</span>
+                <span className="parametres-row-label">Mon équipe</span>
+                <span className="parametres-row-chevron">›</span>
+              </button>
+              <div className="parametres-row parametres-row-static">
+                <span className="parametres-row-icon">🏆</span>
+                <span className="parametres-row-label">Compétition</span>
+                <span className="parametres-row-value">Ligue 1</span>
+              </div>
+              <button className="parametres-row" onClick={() => setComingSoon('Thème')}>
+                <span className="parametres-row-icon">🌙</span>
+                <span className="parametres-row-label">Thème</span>
+                <span className="parametres-row-value">Sombre</span>
+                <span className="parametres-row-chevron">›</span>
+              </button>
+            </div>
+
+            <div className="parametres-card">
+              <h3 className="parametres-card-title">Données</h3>
+              <button className="parametres-row" onClick={() => setComingSoon('Confidentialité')}>
+                <span className="parametres-row-icon">🛡️</span>
+                <span className="parametres-row-label">Confidentialité</span>
+                <span className="parametres-row-chevron">›</span>
+              </button>
+              {!showDeleteConfirm ? (
+                <button className="parametres-row parametres-row-danger" onClick={() => setShowDeleteConfirm(true)}>
+                  <span className="parametres-row-icon">🗑️</span>
+                  <span className="parametres-row-label">Supprimer mon compte</span>
+                  <span className="parametres-row-chevron">›</span>
+                </button>
+              ) : (
+                <div className="account-delete-confirm">
+                  <p>
+                    Cette action est définitive : tu quittes tous tes groupes, ton pseudo et tes
+                    abonnements aux notifications sont supprimés, et tu ne pourras plus te
+                    reconnecter avec ce compte.
+                  </p>
+                  {deleteError && <p className="groups-error">{deleteError}</p>}
+                  <div className="account-delete-actions">
+                    <button
+                      className="groups-action-btn groups-action-btn-secondary"
+                      disabled={deleteBusy}
+                      onClick={() => { setShowDeleteConfirm(false); setDeleteError(null) }}
+                    >
+                      Annuler
+                    </button>
+                    <button className="account-delete-confirm-btn" disabled={deleteBusy} onClick={handleDeleteAccount}>
+                      {deleteBusy ? 'Suppression...' : 'Oui, supprimer définitivement'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : screen === 'historique-pronos' ? (
+          <PredictionsHistory onBack={() => setScreen('profil')} />
+        ) : screen === 'aide' ? (
+          <Help onBack={() => setScreen('profil')} />
+        ) : selectedGroup ? (
           <>
             {screen !== 'team-reveal' && (
             <div className="group-nav">
@@ -968,31 +1147,14 @@ function App() {
                 </>
               )
             )}
-            {screen === 'profil' && (
-              <div className="profil-screen">
-                {renderProfilCard(true)}
-                <button
-                  className="groups-action-btn groups-action-btn-secondary"
-                  onClick={() => { setSelectedGroup(null); setScreen('accueil') }}
-                >
-                  Changer de groupe
-                </button>
-                {renderAccountFooter()}
-              </div>
-            )}
+            {screen === 'profil' && renderProfilScreen(true)}
           </>
         ) : screen === 'profil' ? (
           // Le bouton profil (avatar rond, en haut à droite) reste cliquable
           // même avant d'avoir rejoint un groupe — jusqu'ici, cliquer dessus
           // ici ne faisait rien puisque seul <Groups /> était rendu, quel que
           // soit l'écran demandé.
-          <div className="profil-screen">
-            {renderProfilCard(false)}
-            <button className="groups-action-btn groups-action-btn-secondary" onClick={() => setScreen('accueil')}>
-              Retour à mes groupes
-            </button>
-            {renderAccountFooter()}
-          </div>
+          renderProfilScreen(false)
         ) : (
           <>
             <Groups
