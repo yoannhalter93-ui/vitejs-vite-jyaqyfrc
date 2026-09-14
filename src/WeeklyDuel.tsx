@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext'
 interface Duel {
   id: string
   player_a_id: string
-  player_b_id: string
+  player_b_id: string | null
   status: string
   score_a: number | null
   score_b: number | null
@@ -118,7 +118,7 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
     const mine = (ans ?? []).filter((a) => a.profile_id === user?.id).length
     setOppAnswered((ans ?? []).length - mine)
 
-    if (d && d.status !== 'done' && mine < 10) {
+    if (d && d.status !== 'done' && d.status !== 'waiting_opponent' && mine < 10) {
       await loadNextQuestion(id, mine + 1)
     } else {
       setQuestion(null)
@@ -173,11 +173,16 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
       <div className="predictions-screen">
         <div className="predictions-header">
           <button className="predictions-back" onClick={() => setSelected(null)}>← Duels</button>
-          <h2>vs {opponentId ? pseudos[opponentId] ?? '???' : '???'}</h2>
+          <h2>{duel?.status === 'waiting_opponent' ? '🎲 Duel de la semaine' : `vs ${opponentId ? pseudos[opponentId] ?? '???' : '???'}`}</h2>
         </div>
         {error && <p className="groups-error">{error}</p>}
 
-        {duel?.status === 'done' ? (
+        {duel?.status === 'waiting_opponent' ? (
+          <div className="roulette-result">
+            <p className="quiz-question-live">En attente d'un adversaire…</p>
+            <p className="predictions-period">Dès qu'un nouveau joueur rejoint le groupe, le duel sera créé automatiquement.</p>
+          </div>
+        ) : duel?.status === 'done' ? (
           <>
             <p className="match-result">Score final : {duel.score_a} - {duel.score_b}
               {(duel.score_a ?? 0) === (duel.score_b ?? 0) ? ' — Match nul.' : ((duel.player_a_id === user?.id) === ((duel.score_a ?? 0) > (duel.score_b ?? 0)) ? ' — Tu as gagné !' : ' — Tu as perdu.')}</p>
@@ -250,11 +255,20 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
             const opponentId = d.player_a_id === user?.id ? d.player_b_id : d.player_a_id
             return (
               <li className="match-card groups-card-clickable" key={d.id} onClick={() => openDuel(d.id)}>
-                <div className="match-teams"><span>vs {pseudos[opponentId] ?? '???'}</span></div>
-                {d.status === 'done' ? (
-                  <div className="match-result">Terminé : {d.score_a} - {d.score_b}</div>
+                {d.status === 'waiting_opponent' ? (
+                  <>
+                    <div className="match-teams"><span>⏳ En attente d'un adversaire</span></div>
+                    <div className="match-kickoff">Duel créé dès qu'un nouveau joueur rejoint</div>
+                  </>
                 ) : (
-                  <div className="match-kickoff">En cours</div>
+                  <>
+                    <div className="match-teams"><span>vs {opponentId ? pseudos[opponentId] ?? '???' : '???'}</span></div>
+                    {d.status === 'done' ? (
+                      <div className="match-result">Terminé : {d.score_a} - {d.score_b}</div>
+                    ) : (
+                      <div className="match-kickoff">En cours</div>
+                    )}
+                  </>
                 )}
               </li>
             )
@@ -269,10 +283,12 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
             {allDuels.map((d) => (
               <li className="match-card" key={d.id}>
                 <div className="match-teams">
-                  <span>{pseudos[d.player_a_id] ?? '???'} vs {pseudos[d.player_b_id] ?? '???'}</span>
+                  <span>{pseudos[d.player_a_id] ?? '???'} vs {d.player_b_id ? (pseudos[d.player_b_id] ?? '???') : 'en attente…'}</span>
                 </div>
                 {d.status === 'done' ? (
                   <div className="match-result">{d.score_a} - {d.score_b}</div>
+                ) : d.status === 'waiting_opponent' ? (
+                  <div className="match-kickoff">En attente d'un adversaire</div>
                 ) : (
                   <div className="match-kickoff">
                     {d.score_a === null && d.score_b === null ? 'Pas encore commencé' : 'En cours'}
