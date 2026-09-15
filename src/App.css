@@ -1723,6 +1723,81 @@ body {
   color: rgba(244, 239, 226, 0.7);
 }
 
+/* ===== Fond du tchat de groupe ===== */
+.chat-background {
+  position: relative;
+  min-height: 100%;
+  background: #F4EFE2;
+  background-image:
+    radial-gradient(circle at 18% 12%, rgba(27, 27, 31, 0.035), transparent 40%),
+    radial-gradient(circle at 82% 88%, rgba(27, 27, 31, 0.035), transparent 40%);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.chat-bg-tape {
+  position: absolute;
+  width: 64px;
+  height: 20px;
+  background: rgba(212, 162, 44, 0.35);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+}
+
+.chat-bg-tape-tl {
+  top: -6px;
+  left: 16px;
+  transform: rotate(-8deg);
+}
+
+.chat-bg-tape-br {
+  bottom: -6px;
+  right: 16px;
+  transform: rotate(-8deg);
+}
+
+.chat-bg-corner {
+  position: absolute;
+  color: #1B1B1F;
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+.chat-bg-corner-tr {
+  top: 14px;
+  right: 10px;
+}
+
+.chat-bg-corner-bl {
+  bottom: 14px;
+  left: 10px;
+}
+
+.chat-bg-annotation {
+  position: absolute;
+  font-family: 'Pacifico', cursive;
+  font-size: 13px;
+  color: rgba(27, 27, 31, 0.3);
+  pointer-events: none;
+}
+
+.chat-bg-annotation-tl {
+  top: 44px;
+  left: 16px;
+}
+
+.chat-bg-annotation-br {
+  bottom: 44px;
+  right: 18px;
+  text-align: right;
+}
+
+.chat-bg-content {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
+}
+
 /* ===== Profil ===== */
 .profil-screen {
   display: flex;
