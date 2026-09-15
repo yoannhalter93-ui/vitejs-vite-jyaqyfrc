@@ -106,7 +106,15 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray
 }
 
-type PushStatus = 'ok' | 'unsupported' | 'ios-needs-install' | 'needs-permission' | 'denied' | 'error'
+type PushStatus = 'ok' | 'unsupported' | 'ios-needs-install' | 'needs-permission' | 'denied' | 'error' | 'disabled'
+
+// Un abonnement push est propre à cet appareil/navigateur (l'endpoint est
+// stocké par ligne dans push_subscriptions) — la préférence "j'ai désactivé
+// les notifications" est donc, logiquement, elle aussi locale à l'appareil :
+// pas besoin d'une colonne en base, juste ce petit drapeau localStorage pour
+// empêcher le useEffect de mount de se ré-abonner automatiquement tant que
+// la permission navigateur reste "granted".
+const PUSH_DISABLED_KEY = 'entrenous_push_disabled'
 
 // promptIfDefault ne doit être `true` que lors d'un appel déclenché par un
 // vrai clic utilisateur (bouton "Activer les notifications") : demander la
@@ -206,6 +214,11 @@ function App() {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false)
   const [avatarSaving, setAvatarSaving] = useState(false)
   const [avatarError, setAvatarError] = useState<string | null>(null)
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [newPasswordInput, setNewPasswordInput] = useState('')
+  const [newPasswordConfirmInput, setNewPasswordConfirmInput] = useState('')
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
   // Petites fonctionnalités du nouvel écran Paramètres pas encore
   // développées (thème, confidentialité...) : au lieu de masquer la ligne,
   // on l'affiche mais elle ouvre juste ce petit message générique.
@@ -307,6 +320,32 @@ function App() {
     }
     setMyPseudo(trimmed)
     setEditingPseudo(false)
+  }
+
+  // Changement de mot de passe : Supabase permet de mettre à jour le mot de
+  // passe de la session en cours sans redemander l'ancien (auth.updateUser),
+  // donc pas besoin de champ "mot de passe actuel" ici — la personne est
+  // déjà authentifiée pour arriver jusqu'à cet écran.
+  const handleChangePassword = async () => {
+    setPasswordError(null)
+    if (newPasswordInput.length < 6) {
+      setPasswordError('Le mot de passe doit faire au moins 6 caractères.')
+      return
+    }
+    if (newPasswordInput !== newPasswordConfirmInput) {
+      setPasswordError('Les deux mots de passe ne correspondent pas.')
+      return
+    }
+    setPasswordSaving(true)
+    const { error } = await supabase.auth.updateUser({ password: newPasswordInput })
+    setPasswordSaving(false)
+    if (error) {
+      setPasswordError(error.message)
+      return
+    }
+    setChangingPassword(false)
+    setNewPasswordInput('')
+    setNewPasswordConfirmInput('')
   }
 
   // Choix d'un avatar emoji parmi les préréglages : instantané, et efface
@@ -514,16 +553,56 @@ function App() {
 
   useEffect(() => {
     if (!session?.user?.id) return
+    if (typeof window !== 'undefined' && window.localStorage.getItem(PUSH_DISABLED_KEY) === '1') {
+      setPushStatus('disabled')
+      return
+    }
     subscribeToPush(session.user.id).then((r) => { setPushStatus(r.status); setPushErrorDetail(r.detail ?? null) })
   }, [session?.user?.id])
 
   const enablePushNow = async () => {
     if (!session?.user?.id || pushEnabling) return
     setPushEnabling(true)
+    if (typeof window !== 'undefined') window.localStorage.removeItem(PUSH_DISABLED_KEY)
     const r = await subscribeToPush(session.user.id, true)
     setPushStatus(r.status)
     setPushErrorDetail(r.detail ?? null)
     setPushEnabling(false)
+  }
+
+  // Désactivation depuis l'appli : on ne peut pas révoquer la permission
+  // navigateur en JS (aucune API pour ça), donc on se contente de se
+  // désabonner (côté navigateur ET en base) et de mémoriser le choix
+  // localement pour que le useEffect de mount ne se ré-abonne pas tout seul
+  // au prochain lancement — un vrai bouton on/off plutôt qu'un "activer"
+  // à sens unique.
+  const disablePushNow = async () => {
+    if (pushEnabling) return
+    setPushEnabling(true)
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration()
+        const sub = await reg?.pushManager.getSubscription()
+        if (sub) {
+          const endpoint = sub.endpoint
+          await sub.unsubscribe()
+          await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint)
+        }
+      }
+      if (typeof window !== 'undefined') window.localStorage.setItem(PUSH_DISABLED_KEY, '1')
+      setPushStatus('disabled')
+      setPushErrorDetail(null)
+    } finally {
+      setPushEnabling(false)
+    }
+  }
+
+  const toggleNotifications = () => {
+    if (pushStatus === 'ok') {
+      disablePushNow()
+    } else {
+      enablePushNow()
+    }
   }
 
   const markNotifRead = async (id: string) => {
@@ -900,6 +979,41 @@ function App() {
           </div>
         </div>
       )}
+      {changingPassword && (
+        <div className="avatar-picker-overlay" onClick={() => { setChangingPassword(false); setPasswordError(null) }}>
+          <div className="avatar-picker-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Nouveau mot de passe</h3>
+            <input
+              className="profil-pseudo-input"
+              type="password"
+              placeholder="Nouveau mot de passe"
+              value={newPasswordInput}
+              autoFocus
+              onChange={(e) => setNewPasswordInput(e.target.value)}
+            />
+            <input
+              className="profil-pseudo-input profil-password-input-confirm"
+              type="password"
+              placeholder="Confirmer le mot de passe"
+              value={newPasswordConfirmInput}
+              onChange={(e) => setNewPasswordConfirmInput(e.target.value)}
+            />
+            {passwordError && <p className="groups-error">{passwordError}</p>}
+            <div className="profil-pseudo-edit-actions">
+              <button
+                className="groups-action-btn groups-action-btn-secondary"
+                disabled={passwordSaving}
+                onClick={() => { setChangingPassword(false); setPasswordError(null) }}
+              >
+                Annuler
+              </button>
+              <button className="groups-action-btn" disabled={passwordSaving} onClick={handleChangePassword}>
+                {passwordSaving ? '...' : 'Valider'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {comingSoon && (
         <div className="avatar-picker-overlay" onClick={() => setComingSoon(null)}>
           <div className="avatar-picker-modal" onClick={(e) => e.stopPropagation()}>
@@ -935,7 +1049,10 @@ function App() {
                 <span className="parametres-row-label">E-mail</span>
                 <span className="parametres-row-value">{session?.user?.email ?? '—'}</span>
               </div>
-              <button className="parametres-row" onClick={() => setComingSoon('Mot de passe')}>
+              <button
+                className="parametres-row"
+                onClick={() => { setNewPasswordInput(''); setNewPasswordConfirmInput(''); setPasswordError(null); setChangingPassword(true) }}
+              >
                 <span className="parametres-row-icon">🔒</span>
                 <span className="parametres-row-label">Mot de passe</span>
                 <span className="parametres-row-value">••••••••</span>
@@ -946,10 +1063,20 @@ function App() {
                 <span className="parametres-row-label">Notifications</span>
                 <button
                   className={"parametres-toggle" + (pushStatus === 'ok' ? " parametres-toggle-on" : "")}
-                  disabled={pushStatus === 'ok' || pushEnabling}
-                  onClick={enablePushNow}
-                  aria-label="Activer les notifications"
-                  title={pushStatus === 'ok' ? 'Activées (désactivation depuis les réglages de ton appareil)' : 'Activer les notifications'}
+                  disabled={pushEnabling || pushStatus === 'ios-needs-install' || pushStatus === 'unsupported'}
+                  onClick={toggleNotifications}
+                  aria-label={pushStatus === 'ok' ? 'Désactiver les notifications' : 'Activer les notifications'}
+                  title={
+                    pushStatus === 'ok'
+                      ? 'Désactiver les notifications'
+                      : pushStatus === 'denied'
+                      ? "Bloquées dans les réglages du navigateur — débloque le site puis réessaie ici"
+                      : pushStatus === 'ios-needs-install'
+                      ? "Ajoute l'appli à l'écran d'accueil pour activer les notifications"
+                      : pushStatus === 'unsupported'
+                      ? 'Ce navigateur ne supporte pas les notifications sur ce site'
+                      : 'Activer les notifications'
+                  }
                 >
                   <span className="parametres-toggle-knob" />
                 </button>
