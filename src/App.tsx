@@ -1109,11 +1109,16 @@ function App() {
 
             <div className="parametres-card">
               <h3 className="parametres-card-title">Données</h3>
-              <button className="parametres-row" onClick={() => setComingSoon('Confidentialité')}>
+              <a
+                className="parametres-row"
+                href={`${import.meta.env.BASE_URL}politique-confidentialite.html`}
+                target="_blank"
+                rel="noreferrer"
+              >
                 <span className="parametres-row-icon">🛡️</span>
                 <span className="parametres-row-label">Confidentialité</span>
                 <span className="parametres-row-chevron">›</span>
-              </button>
+              </a>
               {!showDeleteConfirm ? (
                 <button className="parametres-row parametres-row-danger" onClick={() => setShowDeleteConfirm(true)}>
                   <span className="parametres-row-icon">🗑️</span>
