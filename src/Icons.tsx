@@ -38,6 +38,23 @@ export function SketchTrophy({ size = 44, className }: { size?: number; classNam
   )
 }
 
+// petite manette de jeu dessinée à la main, pour habiller le bas de
+// l'onglet Jeux (même esprit que le ballon/la coupe ci-dessus)
+export function SketchController({ size = 60, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size * 0.625} viewBox="0 0 64 40" fill="none" className={className}>
+      <path
+        d="M16 8H48C56 8 60 14 60 20C60 28 55 32 50 32C46 32 44 28 40 28H24C20 28 18 32 14 32C9 32 4 28 4 20C4 14 8 8 16 8Z"
+        stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round"
+      />
+      <path d="M16 16V24" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M12 20H20" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <circle cx="44" cy="15" r="2.2" stroke="currentColor" strokeWidth="2.2" />
+      <circle cx="50" cy="21" r="2.2" stroke="currentColor" strokeWidth="2.2" />
+    </svg>
+  )
+}
+
 // petit trait ondulé "à la main" utilisé sous les titres de section
 export function Squiggle({ width = 46, className }: { width?: number; className?: string }) {
   return (
