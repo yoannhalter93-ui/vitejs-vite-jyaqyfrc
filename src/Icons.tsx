@@ -55,6 +55,33 @@ export function SketchController({ size = 60, className }: { size?: number; clas
   )
 }
 
+// petit schéma tactique dessiné à la main (X/O + flèche en pointillés),
+// pour le fond du tchat façon "carnet de coach"
+export function SketchTactics({ size = 48, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      <circle cx="10" cy="30" r="2.2" stroke="currentColor" strokeWidth="2.2" />
+      <circle cx="38" cy="34" r="2.2" stroke="currentColor" strokeWidth="2.2" />
+      <path d="M20 12L26 18M26 12L20 18" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M34 10L40 16M40 10L34 16" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M12 27C18 18 26 16 32 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="1 5" fill="none" />
+      <path d="M28 14L32 13L31 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  )
+}
+
+// petite tour de projecteurs dessinée à la main, pour habiller le fond du tchat
+export function SketchFloodlight({ size = 40, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size * 1.2} viewBox="0 0 40 48" fill="none" className={className}>
+      <path d="M20 48V16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M6 48L14 16M34 48L26 16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <rect x="6" y="4" width="28" height="14" rx="2" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
+      <path d="M11 8H29M11 12H29" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 // petit trait ondulé "à la main" utilisé sous les titres de section
 export function Squiggle({ width = 46, className }: { width?: number; className?: string }) {
   return (
