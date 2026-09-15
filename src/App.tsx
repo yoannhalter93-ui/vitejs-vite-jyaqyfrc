@@ -82,11 +82,11 @@ const BOTTOM_TABS: { key: Screen; label: string; icon: string }[] = [
   { key: 'profil', label: 'Profil', icon: '👤' },
 ]
 
-const JEUX_HUB: { key: Screen; label: string; icon: string; sub: string }[] = [
-  { key: 'roulette', label: 'Mon équipe', icon: '🎡', sub: 'Ton équipe tirée au sort' },
-  { key: 'penalty', label: 'Duel penalty', icon: '🥅', sub: 'Défie un membre du groupe' },
-  { key: 'quiz', label: 'Quiz', icon: '🧠', sub: 'Duel de questions foot' },
-  { key: 'jonglages', label: 'Mini-jeu', icon: '🤹', sub: 'Le défi de la semaine' },
+const JEUX_HUB: { key: Screen; label: string; icon: string; sub: string; color: 'cream' | 'red' | 'green' | 'gold' }[] = [
+  { key: 'roulette', label: 'Mon équipe', icon: '🎡', sub: 'Ton équipe tirée au sort', color: 'cream' },
+  { key: 'penalty', label: 'Duel penalty', icon: '🥅', sub: 'Défie un membre du groupe', color: 'red' },
+  { key: 'quiz', label: 'Quiz', icon: '🧠', sub: 'Duel de questions foot', color: 'green' },
+  { key: 'jonglages', label: 'Mini-jeu', icon: '🤹', sub: 'Le défi de la semaine', color: 'gold' },
 ]
 
 // à quel onglet du bas rattacher chaque écran interne (ex. "pronostics",
@@ -1221,12 +1221,15 @@ function App() {
             {screen === 'jeux' && (
               <div className="jeux-hub">
                 <h2 className="jeux-hub-title">Mini-jeux</h2>
-                <div className="jeux-hub-grid">
+                <div className="jeux-hub-list">
                   {JEUX_HUB.map((j) => (
-                    <button key={j.key} className="jeux-hub-card" onClick={() => setScreen(j.key)}>
-                      <span className="jeux-hub-icon">{j.icon}</span>
-                      <span className="jeux-hub-label">{j.label}</span>
-                      <span className="jeux-hub-sub">{j.sub}</span>
+                    <button key={j.key} className={`jeux-hub-card jeux-hub-card-${j.color}`} onClick={() => setScreen(j.key)}>
+                      <span className="jeux-hub-card-icon">{j.icon}</span>
+                      <span className="jeux-hub-card-text">
+                        <span className="jeux-hub-card-label">{j.label}</span>
+                        <span className="jeux-hub-card-sub">{j.sub}</span>
+                      </span>
+                      <span className="jeux-hub-card-chevron">›</span>
                     </button>
                   ))}
                 </div>
