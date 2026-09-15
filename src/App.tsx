@@ -1112,8 +1112,6 @@ function App() {
               <a
                 className="parametres-row"
                 href={`${import.meta.env.BASE_URL}politique-confidentialite.html`}
-                target="_blank"
-                rel="noreferrer"
               >
                 <span className="parametres-row-icon">🛡️</span>
                 <span className="parametres-row-label">Confidentialité</span>
