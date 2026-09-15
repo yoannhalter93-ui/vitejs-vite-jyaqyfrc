@@ -19,6 +19,7 @@ import DribbleGame from './DribbleGame';
 import Avatar from './Avatar'
 import PredictionsHistory from './PredictionsHistory'
 import Help from './Help'
+import { SketchController } from './Icons'
 
 // Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
 // d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
@@ -1232,6 +1233,10 @@ function App() {
                       <span className="jeux-hub-card-chevron">›</span>
                     </button>
                   ))}
+                </div>
+                <div className="jeux-hub-tagline" aria-hidden="true">
+                  <SketchController size={54} className="jeux-hub-tagline-icon" />
+                  <span>Toujours un défi<br />entre potes</span>
                 </div>
               </div>
             )}
