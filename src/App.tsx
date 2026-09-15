@@ -23,11 +23,7 @@ import Help from './Help'
 // Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
 // d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
 // que la personne peut choisir sans avoir à importer sa propre photo.
-const AVATAR_PRESETS = [
-  'preset-1.jpg', 'preset-2.jpg', 'preset-3.jpg',
-  'preset-4.jpg', 'preset-5.jpg', 'preset-6.jpg',
-  'preset-7.jpg', 'preset-8.jpg', 'preset-9.jpg',
-]
+const AVATAR_PRESETS = Array.from({ length: 46 }, (_, i) => `preset-${i + 1}.jpg`)
 
 // Recadre l'image importée en carré (centré) et la redimensionne, pour que
 // toutes les photos de profil aient le même format avant l'upload — évite
