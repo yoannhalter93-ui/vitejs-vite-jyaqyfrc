@@ -5,9 +5,10 @@
 // restent sur les bords pour laisser le centre bien lisible : c'est là que
 // les messages du tchat viendront se poser, par-dessus.
 
+import type { ReactNode } from 'react'
 import { SketchFloodlight, SketchTactics } from './Icons'
 
-export default function ChatBackground({ children }: { children: React.ReactNode }) {
+export default function ChatBackground({ children }: { children: ReactNode }) {
   return (
     <div className="chat-background">
       <div className="chat-bg-tape chat-bg-tape-tl" aria-hidden="true" />
