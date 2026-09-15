@@ -20,6 +20,7 @@ import Avatar from './Avatar'
 import PredictionsHistory from './PredictionsHistory'
 import Help from './Help'
 import { SketchController } from './Icons'
+import Chat from './Chat'
 
 // Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
 // d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
@@ -64,6 +65,7 @@ type Screen =
   | 'quiz'
   | 'paris'
   | 'jonglages'
+  | 'chat'
   | 'profil'
   | 'parametres'
   | 'historique-pronos'
@@ -74,13 +76,15 @@ type Screen =
 
 // les 5 onglets de la barre de navigation en bas — "Jeux" regroupe les
 // mini-jeux (Mon équipe / Duel penalty / Quiz / Mini-jeu), atteints via le
-// hub plutôt que directement depuis la barre
+// hub plutôt que directement depuis la barre. Le Profil n'a pas son propre
+// onglet ici : il reste accessible via l'avatar rond en haut à droite, ce
+// qui libère une place pour le Tchat.
 const BOTTOM_TABS: { key: Screen; label: string; icon: string }[] = [
   { key: 'accueil', label: 'Accueil', icon: '⚽' },
   { key: 'classement', label: 'Classement', icon: '🏆' },
   { key: 'jeux', label: 'Jeux', icon: '🎮' },
   { key: 'paris', label: 'Paris', icon: '🤝' },
-  { key: 'profil', label: 'Profil', icon: '👤' },
+  { key: 'chat', label: 'Tchat', icon: '💬' },
 ]
 
 const JEUX_HUB: { key: Screen; label: string; icon: string; sub: string; color: 'cream' | 'red' | 'green' | 'gold' }[] = [
@@ -1295,6 +1299,12 @@ function App() {
                   />
                 </>
               )
+            )}
+            {screen === 'chat' && (
+              <Chat
+                groupId={selectedGroup.id}
+                groupName={selectedGroup.name}
+              />
             )}
             {screen === 'profil' && renderProfilScreen(true)}
           </>
