@@ -1796,6 +1796,9 @@ body {
   padding: 22px 20px;
   width: 100%;
   max-width: 320px;
+  max-height: 85vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   text-align: center;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 }
