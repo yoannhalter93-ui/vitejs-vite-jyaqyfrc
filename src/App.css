@@ -2014,6 +2014,7 @@ body {
   border-top: 1px solid rgba(27, 27, 31, 0.1);
   cursor: pointer;
   text-align: left;
+  text-decoration: none;
   box-sizing: border-box;
   color: #1B1B1F;
 }
