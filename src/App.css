@@ -1769,6 +1769,10 @@ body {
   color: #1B1B1F;
 }
 
+.profil-password-input-confirm {
+  margin-top: 10px;
+}
+
 .profil-pseudo-edit-actions {
   display: flex;
   gap: 8px;
