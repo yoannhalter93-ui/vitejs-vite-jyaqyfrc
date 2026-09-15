@@ -1706,6 +1706,23 @@ body {
   opacity: 0.65;
 }
 
+.jeux-hub-tagline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  margin: 18px auto 4px;
+  color: rgba(244, 239, 226, 0.85);
+  font-family: 'Pacifico', cursive;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.jeux-hub-tagline-icon {
+  color: rgba(244, 239, 226, 0.7);
+}
+
 /* ===== Profil ===== */
 .profil-screen {
   display: flex;
