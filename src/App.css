@@ -1798,6 +1798,130 @@ body {
   min-height: 100%;
 }
 
+/* ===== Écran de tchat ===== */
+.chat-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 16px 4px 4px;
+}
+
+.chat-title {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: #1B1B1F;
+  text-align: center;
+  margin: 0 0 14px;
+}
+
+.chat-messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding: 4px 2px 12px;
+}
+
+.chat-empty {
+  text-align: center;
+  color: rgba(27, 27, 31, 0.5);
+  font-size: 13px;
+  margin: auto 0;
+}
+
+.chat-bubble-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 82%;
+}
+
+.chat-bubble-row-me {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+  max-width: 82%;
+}
+
+.chat-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #FFFFFF;
+  border: 1px solid rgba(27, 27, 31, 0.08);
+  border-radius: 14px 14px 14px 4px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.chat-bubble-me {
+  background: #0F3B2E;
+  border-color: transparent;
+  border-radius: 14px 14px 4px 14px;
+  color: #F4EFE2;
+}
+
+.chat-bubble-author {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  color: #D4A22C;
+}
+
+.chat-bubble-text {
+  font-size: 14px;
+  line-height: 1.4;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.chat-bubble-time {
+  align-self: flex-end;
+  font-size: 10px;
+  opacity: 0.55;
+}
+
+.chat-input-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 2px 2px;
+  border-top: 1px solid rgba(27, 27, 31, 0.08);
+}
+
+.chat-input {
+  flex: 1;
+  border: 1px solid rgba(27, 27, 31, 0.15);
+  background: #FFFFFF;
+  border-radius: 20px;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #1B1B1F;
+  font-family: 'Space Mono', 'Courier New', monospace;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: #D4A22C;
+}
+
+.chat-send-btn {
+  border: none;
+  border-radius: 20px;
+  padding: 0 18px;
+  background: #0F3B2E;
+  color: #F4EFE2;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.chat-send-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* ===== Profil ===== */
 .profil-screen {
   display: flex;
