@@ -16,9 +16,18 @@ import WeeklyDuel from './WeeklyDuel';
 import FreeBets from './FreeBets';
 import JuggleGame from './JuggleGame';
 import DribbleGame from './DribbleGame';
-import Avatar, { AVATAR_EMOJIS } from './Avatar'
+import Avatar from './Avatar'
 import PredictionsHistory from './PredictionsHistory'
 import Help from './Help'
+
+// Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
+// d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
+// que la personne peut choisir sans avoir à importer sa propre photo.
+const AVATAR_PRESETS = [
+  'preset-1.jpg', 'preset-2.jpg', 'preset-3.jpg',
+  'preset-4.jpg', 'preset-5.jpg', 'preset-6.jpg',
+  'preset-7.jpg', 'preset-8.jpg', 'preset-9.jpg',
+]
 
 // Recadre l'image importée en carré (centré) et la redimensionne, pour que
 // toutes les photos de profil aient le même format avant l'upload — évite
@@ -348,21 +357,23 @@ function App() {
     setNewPasswordConfirmInput('')
   }
 
-  // Choix d'un avatar emoji parmi les préréglages : instantané, et efface
-  // une éventuelle photo précédente (les deux champs sont mutuellement
-  // exclusifs, voir le composant Avatar).
-  const handleSelectEmoji = async (emoji: string) => {
+  // Choix d'une photo preset parmi les préréglages : instantané, et efface
+  // une éventuelle photo importée précédente (avatar_url pointe simplement
+  // vers l'image statique servie par l'appli plutôt que vers le bucket
+  // "avatars" de l'utilisateur).
+  const handleSelectPreset = async (filename: string) => {
     if (!session?.user?.id) return
     setAvatarSaving(true)
     setAvatarError(null)
-    const { error } = await supabase.from('profiles').update({ avatar_emoji: emoji, avatar_url: null }).eq('id', session.user.id)
+    const url = `${window.location.origin}${import.meta.env.BASE_URL}avatar-presets/${filename}`
+    const { error } = await supabase.from('profiles').update({ avatar_url: url, avatar_emoji: null }).eq('id', session.user.id)
     setAvatarSaving(false)
     if (error) {
       setAvatarError(error.message)
       return
     }
-    setAvatarEmoji(emoji)
-    setAvatarUrl(null)
+    setAvatarUrl(url)
+    setAvatarEmoji(null)
     setShowAvatarPicker(false)
   }
 
@@ -933,18 +944,23 @@ function App() {
               {avatarSaving ? 'Envoi...' : '📤 Importer une photo'}
               <input type="file" accept="image/*" hidden disabled={avatarSaving} onChange={handlePhotoInputChange} />
             </label>
-            <p className="avatar-picker-or">ou choisis un avatar</p>
-            <div className="avatar-emoji-grid">
-              {AVATAR_EMOJIS.map((e) => (
-                <button
-                  key={e}
-                  className={"avatar-emoji-option" + (avatarEmoji === e && !avatarUrl ? " avatar-emoji-option-active" : "")}
-                  disabled={avatarSaving}
-                  onClick={() => handleSelectEmoji(e)}
-                >
-                  {e}
-                </button>
-              ))}
+            <p className="avatar-picker-or">ou choisis une photo</p>
+            <div className="avatar-preset-grid">
+              {AVATAR_PRESETS.map((filename) => {
+                const previewUrl = `${import.meta.env.BASE_URL}avatar-presets/${filename}`
+                const isActive = !!avatarUrl && avatarUrl.includes(`avatar-presets/${filename}`)
+                return (
+                  <button
+                    key={filename}
+                    type="button"
+                    className={"avatar-preset-option" + (isActive ? " avatar-preset-option-active" : "")}
+                    disabled={avatarSaving}
+                    onClick={() => handleSelectPreset(filename)}
+                  >
+                    <img src={previewUrl} alt="" />
+                  </button>
+                )
+              })}
             </div>
             <button className="groups-action-btn groups-action-btn-secondary" onClick={() => setShowAvatarPicker(false)}>
               Fermer
