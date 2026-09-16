@@ -558,6 +558,46 @@ function App() {
     loadNotifications()
   }, [session?.user?.id])
 
+  // Les notifications ci-dessus ne sont chargées qu'une fois à la connexion :
+  // sans temps réel, le badge de la cloche (et le point rouge du Tchat,
+  // juste en dessous) ne bougerait qu'au prochain rechargement de l'appli.
+  // On s'abonne donc aux nouvelles notifications de l'utilisateur, sur le
+  // même principe que Chat.tsx s'abonne aux nouveaux messages.
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const channel = supabase
+      .channel(`notifications-${session.user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `profile_id=eq.${session.user.id}` },
+        (payload: any) => {
+          const row = payload.new
+          setNotifications((prev) => (prev.some((n) => n.id === row.id) ? prev : [row, ...prev]))
+        }
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [session?.user?.id])
+
+  // Nombre de messages de tchat non lus, pour le petit point rouge sur
+  // l'onglet Tchat de la barre du bas (même principe que le badge "Paris").
+  const unreadMessageCount = notifications.filter((n) => !n.read && n.type === 'message').length
+
+  // En ouvrant le Tchat, on marque les notifications de messages comme lues
+  // pour faire disparaître le point rouge (comme sur WhatsApp/Messenger : le
+  // badge se vide dès qu'on ouvre la discussion).
+  useEffect(() => {
+    if (screen !== 'chat' || !session?.user?.id) return
+    const unread = notifications.filter((n) => !n.read && n.type === 'message')
+    if (unread.length === 0) return
+    const ids = unread.map((n) => n.id)
+    supabase.from('notifications').update({ read: true }).in('id', ids).then(() => {
+      setNotifications((prev) => prev.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n)))
+    })
+  }, [screen, session?.user?.id, notifications])
+
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
   const [pushErrorDetail, setPushErrorDetail] = useState<string | null>(null)
   const [pushTipDismissed, setPushTipDismissed] = useState(false)
@@ -656,6 +696,9 @@ function App() {
     } else if (n.ref_table === 'groups' && n.ref_id) {
       const { data: groupRow } = await supabase.from('groups').select('name').eq('id', n.ref_id).maybeSingle()
       await handleSelectGroup(n.ref_id, groupRow?.name ?? '')
+      // les notifs de nouveau message (contrairement au wizz, qui partage le
+      // même ref_table 'groups') emmènent directement sur le Tchat du groupe
+      if (n.type === 'message') setScreen('chat')
       setShowNotifPanel(false)
     }
   }
@@ -1325,7 +1368,10 @@ function App() {
       </main>
       {selectedGroup && screen !== 'team-reveal' && (
         <BottomNav
-          tabs={BOTTOM_TABS.map((t) => (t.key === 'paris' ? { ...t, badge: openBetsToVoteCount } : t))}
+          tabs={BOTTOM_TABS.map((t) =>
+            t.key === 'paris' ? { ...t, badge: openBetsToVoteCount } :
+            t.key === 'chat' ? { ...t, badge: unreadMessageCount } : t
+          )}
           active={bottomTabFor(screen)}
           onSelect={(key) => setScreen(key as Screen)}
         />
