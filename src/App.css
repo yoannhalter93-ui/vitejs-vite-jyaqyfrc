@@ -243,6 +243,20 @@ body {
   line-height: 1;
 }
 
+/* Le bloc logo/titre de l'en-tête est cliquable (retour à l'accueil, comme
+   l'onglet ⚽ Accueil de la barre du bas) : on efface les styles par défaut
+   du <button> pour qu'il reste visuellement identique au bloc statique
+   d'avant. */
+.brand-block-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  cursor: pointer;
+  align-items: flex-start;
+}
+
 .brand-logo {
   font-family: 'Pacifico', 'Space Mono', cursive;
   font-size: 28px;
