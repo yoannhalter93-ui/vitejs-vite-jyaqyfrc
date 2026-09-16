@@ -927,6 +927,27 @@ body {
   margin-bottom: 14px;
 }
 
+/* Onglets du Classement (Général / Pronostics / ... / Paris libres) repris
+   dans le même style que les onglets Paris libres (.bet-tabs) : contour
+   doré discret pour les inactifs, pastille pleine dorée pour l'actif,
+   au lieu du fond crème plein par défaut de .group-nav-tab (pensé pour
+   les écrans clairs) — plus lisible sur le fond vert foncé de cet écran.
+   Contrairement à .bet-tabs (2 onglets, pile la largeur en flex:1), on
+   garde ici le flex-wrap: wrap hérité de .group-nav-tabs vu qu'il y a
+   6 catégories — elles passent à la ligne plutôt que de se tasser. */
+.classement-tabs .group-nav-tab {
+  background: transparent;
+  border: 1.5px solid rgba(244, 239, 226, 0.32);
+  color: rgba(244, 239, 226, 0.85);
+  font-weight: 700;
+}
+
+.classement-tabs .group-nav-tab-active {
+  background: #D4A22C;
+  border-color: #D4A22C;
+  color: #1B1B1F;
+}
+
 /* Classement "board" : liste façon tableau de classement sur fond vert
    foncé (photos/avatars ronds, médailles or/argent/bronze pour le podium),
    au lieu des cartes crème utilisées pour les duels/pronos. */
