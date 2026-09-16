@@ -453,7 +453,7 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
   return (
     <div className="predictions-screen">
       <div className="bet-hero">
-        <span className="bet-hero-eyebrow">Paris libres</span>
+        <span className="bet-hero-eyebrow">Paris libres · {groupName}</span>
         <h2 className="bet-hero-title">Les paris entre potes</h2>
         <p className="bet-hero-subtitle">Petits paris, grands débats</p>
       </div>
