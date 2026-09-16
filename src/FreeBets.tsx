@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
+import Avatar from './Avatar'
 
 // Aperçu en direct de la cote (mêmes calculs que close_expired_free_bets()
 // côté base) : le camp majoritaire rapporte 1 point, le camp minoritaire
@@ -63,11 +64,30 @@ interface Reveal {
   side: string
 }
 
+interface Voter {
+  profile_id: string
+  pseudo: string
+  avatar_url: string | null
+  avatar_emoji: string | null
+}
+
 interface Props {
   groupId: string
   groupName: string
   onBonusUsed?: () => void
   onVoteOrCreate?: () => void
+}
+
+// Libellé + couleur du badge de statut affiché sur chaque carte de pari
+// (voir maquette envoyée par Yoann) — un badge par valeur possible de
+// free_bets.status (voir close_expired_free_bets / try_resolve_free_bet /
+// resolve_contested_bet côté base pour le cycle de vie complet).
+const STATUS_META: Record<string, { label: string; className: string }> = {
+  open: { label: 'Ouvert', className: 'bet-status-open' },
+  closed: { label: 'En attente', className: 'bet-status-pending' },
+  contested: { label: 'En litige', className: 'bet-status-contested' },
+  resolved: { label: 'Résolu', className: 'bet-status-resolved' },
+  voided: { label: 'Annulé', className: 'bet-status-voided' },
 }
 
 export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCreate }: Props) {
@@ -83,7 +103,7 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
   // qui a voté (sans dire quoi) sur les paris encore ouverts, pour montrer
   // la participation sans influencer les votes en cours — le détail
   // oui/non par personne reste réservé aux paris verrouillés (voir reveal)
-  const [voters, setVoters] = useState<Record<string, { profile_id: string; pseudo: string }[]>>({})
+  const [voters, setVoters] = useState<Record<string, Voter[]>>({})
   // confirmations du résultat (après échéance) : ce que MOI j'ai confirmé
   // pour chaque pari, et le décompte de tout le monde pour les paris en
   // mode "majorité" — avant ce correctif, rien n'indiquait qu'un clic sur
@@ -149,12 +169,13 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
       }
       setVoteCounts(countsMap)
 
-      // liste des votants (sans le côté) pour tous les paris du groupe
+      // liste des votants (sans le côté), avec avatar, pour tous les paris
+      // du groupe — affichée en rangée d'avatars sur les paris en cours
       const { data: votersRows } = await supabase.rpc('get_free_bet_voters', { p_group_id: groupId })
-      const votersMap: Record<string, { profile_id: string; pseudo: string }[]> = {}
+      const votersMap: Record<string, Voter[]> = {}
       for (const v of (votersRows ?? []) as any[]) {
         if (!votersMap[v.bet_id]) votersMap[v.bet_id] = []
-        votersMap[v.bet_id].push({ profile_id: v.profile_id, pseudo: v.pseudo })
+        votersMap[v.bet_id].push({ profile_id: v.profile_id, pseudo: v.pseudo, avatar_url: v.avatar_url, avatar_emoji: v.avatar_emoji })
       }
       setVoters(votersMap)
 
@@ -286,24 +307,55 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     const canVote = b.status === 'open' && new Date() < new Date(b.deadline)
     const liveOdds = computeLiveOdds(counts.oui, counts.non)
     const reveal = reveals[b.id]
+    const status = STATUS_META[b.status] ?? { label: b.status, className: 'bet-status-open' }
+    const voterList = voters[b.id] ?? []
     return (
-      <li className="match-card" key={b.id}>
-        <div className="match-teams">{b.text}</div>
-        <div className="match-kickoff">
-          Proposé par {b.author_id ? (pseudos[b.author_id] ?? '???') : '???'} — Échéance : {new Date(b.deadline).toLocaleString('fr-FR')} — statut : {b.status}
+      <li className="bet-card" key={b.id}>
+        <div className="bet-card-top">
+          <span className="bet-card-kicker">🎲 Pari libre</span>
+          <span className={'bet-status-pill ' + status.className}>
+            <span className="bet-status-dot" />
+            {status.label}
+          </span>
         </div>
-        <div className="match-my-pred">Votes : {counts.oui} oui / {counts.non} non {myVotes[b.id] ? `(toi : ${myVotes[b.id]})` : ''}</div>
+
+        <h3 className="bet-card-text">{b.text}</h3>
+
+        <div className="bet-card-meta">
+          <span className="bet-card-meta-item">👤 Proposé par {b.author_id ? (pseudos[b.author_id] ?? '???') : '???'}</span>
+          <span className="bet-card-meta-item">📅 Échéance : {new Date(b.deadline).toLocaleString('fr-FR')}</span>
+        </div>
+
+        <div className="bet-votes-box">
+          <span className="bet-votes-box-icon">👥</span>
+          <span className="bet-votes-box-label">Votes actuels</span>
+          <strong className="bet-votes-box-count">{counts.oui} oui / {counts.non} non</strong>
+          {myVotes[b.id] && <span className="bet-votes-box-mine">(toi : {myVotes[b.id]})</span>}
+        </div>
+
         {!locked && (
-          <div className="match-my-pred bet-voters-line">
-            {voters[b.id]?.length
-              ? `Ont voté : ${voters[b.id].map((v) => v.pseudo).join(', ')}`
-              : "Personne n'a encore voté"}
+          <div className="bet-voters">
+            <span className="bet-voters-label">👥 Ont voté ({voterList.length})</span>
+            {voterList.length === 0 ? (
+              <p className="bet-voters-empty">Personne n'a encore voté</p>
+            ) : (
+              <div className="bet-voters-row">
+                {voterList.map((v) => (
+                  <div className="bet-voter" key={v.profile_id}>
+                    <Avatar pseudo={v.pseudo} avatarUrl={v.avatar_url} avatarEmoji={v.avatar_emoji} size={44} />
+                    <span className="bet-voter-name">{v.pseudo}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
+
         {myVotes[b.id] && (b.status === 'open' || b.status === 'closed') && !myBoosts[b.id] && (
-          <button className="groups-action-btn groups-action-btn-secondary bet-boost-btn" onClick={() => boostBet(b.id)}>Doubler (2 jetons)</button>
+          <button className="bet-boost-btn" onClick={() => boostBet(b.id)}>🪙 Doubler (2 jetons)</button>
         )}
         {myBoosts[b.id] && <div className="bet-boosted-tag">Boosté : double ou rien 🪙</div>}
+
         {canVote && (
           <div className="bet-vote-block">
             <div className="bet-vote-options">
@@ -314,9 +366,10 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
                   <button
                     key={side}
                     type="button"
-                    className={'bet-vote-btn' + (active ? ' bet-vote-btn-active' : '')}
+                    className={'bet-vote-btn bet-vote-btn-' + side + (active ? ' bet-vote-btn-active' : '')}
                     onClick={() => vote(b.id, side)}
                   >
+                    {active && <span className="bet-vote-check">✓</span>}
                     <span className="bet-vote-label">{side === 'oui' ? 'Oui' : 'Non'}</span>
                     <span className="bet-vote-pts">
                       {pts !== null ? <>+<AnimatedPoints value={pts} /> pts</> : '—'}
@@ -326,6 +379,7 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
               })}
             </div>
             <div className="bet-vote-hint">
+              <span className="bet-vote-hint-icon">ⓘ</span>
               {myVotes[b.id]
                 ? "Tu peux changer d'avis jusqu'à l'échéance"
                 : liveOdds
@@ -398,9 +452,12 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
 
   return (
     <div className="predictions-screen">
-      <div className="predictions-header">
-        <h2>Paris libres — {groupName}</h2>
+      <div className="bet-hero">
+        <span className="bet-hero-eyebrow">Paris libres</span>
+        <h2 className="bet-hero-title">Les paris entre potes</h2>
+        <p className="bet-hero-subtitle">Petits paris, grands débats</p>
       </div>
+
       {error && <p className="groups-error">{error}</p>}
       {revealError && <p className="groups-error">{revealError}</p>}
 
@@ -429,12 +486,12 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
         openBets.length === 0 ? (
           <p className="groups-empty">Aucun pari en cours pour l'instant.</p>
         ) : (
-          <ul className="matches-list">{openBets.map((b) => renderBet(b, false))}</ul>
+          <ul className="matches-list bet-list">{openBets.map((b) => renderBet(b, false))}</ul>
         )
       ) : lockedBets.length === 0 ? (
         <p className="groups-empty">Aucun pari verrouillé pour l'instant.</p>
       ) : (
-        <ul className="matches-list">{lockedBets.map((b) => renderBet(b, true))}</ul>
+        <ul className="matches-list bet-list">{lockedBets.map((b) => renderBet(b, true))}</ul>
       )}
     </div>
   )
