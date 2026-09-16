@@ -1331,13 +1331,20 @@ body {
 }
 
 .bet-boost-btn {
-  margin-top: 8px;
-  background: rgba(255, 215, 0, 0.12);
-  border: 1px solid rgba(255, 215, 0, 0.4);
+  display: block;
+  width: 100%;
+  margin: 2px 0 12px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 162, 44, 0.4);
+  background: rgba(212, 162, 44, 0.14);
   color: #1B1B1F;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
 }
 .bet-boosted-tag {
-  margin-top: 8px;
+  margin: 2px 0 12px;
   font-size: 12px;
   font-weight: 600;
   color: #D4A22C;
@@ -1345,6 +1352,211 @@ body {
 
 .bet-tabs {
   margin-bottom: 14px;
+}
+
+/* Sur l'écran Paris (fond vert foncé), les onglets "En cours"/"Historique"
+   reprennent le style de la maquette envoyée par Yoann : pastille pleine
+   dorée pour l'onglet actif, contour discret (au lieu du fond crème plein
+   utilisé par défaut par .group-nav-tab, pensé pour les autres écrans) pour
+   l'onglet inactif. */
+.bet-tabs.group-nav-tabs {
+  flex-wrap: nowrap;
+}
+
+.bet-tabs .group-nav-tab {
+  flex: 1;
+  text-align: center;
+  background: transparent;
+  border: 1.5px solid rgba(244, 239, 226, 0.32);
+  color: rgba(244, 239, 226, 0.85);
+  font-weight: 700;
+  padding: 9px 14px;
+}
+
+.bet-tabs .group-nav-tab-active {
+  background: #D4A22C;
+  border-color: #D4A22C;
+  color: #1B1B1F;
+}
+
+/* En-tête décoratif de l'écran Paris libres, posé directement sur le fond
+   vert foncé (comme sur la maquette) plutôt que dans une carte claire —
+   contrairement au hero de l'écran d'accueil (.dash-v2-hero, sur carte
+   crème), donc des classes distinctes plutôt qu'une réutilisation. */
+.bet-hero {
+  text-align: center;
+  padding: 4px 0 16px;
+}
+
+.bet-hero-eyebrow {
+  display: block;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #D4A22C;
+  margin-bottom: 4px;
+}
+
+.bet-hero-title {
+  margin: 0;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: clamp(26px, 8vw, 32px);
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 1.08;
+  color: #F4EFE2;
+}
+
+.bet-hero-subtitle {
+  margin: 6px 0 0;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(212, 162, 44, 0.85);
+}
+
+/* Carte de pari (maquette envoyée par Yoann) : contour doré plutôt que le
+   contour neutre de .match-card, utilisé par les autres écrans (pronos,
+   quiz...). Classe distincte pour ne pas les affecter. */
+.bet-card {
+  background: #F4EFE2;
+  border: 2px solid rgba(212, 162, 44, 0.35);
+  border-radius: 18px;
+  padding: 16px;
+  color: #1B1B1F;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+.bet-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.bet-card-kicker {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #D4A22C;
+}
+
+.bet-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bet-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.bet-status-open { background: rgba(47, 143, 91, 0.15); color: #2F8F5B; }
+.bet-status-pending { background: rgba(212, 162, 44, 0.2); color: #8a6410; }
+.bet-status-contested { background: rgba(193, 68, 60, 0.15); color: #C1443C; }
+.bet-status-resolved { background: rgba(15, 59, 46, 0.12); color: #0F3B2E; }
+.bet-status-voided { background: rgba(27, 27, 31, 0.08); color: rgba(27, 27, 31, 0.5); }
+
+.bet-card-text {
+  margin: 0 0 10px;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 19px;
+  line-height: 1.2;
+  color: #1B1B1F;
+}
+
+.bet-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  color: rgba(27, 27, 31, 0.6);
+  margin-bottom: 12px;
+}
+
+.bet-votes-box {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: #E8E0CC;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: rgba(27, 27, 31, 0.7);
+  margin-bottom: 12px;
+}
+
+.bet-votes-box-count {
+  color: #1B1B1F;
+}
+
+.bet-votes-box-mine {
+  margin-left: auto;
+  color: #C1443C;
+  font-weight: 700;
+}
+
+.bet-voters {
+  margin-bottom: 12px;
+}
+
+.bet-voters-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(27, 27, 31, 0.55);
+  margin-bottom: 8px;
+}
+
+.bet-voters-empty {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(27, 27, 31, 0.5);
+}
+
+.bet-voters-row {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.bet-voter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  width: 54px;
+}
+
+.bet-voter-name {
+  font-size: 10px;
+  color: rgba(27, 27, 31, 0.6);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 54px;
 }
 
 /* Bloc de vote des paris libres : deux boutons Oui/Non affichant la cote
@@ -1361,6 +1573,7 @@ body {
 }
 
 .bet-vote-btn {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1383,6 +1596,51 @@ body {
 .bet-vote-btn-active {
   border-color: #D4A22C;
   background: rgba(212, 162, 44, 0.14);
+}
+
+/* Bordures teintées par camp (maquette de Yoann) : discrètes tant que le
+   bouton n'est pas sélectionné, remplies (vert pour Oui, rouge pour Non)
+   une fois choisi, avec le badge ✓ doré posé dans le coin. */
+.bet-vote-btn-oui {
+  border-color: rgba(47, 143, 91, 0.4);
+}
+
+.bet-vote-btn-non {
+  border-color: rgba(193, 68, 60, 0.4);
+}
+
+.bet-vote-btn-oui.bet-vote-btn-active {
+  background: #2F8F5B;
+  border-color: #2F8F5B;
+}
+
+.bet-vote-btn-non.bet-vote-btn-active {
+  background: #7A2020;
+  border-color: #7A2020;
+}
+
+.bet-vote-btn-oui.bet-vote-btn-active .bet-vote-label,
+.bet-vote-btn-oui.bet-vote-btn-active .bet-vote-pts,
+.bet-vote-btn-non.bet-vote-btn-active .bet-vote-label,
+.bet-vote-btn-non.bet-vote-btn-active .bet-vote-pts {
+  color: #F4EFE2;
+}
+
+.bet-vote-check {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #D4A22C;
+  color: #1B1B1F;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
 }
 
 .bet-vote-label {
@@ -1410,6 +1668,10 @@ body {
   font-size: 11px;
   color: rgba(27, 27, 31, 0.5);
   font-style: italic;
+}
+
+.bet-vote-hint-icon {
+  margin-right: 3px;
 }
 
 @keyframes bet-vote-pop {
