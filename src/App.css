@@ -1726,7 +1726,12 @@ body {
 /* ===== Fond du tchat de groupe ===== */
 .chat-background {
   position: relative;
-  min-height: 100%;
+  /* .home-main n'a pas de hauteur fixe (la page défile normalement), donc
+     un min-height en % ne veut rien dire ici et s'effondre à 0 — on calcule
+     à la place une hauteur basée sur l'écran, en retirant grosso modo la
+     place prise par l'en-tête + la barre du groupe au-dessus et la barre
+     de navigation du bas (déjà réservée par le padding-bottom de .home-main) */
+  min-height: max(360px, calc(100dvh - 230px));
   background: #F4EFE2;
   background-image:
     radial-gradient(circle at 18% 12%, rgba(27, 27, 31, 0.035), transparent 40%),
