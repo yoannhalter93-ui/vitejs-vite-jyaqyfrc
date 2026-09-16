@@ -18,15 +18,28 @@ interface Props {
 
 // une entrée par façon de gagner des points, pour comprendre "comment" un
 // joueur a construit son classement général — les clés correspondent à
-// points_ledger.source_type
+// points_ledger.source_type, sauf 'duels' qui est un onglet fusionné (voir
+// pointsForTab plus bas) : les quiz ('duel' en base) et les duels penalty
+// ('minijeu' en base) sont deux variantes du même jeu de duels, affichées
+// ensemble ici au lieu de deux onglets séparés. 'jonglage_chrono' est
+// relabellé "Mini-jeux" pour matcher le nom utilisé dans l'onglet Jeux.
 const CATEGORIES: { key: string; label: string }[] = [
   { key: 'match', label: 'Pronostics' },
   { key: 'team_assignment', label: 'Mon équipe' },
-  { key: 'duel', label: 'Quiz' },
-  { key: 'minijeu', label: 'Duel penalty' },
-  { key: 'jonglage_chrono', label: 'Jonglages' },
+  { key: 'duels', label: 'Duels' },
+  { key: 'jonglage_chrono', label: 'Mini-jeux' },
   { key: 'free_bet', label: 'Paris libres' },
 ]
+
+// Le classement "Duels" fusionne deux catégories de points_ledger.source_type
+// (les quiz et les duels penalty) en un seul total par joueur.
+function mergeCategoryPoints(a?: Record<string, number>, b?: Record<string, number>): Record<string, number> {
+  const merged: Record<string, number> = { ...(a ?? {}) }
+  for (const [profileId, pts] of Object.entries(b ?? {})) {
+    merged[profileId] = (merged[profileId] ?? 0) + pts
+  }
+  return merged
+}
 
 export default function Classement({ groupId, groupName }: Props) {
   const { user } = useAuth()
@@ -112,7 +125,11 @@ export default function Classement({ groupId, groupName }: Props) {
     load()
   }, [groupId])
 
-  const pointsForTab = tab === 'general' ? generalPoints : categoryPoints[tab] ?? {}
+  const pointsForTab = tab === 'general'
+    ? generalPoints
+    : tab === 'duels'
+      ? mergeCategoryPoints(categoryPoints['duel'], categoryPoints['minijeu'])
+      : categoryPoints[tab] ?? {}
   const rows: Row[] = members
     .map((m) => ({ ...m, total_points: pointsForTab[m.profile_id] ?? 0 }))
     .sort((a, b) => b.total_points - a.total_points || a.pseudo.localeCompare(b.pseudo))
