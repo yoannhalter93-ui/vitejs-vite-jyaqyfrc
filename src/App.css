@@ -1732,6 +1732,14 @@ body {
      place prise par l'en-tête + la barre du groupe au-dessus et la barre
      de navigation du bas (déjà réservée par le padding-bottom de .home-main) */
   min-height: max(360px, calc(100dvh - 230px));
+  /* display:flex ici (au lieu de compter sur min-height:100% en cascade,
+     qui ne se résout pas correctement puisque ce conteneur n'a pas de
+     "height" explicite, seulement un min-height) : c'est ce qui permet à
+     .chat-bg-content puis .chat-screen puis .chat-messages de vraiment se
+     répartir l'espace disponible, et donc à la barre de saisie de rester
+     en bas au lieu de remonter juste après les messages */
+  display: flex;
+  flex-direction: column;
   /* L'affiche envoyée par Yoann, utilisée telle quelle (voir ChatBackground.tsx) :
      "contain" pour ne jamais la rogner, la couleur de secours reprend le ton
      crème du papier pour que d'éventuelles bandes vides se fondent dedans */
@@ -1804,14 +1812,18 @@ body {
 .chat-bg-content {
   position: relative;
   z-index: 1;
-  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 /* ===== Écran de tchat ===== */
 .chat-screen {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  flex: 1;
+  min-height: 0;
   padding: 16px 4px 4px;
 }
 
@@ -1826,6 +1838,7 @@ body {
 
 .chat-messages {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
