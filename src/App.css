@@ -1732,10 +1732,14 @@ body {
      place prise par l'en-tête + la barre du groupe au-dessus et la barre
      de navigation du bas (déjà réservée par le padding-bottom de .home-main) */
   min-height: max(360px, calc(100dvh - 230px));
-  background: #F4EFE2;
-  background-image:
-    radial-gradient(circle at 18% 12%, rgba(27, 27, 31, 0.035), transparent 40%),
-    radial-gradient(circle at 82% 88%, rgba(27, 27, 31, 0.035), transparent 40%);
+  /* L'affiche envoyée par Yoann, utilisée telle quelle (voir ChatBackground.tsx) :
+     "contain" pour ne jamais la rogner, la couleur de secours reprend le ton
+     crème du papier pour que d'éventuelles bandes vides se fondent dedans */
+  background-color: #efe6d0;
+  background-image: url('/vitejs-vite-jyaqyfrc/chat-bg.jpg');
+  background-repeat: no-repeat;
+  background-position: top center;
+  background-size: contain;
   border-radius: 16px;
   overflow: hidden;
 }
