@@ -94,6 +94,34 @@ export function Squiggle({ width = 46, className }: { width?: number; className?
   )
 }
 
+// petit ballon dessiné à la main (motif pentagone simplifié), pour les
+// pastilles d'icône des cartes de groupe — dans le même esprit graphique
+// que SketchTactics/SketchTrophy plutôt que la photo de SketchBall, pour
+// rester cohérent avec les autres pastilles (toutes en simple trait)
+export function SketchFootball({ size = 40, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      <circle cx="24" cy="24" r="17" stroke="currentColor" strokeWidth="2.4" />
+      <path d="M24 15L30 19.5L28 26.5H20L18 19.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M24 15V9.5M30 19.5L35.5 16M28 26.5L31 32.5M20 26.5L17 32.5M18 19.5L12.5 16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+// deux silhouettes dessinées à la main (tête + épaules), pour la pastille
+// d'icône des groupes "famille"/amis — même style de trait que les autres
+// petites illustrations de cet écran
+export function SketchPeople({ size = 40, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      <circle cx="17" cy="16" r="6" stroke="currentColor" strokeWidth="2.4" />
+      <path d="M6 38C6 30 10.5 26 17 26C23.5 26 28 30 28 38" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+      <circle cx="33" cy="19" r="5" stroke="currentColor" strokeWidth="2.2" />
+      <path d="M25.5 38C26 32 29.5 29.5 33 29.5C38 29.5 42 33 42 38" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" fill="none" />
+    </svg>
+  )
+}
+
 // icône "œil" : bascule d'affichage du mot de passe (connexion / inscription)
 export function EyeIcon({ size = 20, className }: { size?: number; className?: string }) {
   return (
