@@ -2190,17 +2190,20 @@ body {
 .chat-background {
   position: relative;
   /* .home-main n'a pas de hauteur fixe (la page défile normalement), donc
-     un min-height en % ne veut rien dire ici et s'effondre à 0 — on calcule
-     à la place une hauteur basée sur l'écran, en retirant grosso modo la
-     place prise par l'en-tête + la barre du groupe au-dessus et la barre
-     de navigation du bas (déjà réservée par le padding-bottom de .home-main) */
-  min-height: max(360px, calc(100dvh - 230px));
-  /* display:flex ici (au lieu de compter sur min-height:100% en cascade,
-     qui ne se résout pas correctement puisque ce conteneur n'a pas de
-     "height" explicite, seulement un min-height) : c'est ce qui permet à
-     .chat-bg-content puis .chat-screen puis .chat-messages de vraiment se
-     répartir l'espace disponible, et donc à la barre de saisie de rester
-     en bas au lieu de remonter juste après les messages */
+     on calcule ici une hauteur basée sur l'écran, en retirant grosso modo
+     la place prise par l'en-tête + la barre du groupe au-dessus et la
+     barre de navigation du bas (déjà réservée par le padding-bottom de
+     .home-main). C'est un vrai "height" et pas un "min-height" : avec un
+     min-height, ce bloc grandissait sans limite au fil des messages (toute
+     la page défilait alors, jusqu'à sortir de l'affiche de fond, comme
+     Yoann l'a signalé) — avec height + overflow:hidden ci-dessous, la
+     hauteur reste fixe et c'est .chat-messages qui défile tout seul à
+     l'intérieur, par-dessus le fond, façon Messenger. */
+  height: max(360px, calc(100dvh - 230px));
+  /* display:flex ici : c'est ce qui permet à .chat-bg-content puis
+     .chat-screen puis .chat-messages de vraiment se répartir l'espace
+     disponible à l'intérieur de cette hauteur fixe, et donc à la barre de
+     saisie de rester en bas pendant que les messages défilent. */
   display: flex;
   flex-direction: column;
   /* L'affiche envoyée par Yoann, utilisée telle quelle (voir ChatBackground.tsx) :
