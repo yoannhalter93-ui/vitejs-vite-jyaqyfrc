@@ -396,6 +396,37 @@ body {
   padding: 0;
 }
 
+/* En-tête décoratif de l'écran "Mes groupes" (maquette envoyée par Yoann),
+   même esprit que .bet-hero sur l'écran Paris libres : posé directement
+   sur le fond vert foncé plutôt que dans une carte claire. */
+.groups-hero {
+  text-align: center;
+  padding: 4px 0 18px;
+}
+
+.groups-hero-title {
+  margin: 0;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: clamp(26px, 8vw, 32px);
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: #F4EFE2;
+}
+
+.groups-hero-underline {
+  display: block;
+  margin: 4px auto 10px;
+  color: #D4A22C;
+}
+
+.groups-hero-subtitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(244, 239, 226, 0.7);
+}
+
 .groups-actions {
   display: flex;
   gap: 10px;
@@ -418,6 +449,57 @@ body {
   background: #F4EFE2;
   color: #1B1B1F;
   border: 1px solid rgba(27, 27, 31, 0.15);
+}
+
+/* Variante "hero" des boutons Créer/Rejoindre (maquette de Yoann) : icône +
+   libellé + petit sous-titre en capitales, sur deux lignes, au lieu du
+   simple libellé centré de .groups-action-btn utilisé ailleurs dans
+   l'appli (Paris libres, duels...) — classe additionnelle pour ne pas
+   changer ces autres boutons. */
+.groups-action-btn-hero {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  text-align: left;
+}
+
+.groups-action-btn-hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(27, 27, 31, 0.08);
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.groups-action-btn-secondary .groups-action-btn-hero-icon {
+  background: rgba(212, 162, 44, 0.15);
+}
+
+.groups-action-btn-hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.groups-action-btn-hero-label {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.groups-action-btn-hero-sub {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.6;
 }
 
 .groups-form {
@@ -477,17 +559,41 @@ body {
   gap: 12px;
 }
 
+/* Carte de groupe (maquette de Yoann) : pastille d'icône à gauche + corps
+   de carte à droite, au lieu du simple bloc de texte empilé d'avant. */
 .groups-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   background: #F4EFE2;
   border: 1px solid rgba(27, 27, 31, 0.15);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 16px;
+}
+
+.groups-card-icon-badge {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #0F3B2E;
+  border: 2px solid rgba(212, 162, 44, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #D4A22C;
+}
+
+.groups-card-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .groups-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   margin-bottom: 6px;
 }
 
@@ -497,33 +603,93 @@ body {
   font-weight: 700;
 }
 
+.groups-card-top-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .groups-card-role {
-  font-size: 12px;
-  color: #D4A22C;
-  border: 1px solid rgba(27, 27, 31, 0.15);
+  font-size: 11px;
+  font-weight: 600;
+  color: #8a6410;
+  background: rgba(212, 162, 44, 0.16);
+  border: 1px solid rgba(212, 162, 44, 0.35);
   border-radius: 999px;
-  padding: 2px 10px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.groups-card-chevron {
+  font-size: 20px;
+  line-height: 1;
+  color: rgba(27, 27, 31, 0.3);
 }
 
 .groups-card-meta {
   display: flex;
-  gap: 14px;
-  font-size: 13px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
   color: rgba(27, 27, 31, 0.6);
+}
+
+.groups-card-meta-sep {
+  color: rgba(27, 27, 31, 0.3);
 }
 
 .groups-card-invite {
   margin-top: 10px;
-  font-size: 13px;
-  color: rgba(27, 27, 31, 0.6);
+  padding-top: 10px;
+  border-top: 1px dashed rgba(27, 27, 31, 0.12);
 }
 
-.groups-card-invite code {
-  background: #E8E0CC;
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: #D4A22C;
+.groups-card-invite-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(27, 27, 31, 0.5);
+  margin-bottom: 4px;
 }
+
+.groups-card-invite-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.groups-card-invite-row code {
+  background: #E8E0CC;
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: #D4A22C;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.groups-card-copy-btn {
+  border: 1px solid rgba(27, 27, 31, 0.15);
+  background: #F4EFE2;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.groups-card-tagline {
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(27, 27, 31, 0.45);
+}
+
 .groups-card-clickable {
   cursor: pointer;
   transition: border-color 0.15s;
@@ -3110,7 +3276,10 @@ body {
 
 .groups-rules-btn {
   width: 100%;
-  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
   border-radius: 8px;
   border: 1px solid rgba(212, 162, 44, 0.4);
   background: rgba(212, 162, 44, 0.1);
@@ -3123,6 +3292,11 @@ body {
 
 .groups-rules-btn:hover {
   background: rgba(212, 162, 44, 0.18);
+}
+
+.groups-rules-btn-chevron {
+  font-size: 18px;
+  color: #D4A22C;
 }
 
 .rules-screen {
