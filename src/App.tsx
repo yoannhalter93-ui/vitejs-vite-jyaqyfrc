@@ -869,10 +869,10 @@ function App() {
   return (
     <div className="home-screen">
       <header className="home-header">
-        <div className="brand-block">
+        <button type="button" className="brand-block brand-block-btn" onClick={() => setScreen('accueil')}>
           <span className="brand-logo">Entre Nous</span>
           <span className="brand-tagline">Foot entre potes</span>
-        </div>
+        </button>
         <div className="header-actions">
           <div className="notif-bell-wrap">
             <button className="notif-bell-btn" onClick={() => setShowNotifPanel((v) => !v)}>
