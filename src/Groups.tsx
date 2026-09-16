@@ -1,8 +1,41 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, MouseEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import Rules from './Rules'
+import { Squiggle, SketchFootball, SketchPeople, SketchTactics } from './Icons'
+
+// Petit hash stable (pas besoin de cryptographique, juste répartir les
+// groupes sur une pastille d'icône et une citation de façon consistante
+// d'un rendu à l'autre, sans stocker quoi que ce soit en base).
+function hashGroupId(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0
+  return Math.abs(h)
+}
+
+// Touche décorative façon maquette : une petite citation différente par
+// groupe (choisie dans une liste fixe, stable selon l'id du groupe) — pas
+// de vraie donnée derrière, même esprit que le sous-titre "Petits paris,
+// grands débats" de l'écran Paris libres.
+const GROUP_TAGLINES = [
+  "Toujours une excuse pour jouer.",
+  "Une équipe, une famille.",
+  "On teste aujourd'hui, on joue mieux demain.",
+  "Le foot, c'est mieux entre potes.",
+  "Ici, même les paris sont sérieux.",
+  "Chaque journée compte.",
+]
+
+const GROUP_ICONS = [SketchFootball, SketchPeople, SketchTactics]
+
+function taglineForGroup(id: string) {
+  return GROUP_TAGLINES[hashGroupId(id) % GROUP_TAGLINES.length]
+}
+
+function iconForGroup(id: string) {
+  return GROUP_ICONS[hashGroupId(id) % GROUP_ICONS.length]
+}
 
 interface GroupRow {
   id: string
@@ -65,6 +98,11 @@ export default function Groups({ onSelectGroup }: Props) {
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // nombre de membres par groupe (id -> total), affiché sur chaque carte —
+  // un seul aller-retour supplémentaire pour tous les groupes plutôt qu'une
+  // requête par groupe
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({})
+  const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
   const [showCreate, setShowCreate] = useState(false)
   const [newGroupName, setNewGroupName] = useState('')
@@ -98,9 +136,40 @@ export default function Groups({ onSelectGroup }: Props) {
     if (fetchError) {
       setError(fetchError.message)
     } else {
-      setMemberships((data as unknown as Membership[]) ?? [])
+      const rows = (data as unknown as Membership[]) ?? []
+      setMemberships(rows)
+
+      const groupIds = rows.map((m) => m.groups.id)
+      if (groupIds.length > 0) {
+        const { data: memberRows } = await supabase
+          .from('group_members')
+          .select('group_id')
+          .in('group_id', groupIds)
+        const counts: Record<string, number> = {}
+        for (const r of (memberRows ?? []) as { group_id: string }[]) {
+          counts[r.group_id] = (counts[r.group_id] ?? 0) + 1
+        }
+        setMemberCounts(counts)
+      } else {
+        setMemberCounts({})
+      }
     }
     setLoading(false)
+  }
+
+  // Copie le code d'invitation dans le presse-papier — silencieusement
+  // ignoré si l'API n'est pas disponible (contexte non sécurisé, vieux
+  // navigateur...) : le code reste de toute façon visible et copiable à la
+  // main dans ce cas.
+  const copyInviteCode = async (code: string, e: MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopiedCode(code)
+      window.setTimeout(() => setCopiedCode((c) => (c === code ? null : c)), 1500)
+    } catch {
+      // ignoré
+    }
   }
 
   useEffect(() => {
@@ -213,29 +282,44 @@ export default function Groups({ onSelectGroup }: Props) {
 
   return (
     <div className="groups-screen">
+      <div className="groups-hero">
+        <h2 className="groups-hero-title">Mes groupes</h2>
+        <Squiggle className="groups-hero-underline" width={90} />
+        <p className="groups-hero-subtitle">Organise tes matchs, retrouve tes potes, et fais vivre le foot ensemble.</p>
+      </div>
+
       <div className="groups-actions">
         <button
-          className="groups-action-btn"
+          className="groups-action-btn groups-action-btn-hero"
           onClick={() => {
             setShowCreate((v) => !v)
             setShowJoin(false)
           }}
         >
-          + Créer un groupe
+          <span className="groups-action-btn-hero-icon">+</span>
+          <span className="groups-action-btn-hero-text">
+            <span className="groups-action-btn-hero-label">Créer un groupe</span>
+            <span className="groups-action-btn-hero-sub">Lance ton équipe</span>
+          </span>
         </button>
         <button
-          className="groups-action-btn groups-action-btn-secondary"
+          className="groups-action-btn groups-action-btn-secondary groups-action-btn-hero"
           onClick={() => {
             setShowJoin((v) => !v)
             setShowCreate(false)
           }}
         >
-          Rejoindre un groupe
+          <span className="groups-action-btn-hero-icon">👥</span>
+          <span className="groups-action-btn-hero-text">
+            <span className="groups-action-btn-hero-label">Rejoindre un groupe</span>
+            <span className="groups-action-btn-hero-sub">Avec un code</span>
+          </span>
         </button>
       </div>
 
       <button className="groups-rules-btn" onClick={() => setShowRules(true)}>
-        📖 Règles du jeu
+        <span>📖 Règles du jeu</span>
+        <span className="groups-rules-btn-chevron">›</span>
       </button>
 
       {showCreate && (
@@ -297,103 +381,129 @@ export default function Groups({ onSelectGroup }: Props) {
         <p className="groups-empty">Tu n'as pas encore de groupe. Crée-en un ou rejoins-en un avec un code.</p>
       ) : (
         <ul className="groups-list">
-          {memberships.map((m) => (
-            <li
-              className="groups-card groups-card-clickable"
-              key={m.groups.id}
-              onClick={() => onSelectGroup(m.groups.id, m.groups.name)}
-            >
-              <div className="groups-card-top">
-                <span className="groups-card-name">{m.groups.name}</span>
-                <span className="groups-card-role">{m.role === 'owner' ? 'Propriétaire' : 'Membre'}</span>
-              </div>
-              <div className="groups-card-meta">
-                <span>Période : {formatPeriod(m.groups.period_type, m.groups.period_custom_days)}</span>
-              </div>
-              {m.role === 'owner' && (
-                <div className="groups-card-invite">
-                  Code d'invitation : <code>{m.groups.invite_code}</code>
+          {memberships.map((m) => {
+            const GroupIcon = iconForGroup(m.groups.id)
+            const memberCount = memberCounts[m.groups.id]
+            return (
+              <li
+                className="groups-card groups-card-clickable"
+                key={m.groups.id}
+                onClick={() => onSelectGroup(m.groups.id, m.groups.name)}
+              >
+                <div className="groups-card-icon-badge">
+                  <GroupIcon size={24} />
                 </div>
-              )}
-              {m.role === 'owner' && (
-                <div className="groups-card-owner-actions" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    className="groups-card-action-btn"
-                    onClick={() => openPeriodEditor(m.groups)}
-                  >
-                    ⚙️ Modifier la durée
-                  </button>
-                  {deleteConfirmId === m.groups.id ? (
-                    <>
-                      <span className="groups-delete-confirm-text">Supprimer définitivement ?</span>
-                      <button
-                        type="button"
-                        className="groups-card-action-btn groups-card-action-danger"
-                        onClick={() => handleDeleteGroup(m.groups.id)}
-                        disabled={deleting}
-                      >
-                        {deleting ? '...' : 'Oui, supprimer'}
-                      </button>
+                <div className="groups-card-body">
+                  <div className="groups-card-top">
+                    <span className="groups-card-name">{m.groups.name}</span>
+                    <div className="groups-card-top-right">
+                      <span className="groups-card-role">{m.role === 'owner' ? '👑 Propriétaire' : 'Membre'}</span>
+                      <span className="groups-card-chevron">›</span>
+                    </div>
+                  </div>
+                  <div className="groups-card-meta">
+                    <span>📅 Période : {formatPeriod(m.groups.period_type, m.groups.period_custom_days)}</span>
+                    <span className="groups-card-meta-sep">·</span>
+                    <span>👥 {memberCount ?? '…'} membre{memberCount === 1 ? '' : 's'}</span>
+                  </div>
+                  {m.role === 'owner' && (
+                    <div className="groups-card-invite">
+                      <span className="groups-card-invite-label">Code d'invitation</span>
+                      <div className="groups-card-invite-row" onClick={(e) => e.stopPropagation()}>
+                        <code>{m.groups.invite_code}</code>
+                        <button
+                          type="button"
+                          className="groups-card-copy-btn"
+                          onClick={(e) => copyInviteCode(m.groups.invite_code, e)}
+                          title="Copier le code"
+                        >
+                          {copiedCode === m.groups.invite_code ? '✓' : '📋'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {m.role === 'owner' && (
+                    <div className="groups-card-owner-actions" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         className="groups-card-action-btn"
-                        onClick={() => setDeleteConfirmId(null)}
+                        onClick={() => openPeriodEditor(m.groups)}
                       >
-                        Annuler
+                        ⚙️ Modifier la durée
                       </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      className="groups-card-action-btn groups-card-action-danger"
-                      onClick={() => setDeleteConfirmId(m.groups.id)}
-                    >
-                      🗑️ Supprimer
-                    </button>
+                      {deleteConfirmId === m.groups.id ? (
+                        <>
+                          <span className="groups-delete-confirm-text">Supprimer définitivement ?</span>
+                          <button
+                            type="button"
+                            className="groups-card-action-btn groups-card-action-danger"
+                            onClick={() => handleDeleteGroup(m.groups.id)}
+                            disabled={deleting}
+                          >
+                            {deleting ? '...' : 'Oui, supprimer'}
+                          </button>
+                          <button
+                            type="button"
+                            className="groups-card-action-btn"
+                            onClick={() => setDeleteConfirmId(null)}
+                          >
+                            Annuler
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="groups-card-action-btn groups-card-action-danger"
+                          onClick={() => setDeleteConfirmId(m.groups.id)}
+                        >
+                          🗑️ Supprimer
+                        </button>
+                      )}
+                    </div>
                   )}
+                  {editingGroupId === m.groups.id && (
+                    <div className="groups-card-period-editor" onClick={(e) => e.stopPropagation()}>
+                      <div className="groups-card-period-label">Nouvelle durée :</div>
+                      <div className="groups-period-options">
+                        {PERIOD_OPTIONS.map((option) => (
+                          <button
+                            key={option.key}
+                            type="button"
+                            className={
+                              option.key === editPeriodKey
+                                ? 'groups-card-period-btn groups-card-period-btn-active'
+                                : 'groups-card-period-btn'
+                            }
+                            onClick={() => setEditPeriodKey(option.key)}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="groups-card-owner-actions">
+                        <button
+                          type="button"
+                          className="groups-card-action-btn groups-card-action-primary"
+                          onClick={() => handleSavePeriod(m.groups.id)}
+                          disabled={savingPeriod}
+                        >
+                          {savingPeriod ? 'Enregistrement...' : 'Enregistrer'}
+                        </button>
+                        <button
+                          type="button"
+                          className="groups-card-action-btn"
+                          onClick={() => setEditingGroupId(null)}
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <p className="groups-card-tagline">« {taglineForGroup(m.groups.id)} »</p>
                 </div>
-              )}
-              {editingGroupId === m.groups.id && (
-                <div className="groups-card-period-editor" onClick={(e) => e.stopPropagation()}>
-                  <div className="groups-card-period-label">Nouvelle durée :</div>
-                  <div className="groups-period-options">
-                    {PERIOD_OPTIONS.map((option) => (
-                      <button
-                        key={option.key}
-                        type="button"
-                        className={
-                          option.key === editPeriodKey
-                            ? 'groups-card-period-btn groups-card-period-btn-active'
-                            : 'groups-card-period-btn'
-                        }
-                        onClick={() => setEditPeriodKey(option.key)}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="groups-card-owner-actions">
-                    <button
-                      type="button"
-                      className="groups-card-action-btn groups-card-action-primary"
-                      onClick={() => handleSavePeriod(m.groups.id)}
-                      disabled={savingPeriod}
-                    >
-                      {savingPeriod ? 'Enregistrement...' : 'Enregistrer'}
-                    </button>
-                    <button
-                      type="button"
-                      className="groups-card-action-btn"
-                      onClick={() => setEditingGroupId(null)}
-                    >
-                      Annuler
-                    </button>
-                  </div>
-                </div>
-              )}
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
