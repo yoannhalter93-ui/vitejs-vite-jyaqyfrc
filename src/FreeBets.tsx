@@ -80,6 +80,10 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
   const [myVotes, setMyVotes] = useState<Record<string, string>>({})
   const [myBoosts, setMyBoosts] = useState<Record<string, boolean>>({})
   const [voteCounts, setVoteCounts] = useState<Record<string, { oui: number; non: number }>>({})
+  // qui a voté (sans dire quoi) sur les paris encore ouverts, pour montrer
+  // la participation sans influencer les votes en cours — le détail
+  // oui/non par personne reste réservé aux paris verrouillés (voir reveal)
+  const [voters, setVoters] = useState<Record<string, { profile_id: string; pseudo: string }[]>>({})
   // confirmations du résultat (après échéance) : ce que MOI j'ai confirmé
   // pour chaque pari, et le décompte de tout le monde pour les paris en
   // mode "majorité" — avant ce correctif, rien n'indiquait qu'un clic sur
@@ -144,6 +148,15 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
         countsMap[c.bet_id] = { oui: c.oui_count, non: c.non_count }
       }
       setVoteCounts(countsMap)
+
+      // liste des votants (sans le côté) pour tous les paris du groupe
+      const { data: votersRows } = await supabase.rpc('get_free_bet_voters', { p_group_id: groupId })
+      const votersMap: Record<string, { profile_id: string; pseudo: string }[]> = {}
+      for (const v of (votersRows ?? []) as any[]) {
+        if (!votersMap[v.bet_id]) votersMap[v.bet_id] = []
+        votersMap[v.bet_id].push({ profile_id: v.profile_id, pseudo: v.pseudo })
+      }
+      setVoters(votersMap)
 
       // mon propre vote reste toujours lisible, peu importe le statut
       const { data: mineRows } = await supabase.from('free_bet_votes').select('bet_id, side').eq('profile_id', user.id).in('bet_id', ids)
@@ -280,6 +293,13 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
           Proposé par {b.author_id ? (pseudos[b.author_id] ?? '???') : '???'} — Échéance : {new Date(b.deadline).toLocaleString('fr-FR')} — statut : {b.status}
         </div>
         <div className="match-my-pred">Votes : {counts.oui} oui / {counts.non} non {myVotes[b.id] ? `(toi : ${myVotes[b.id]})` : ''}</div>
+        {!locked && (
+          <div className="match-my-pred bet-voters-line">
+            {voters[b.id]?.length
+              ? `Ont voté : ${voters[b.id].map((v) => v.pseudo).join(', ')}`
+              : "Personne n'a encore voté"}
+          </div>
+        )}
         {myVotes[b.id] && (b.status === 'open' || b.status === 'closed') && !myBoosts[b.id] && (
           <button className="groups-action-btn groups-action-btn-secondary bet-boost-btn" onClick={() => boostBet(b.id)}>Doubler (2 jetons)</button>
         )}
