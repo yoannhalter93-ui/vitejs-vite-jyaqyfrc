@@ -1339,13 +1339,12 @@ function App() {
               // d'autre ne bouge dans la navigation (une seule case "Mini-jeu"
               // dans le hub) — jonglage/dribble sont des jeux instantanés,
               // "Pari du 1er but" un jeu à pronostics étalé sur la semaine,
-              // mais les trois se partagent le même emplacement.
-              activeMinigame === 'dribble' ? (
-                <DribbleGame
-                  groupId={selectedGroup.id}
-                  groupName={selectedGroup.name}
-                />
-              ) : activeMinigame === 'jeu-semaine' ? (
+              // mais les trois se partagent le même emplacement. Tant que ce
+              // n'est pas encore son tour, "Pari du 1er but" est teasé
+              // ("bientôt ton tour") au-dessus du jeu du moment — même
+              // traitement que celui qu'on avait fait pour annoncer le
+              // dribble avant son lancement.
+              activeMinigame === 'jeu-semaine' ? (
                 <WeeklySpecial
                   groupId={selectedGroup.id}
                   groupName={selectedGroup.name}
@@ -1354,17 +1353,24 @@ function App() {
               ) : (
                 <>
                   <div className="minigame-teaser">
-                    <span className="minigame-teaser-icon">🎮</span>
+                    <span className="minigame-teaser-icon">🎯</span>
                     <div className="minigame-teaser-text">
-                      <b>Un mini-jeu différent chaque semaine</b>
-                      <span>Jonglage, dribble, Pari du 1er but...</span>
+                      <b>Pari du 1er but</b>
+                      <span>Nouveau mini-jeu — bientôt ton tour</span>
                     </div>
-                    <span className="minigame-teaser-tag">Ça tourne</span>
+                    <span className="minigame-teaser-tag">Bientôt disponible</span>
                   </div>
-                  <JuggleGame
-                    groupId={selectedGroup.id}
-                    groupName={selectedGroup.name}
-                  />
+                  {activeMinigame === 'dribble' ? (
+                    <DribbleGame
+                      groupId={selectedGroup.id}
+                      groupName={selectedGroup.name}
+                    />
+                  ) : (
+                    <JuggleGame
+                      groupId={selectedGroup.id}
+                      groupName={selectedGroup.name}
+                    />
+                  )}
                 </>
               )
             )}
