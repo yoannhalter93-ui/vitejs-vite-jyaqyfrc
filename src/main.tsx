@@ -10,6 +10,22 @@ import './home-reference-exact.css'
 import './home-approved-final.css'
 import { AuthProvider } from './AuthContext'
 
+// Bloque le pincer-zoomer "pour de vrai" : le CSS touch-action seul (voir
+// App.css) ne suffit pas sur certains navigateurs Android (Samsung
+// Internet notamment), qui laissent quand même passer le geste à deux
+// doigts. On intercepte donc directement les événements tactiles :
+// touchmove à plusieurs doigts = un pincement en cours, on l'annule ;
+// gesturestart est l'événement dédié au pincement sur WebKit/Safari.
+// { passive: false } est indispensable, sinon preventDefault() est ignoré.
+document.addEventListener(
+  'touchmove',
+  (e) => {
+    if (e.touches.length > 1) e.preventDefault()
+  },
+  { passive: false }
+)
+document.addEventListener('gesturestart', (e) => e.preventDefault())
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
