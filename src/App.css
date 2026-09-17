@@ -1103,13 +1103,103 @@ body {
 
 .weekly-special-minute {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 .weekly-special-minute label {
   font-size: 13px;
   color: rgba(27, 27, 31, 0.7);
+}
+
+/* La minute se choisit par plage de 15 min (boutons) plutôt qu'un nombre
+   exact tapé — mêmes proportions que .weekly-special-team-btn mais plus
+   petits vu qu'il y en a 6 à la fois. */
+.weekly-special-ranges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+
+.weekly-special-range-btn {
+  flex: 1;
+  min-width: 60px;
+  padding: 7px 6px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(27, 27, 31, 0.2);
+  background: #fff;
+  color: #1B1B1F;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.weekly-special-range-btn-active {
+  border-color: #D4A22C;
+  background: #D4A22C;
+  color: #1B1B1F;
+}
+
+/* Bannière "3e match bonus x2" (WeeklySpecial.tsx) — reprend le rouge déjà
+   utilisé pour le badge de statut "En litige" des paris libres, pour signaler
+   un enjeu plus fort sans introduire une nouvelle couleur dans l'appli. */
+.weekly-bonus-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: none;
+  background: #A6362E;
+  color: #fff;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.weekly-bonus-x2 {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #D4A22C;
+  color: #1B1B1F;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.weekly-bonus-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.weekly-bonus-text strong {
+  font-size: 14px;
+}
+
+.weekly-bonus-text span {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* Badge "x2" sur la carte du match bonus dans Pronostics (Predictions.tsx) */
+.match-bonus-badge {
+  margin-left: auto;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: #A6362E;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .group-nav {
