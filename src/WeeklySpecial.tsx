@@ -56,12 +56,44 @@ const TEAM_LABELS: Record<'domicile' | 'exterieur' | 'aucun_but', string> = {
   aucun_but: 'Aucun but (0-0)',
 }
 
+// Même barème que la fonction SQL weekly_special_score côté serveur : équipe
+// et minute sont notées indépendamment (5 pts la bonne équipe, jusqu'à 10 pts
+// pour la minute exacte, dégressif par tranches de 5 min), sauf pour "aucun
+// but" qui remplace tout (15 pts si deviné juste, 0 sinon). Recalculé ici
+// côté client juste pour l'affichage individuel du pronostic — le vrai crédit
+// de points au classement ne se fait qu'une fois par semaine, pour le
+// meilleur total du groupe (voir resolve_weekly_special_week côté serveur).
+function scoreForPrediction(
+  predTeam: 'domicile' | 'exterieur' | 'aucun_but' | undefined,
+  predMinute: number | null | undefined,
+  realTeam: 'domicile' | 'exterieur' | 'aucun_but' | null,
+  realMinute: number | null,
+): number {
+  if (!predTeam || !realTeam) return 0
+  if (realTeam === 'aucun_but') return predTeam === 'aucun_but' ? 15 : 0
+  if (predTeam === 'aucun_but') return 0
+  let pts = predTeam === realTeam ? 5 : 0
+  if (predMinute != null && realMinute != null) {
+    const diff = Math.abs(predMinute - realMinute)
+    if (diff === 0) pts += 10
+    else if (diff <= 5) pts += 9
+    else if (diff <= 10) pts += 8
+    else if (diff <= 15) pts += 7
+    else if (diff <= 20) pts += 6
+    else if (diff <= 25) pts += 5
+    else if (diff <= 30) pts += 4
+    else if (diff <= 35) pts += 3
+    else if (diff <= 40) pts += 2
+    else if (diff <= 45) pts += 1
+  }
+  return pts
+}
+
 export default function WeeklySpecial({ groupId, groupName }: Props) {
   const { user } = useAuth()
   const [matches, setMatches] = useState<SpecialMatch[]>([])
   const [predictions, setPredictions] = useState<Record<string, PredictionRow>>({})
   const [minuteDrafts, setMinuteDrafts] = useState<Record<string, string>>({})
-  const [myPoints, setMyPoints] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -129,23 +161,6 @@ export default function WeeklySpecial({ groupId, groupName }: Props) {
       }
       setPredictions(map)
       setMinuteDrafts(minuteMap)
-
-      const resolvedIds = (matchesData ?? []).filter((m) => m.resolved).map((m) => m.id)
-      const predIds = Object.values(map).map((p) => p.id)
-      if (resolvedIds.length > 0 && predIds.length > 0) {
-        const { data: pointsData } = await supabase
-          .from('points_ledger')
-          .select('source_id, points')
-          .eq('group_id', groupId)
-          .eq('source_type', 'jeu_semaine')
-          .in('source_id', predIds)
-        const pointsMap: Record<string, number> = {}
-        for (const row of pointsData ?? []) {
-          const pred = Object.values(map).find((p) => p.id === row.source_id)
-          if (pred) pointsMap[pred.match_id] = row.points
-        }
-        setMyPoints(pointsMap)
-      }
     }
 
     setLoading(false)
@@ -240,8 +255,9 @@ export default function WeeklySpecial({ groupId, groupName }: Props) {
       </div>
 
       <p className="predictions-period">
-        Devine quelle équipe va marquer en premier sur chacun de ces 2 matchs, et à quelle minute — plus tu es
-        proche, plus tu marques de points.
+        Devine quelle équipe va marquer en premier sur chacun de ces 2 matchs, et à quelle minute (ou « aucun but »
+        si tu penses au 0-0) — équipe et minute comptent chacune pour leurs points, indépendamment. Le meilleur
+        total du groupe sur les 2 matchs remporte 3 points au classement général + 2 🪙 jetons.
       </p>
 
       {error && <p className="groups-error">{error}</p>}
@@ -294,7 +310,8 @@ export default function WeeklySpecial({ groupId, groupName }: Props) {
                       <span className="match-my-pred">
                         Ton pronostic : {TEAM_LABELS[pred.pred_team]}
                         {pred.pred_team !== 'aucun_but' && pred.pred_minute != null ? ` à la ${pred.pred_minute}e minute` : ''}
-                        {myPoints[m.id] != null && ` — ${myPoints[m.id]} pt${myPoints[m.id] > 1 ? 's' : ''}`}
+                        {' — '}
+                        {scoreForPrediction(pred.pred_team, pred.pred_minute, m.real_first_scorer_team, m.real_first_goal_minute)} pts / 15
                       </span>
                     )}
                     <button
