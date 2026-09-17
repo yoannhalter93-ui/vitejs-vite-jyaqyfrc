@@ -50,17 +50,12 @@
   }
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
+/* Le vrai #root de cette appli (fond vert, hauteur, etc.) est défini dans
+   App.css — cette règle est un reste du modèle Vite de départ (largeur
+   fixe 1126px, bordure, texte centré...) qui n'a plus lieu d'être et
+   pouvait provoquer un débordement horizontal sur certains téléphones
+   (barre blanche visible en balayant l'écran sur le côté). */
+
 
 body {
   margin: 0;
