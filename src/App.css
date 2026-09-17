@@ -11,9 +11,17 @@
    pris en compte quel que soit l'élément qui porte le scroll réel selon le
    navigateur. Même rendu que le viewport "user-scalable=no" (index.html) :
    ça ne dépend pas d'être publié sur le Play Store, ça s'applique déjà à
-   la version web actuelle comme à la future TWA. */
+   la version web actuelle comme à la future TWA.
+   touch-action: pan-y autorise uniquement le défilement vertical au doigt
+   et bloque le pincer-zoomer ET le balayage horizontal au niveau du geste
+   lui-même — nécessaire car Chrome/Samsung Internet ignorent depuis
+   longtemps le "user-scalable=no" du viewport (accessibilité), donc le
+   meta tag seul ne suffit pas sur ces navigateurs. overflow-x:hidden en
+   filet de sécurité contre tout débordement horizontal résiduel. */
 html {
   overscroll-behavior: none;
+  touch-action: pan-y;
+  overflow-x: hidden;
 }
 
 body {
@@ -23,6 +31,8 @@ body {
   background-image: repeating-linear-gradient(0deg, #0A2A21, #0A2A21 2px, #0F3B2E 2px, #0F3B2E 40px);
   background-attachment: fixed;
   color: #F4EFE2;
+  touch-action: pan-y;
+  overflow-x: hidden;
   overscroll-behavior: none;
 }
 
