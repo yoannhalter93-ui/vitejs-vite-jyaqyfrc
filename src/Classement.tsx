@@ -29,6 +29,7 @@ const CATEGORIES: { key: string; label: string }[] = [
   { key: 'duels', label: 'Duels' },
   { key: 'jonglage_chrono', label: 'Mini-jeux' },
   { key: 'free_bet', label: 'Paris libres' },
+  { key: 'jeu_semaine', label: 'Pari du 1er but' },
 ]
 
 // Le classement "Duels" fusionne deux catégories de points_ledger.source_type
