@@ -93,6 +93,13 @@ export default function Rules({ onBack }: Props) {
       </div>
 
       <div className="rules-section">
+        <h3 className="rules-section-title">🎯 Pari du 1er but</h3>
+        <p className="rules-section-text">
+          Deux vrais matchs de Ligue 1 mis en avant chaque semaine : devine quelle équipe (domicile, extérieur, ou aucun but si tu penses au 0-0) va marquer le premier but, et à quelle minute. Plus ton pronostic est proche du vrai résultat, plus tu marques de points — jusqu'à 5 points sur chaque match si tu trouves la bonne équipe ET la bonne minute pile.
+        </p>
+      </div>
+
+      <div className="rules-section">
         <h3 className="rules-section-title">🎮 Jeu de la semaine</h3>
         <p className="rules-section-text">
           Mini-jeu solo, un différent chaque semaine — jonglage ou dribble :
