@@ -66,7 +66,6 @@ type Screen =
   | 'quiz'
   | 'paris'
   | 'jonglages'
-  | 'jeu-semaine'
   | 'chat'
   | 'profil'
   | 'parametres'
@@ -89,19 +88,22 @@ const BOTTOM_TABS: { key: Screen; label: string; icon: string }[] = [
   { key: 'chat', label: 'Tchat', icon: '💬' },
 ]
 
+// "Mini-jeu" est une case unique dont le contenu tourne chaque semaine
+// (jonglage / dribble / Pari du 1er but...) — voir activeMinigame ; son
+// icône/libellé/sous-titre sont recalculés à l'affichage plutôt que fixés
+// ici, pour refléter le jeu réellement actif cette semaine.
 const JEUX_HUB: { key: Screen; label: string; icon: string; sub: string; color: 'cream' | 'red' | 'green' | 'gold' }[] = [
   { key: 'roulette', label: 'Mon équipe', icon: '🎡', sub: 'Ton équipe tirée au sort', color: 'cream' },
   { key: 'penalty', label: 'Duel penalty', icon: '🥅', sub: 'Défie un membre du groupe', color: 'red' },
   { key: 'quiz', label: 'Quiz', icon: '🧠', sub: 'Duel de questions foot', color: 'green' },
   { key: 'jonglages', label: 'Mini-jeu', icon: '🤹', sub: 'Le défi de la semaine', color: 'gold' },
-  { key: 'jeu-semaine', label: 'Pari du 1er but', icon: '🎯', sub: '2 matchs à deviner', color: 'red' },
 ]
 
 // à quel onglet du bas rattacher chaque écran interne (ex. "pronostics",
 // atteint depuis le tableau de bord, reste sous l'onglet "Pronos")
 function bottomTabFor(screen: Screen): Screen {
   if (screen === 'pronostics') return 'accueil'
-  if (screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages' || screen === 'jeu-semaine') return 'jeux'
+  if (screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') return 'jeux'
   if (screen === 'parametres' || screen === 'historique-pronos' || screen === 'aide') return 'profil'
   return screen
 }
@@ -240,7 +242,7 @@ function App() {
   // mini-jeu hebdomadaire actif (jonglages ou dribble) : change chaque
   // semaine via public.minigame_weeks, même classement/mêmes récompenses
   // des deux côtés, seul le jeu affiché change.
-  const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble'>('jonglage')
+  const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble' | 'jeu-semaine'>('jonglage')
 
   useEffect(() => {
     const checkActiveMinigame = () => {
@@ -1246,7 +1248,7 @@ function App() {
           </div>
             </div>
             )}
-            {(screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages' || screen === 'jeu-semaine') && (
+            {(screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') && (
               <button className="jeux-back-btn" onClick={() => setScreen('jeux')}>← Jeux</button>
             )}
             {screen === 'accueil' && (
@@ -1273,16 +1275,25 @@ function App() {
               <div className="jeux-hub">
                 <h2 className="jeux-hub-title">Mini-jeux</h2>
                 <div className="jeux-hub-list">
-                  {JEUX_HUB.map((j) => (
-                    <button key={j.key} className={`jeux-hub-card jeux-hub-card-${j.color}`} onClick={() => setScreen(j.key)}>
-                      <span className="jeux-hub-card-icon">{j.icon}</span>
-                      <span className="jeux-hub-card-text">
-                        <span className="jeux-hub-card-label">{j.label}</span>
-                        <span className="jeux-hub-card-sub">{j.sub}</span>
-                      </span>
-                      <span className="jeux-hub-card-chevron">›</span>
-                    </button>
-                  ))}
+                  {JEUX_HUB.map((j) => {
+                    // La case "Mini-jeu" change d'icône/libellé selon le jeu
+                    // réellement actif cette semaine (jonglage/dribble/Pari
+                    // du 1er but), plutôt que de rester figée sur 🤹.
+                    const icon =
+                      j.key !== 'jonglages' ? j.icon : activeMinigame === 'dribble' ? '⚽' : activeMinigame === 'jeu-semaine' ? '🎯' : j.icon
+                    const label = j.key === 'jonglages' && activeMinigame === 'jeu-semaine' ? 'Pari du 1er but' : j.label
+                    const sub = j.key === 'jonglages' && activeMinigame === 'jeu-semaine' ? '2 matchs à deviner' : j.sub
+                    return (
+                      <button key={j.key} className={`jeux-hub-card jeux-hub-card-${j.color}`} onClick={() => setScreen(j.key)}>
+                        <span className="jeux-hub-card-icon">{icon}</span>
+                        <span className="jeux-hub-card-text">
+                          <span className="jeux-hub-card-label">{label}</span>
+                          <span className="jeux-hub-card-sub">{sub}</span>
+                        </span>
+                        <span className="jeux-hub-card-chevron">›</span>
+                      </button>
+                    )
+                  })}
                 </div>
                 <div className="jeux-hub-tagline" aria-hidden="true">
                   <SketchController size={54} className="jeux-hub-tagline-icon" />
@@ -1324,20 +1335,31 @@ function App() {
               />
             )}
             {screen === 'jonglages' && (
+              // Le mini-jeu affiché ici change chaque semaine sans que rien
+              // d'autre ne bouge dans la navigation (une seule case "Mini-jeu"
+              // dans le hub) — jonglage/dribble sont des jeux instantanés,
+              // "Pari du 1er but" un jeu à pronostics étalé sur la semaine,
+              // mais les trois se partagent le même emplacement.
               activeMinigame === 'dribble' ? (
                 <DribbleGame
                   groupId={selectedGroup.id}
                   groupName={selectedGroup.name}
                 />
+              ) : activeMinigame === 'jeu-semaine' ? (
+                <WeeklySpecial
+                  groupId={selectedGroup.id}
+                  groupName={selectedGroup.name}
+                  onGoToBonusMatch={() => setScreen('pronostics')}
+                />
               ) : (
                 <>
                   <div className="minigame-teaser">
-                    <span className="minigame-teaser-icon">⚽</span>
+                    <span className="minigame-teaser-icon">🎮</span>
                     <div className="minigame-teaser-text">
-                      <b>Jeu de Dribble</b>
-                      <span>Nouveau mini-jeu — bientôt ton tour</span>
+                      <b>Un mini-jeu différent chaque semaine</b>
+                      <span>Jonglage, dribble, Pari du 1er but...</span>
                     </div>
-                    <span className="minigame-teaser-tag">Bientôt disponible</span>
+                    <span className="minigame-teaser-tag">Ça tourne</span>
                   </div>
                   <JuggleGame
                     groupId={selectedGroup.id}
@@ -1345,13 +1367,6 @@ function App() {
                   />
                 </>
               )
-            )}
-            {screen === 'jeu-semaine' && (
-              <WeeklySpecial
-                groupId={selectedGroup.id}
-                groupName={selectedGroup.name}
-                onGoToBonusMatch={() => setScreen('pronostics')}
-              />
             )}
             {screen === 'chat' && (
               <Chat
