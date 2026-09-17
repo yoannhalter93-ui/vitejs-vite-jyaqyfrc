@@ -95,7 +95,20 @@ export default function Rules({ onBack }: Props) {
       <div className="rules-section">
         <h3 className="rules-section-title">🎯 Pari du 1er but</h3>
         <p className="rules-section-text">
-          Deux vrais matchs de Ligue 1 mis en avant chaque semaine : devine quelle équipe (domicile, extérieur, ou aucun but si tu penses au 0-0) va marquer le premier but, et à quelle minute. Plus ton pronostic est proche du vrai résultat, plus tu marques de points — jusqu'à 5 points sur chaque match si tu trouves la bonne équipe ET la bonne minute pile.
+          Deux vrais matchs de Ligue 1 mis en avant chaque semaine, les mêmes pour tout le groupe. Sur chacun, avant le coup d'envoi, tu fais 2 pronostics indépendants : quelle équipe (domicile ou extérieur) va marquer le premier but, et à quelle minute — ou tu choisis Aucun but si tu penses à un 0-0. Chaque match se verrouille séparément à son coup d'envoi : rater le premier n'empêche pas de jouer le second.
+        </p>
+        <ul className="rules-points">
+          <li>Bonne équipe — 5 points</li>
+          <li>Mauvaise équipe — 0 point</li>
+          <li>Minute exacte — 10 points</li>
+          <li>Écart de 1 à 45 minutes — de 9 à 1 point, dégressif par tranches de 5 min</li>
+          <li>Écart de plus de 45 minutes — 0 point</li>
+        </ul>
+        <p className="rules-section-text">
+          Les deux se cumulent et comptent indépendamment : même en te trompant d'équipe, tu marques quand même les points de la minute. 15 points max par match, 30 sur les 2 matchs de la semaine. Aucun but deviné juste sur un vrai 0-0 rapporte 15 points d'un coup ; s'il y a eu un but, Aucun but ne rapporte rien.
+        </p>
+        <p className="rules-section-text">
+          Comme pour le Jeu de la semaine, seul le meilleur total du groupe sur les 2 matchs remporte la récompense du classement général : 3 points et 2 🪙 jetons. En cas d'égalité, c'est le plus petit écart cumulé sur les minutes pronostiquées qui départage ; à égalité parfaite, la victoire est partagée entre tous les joueurs encore à égalité.
         </p>
       </div>
 
