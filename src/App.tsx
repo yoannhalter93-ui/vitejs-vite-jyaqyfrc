@@ -1350,6 +1350,7 @@ function App() {
               <WeeklySpecial
                 groupId={selectedGroup.id}
                 groupName={selectedGroup.name}
+                onGoToBonusMatch={() => setScreen('pronostics')}
               />
             )}
             {screen === 'chat' && (
