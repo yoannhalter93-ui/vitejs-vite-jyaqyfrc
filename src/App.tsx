@@ -16,6 +16,7 @@ import WeeklyDuel from './WeeklyDuel';
 import FreeBets from './FreeBets';
 import JuggleGame from './JuggleGame';
 import DribbleGame from './DribbleGame';
+import WeeklySpecial from './WeeklySpecial';
 import Avatar from './Avatar'
 import PredictionsHistory from './PredictionsHistory'
 import Help from './Help'
@@ -65,6 +66,7 @@ type Screen =
   | 'quiz'
   | 'paris'
   | 'jonglages'
+  | 'jeu-semaine'
   | 'chat'
   | 'profil'
   | 'parametres'
@@ -92,13 +94,14 @@ const JEUX_HUB: { key: Screen; label: string; icon: string; sub: string; color: 
   { key: 'penalty', label: 'Duel penalty', icon: '🥅', sub: 'Défie un membre du groupe', color: 'red' },
   { key: 'quiz', label: 'Quiz', icon: '🧠', sub: 'Duel de questions foot', color: 'green' },
   { key: 'jonglages', label: 'Mini-jeu', icon: '🤹', sub: 'Le défi de la semaine', color: 'gold' },
+  { key: 'jeu-semaine', label: 'Pari du 1er but', icon: '🎯', sub: '2 matchs à deviner', color: 'red' },
 ]
 
 // à quel onglet du bas rattacher chaque écran interne (ex. "pronostics",
 // atteint depuis le tableau de bord, reste sous l'onglet "Pronos")
 function bottomTabFor(screen: Screen): Screen {
   if (screen === 'pronostics') return 'accueil'
-  if (screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') return 'jeux'
+  if (screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages' || screen === 'jeu-semaine') return 'jeux'
   if (screen === 'parametres' || screen === 'historique-pronos' || screen === 'aide') return 'profil'
   return screen
 }
@@ -1243,7 +1246,7 @@ function App() {
           </div>
             </div>
             )}
-            {(screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') && (
+            {(screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages' || screen === 'jeu-semaine') && (
               <button className="jeux-back-btn" onClick={() => setScreen('jeux')}>← Jeux</button>
             )}
             {screen === 'accueil' && (
@@ -1342,6 +1345,12 @@ function App() {
                   />
                 </>
               )
+            )}
+            {screen === 'jeu-semaine' && (
+              <WeeklySpecial
+                groupId={selectedGroup.id}
+                groupName={selectedGroup.name}
+              />
             )}
             {screen === 'chat' && (
               <Chat
