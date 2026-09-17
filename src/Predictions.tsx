@@ -58,7 +58,7 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
   const { user } = useAuth()
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
   const [matches, setMatches] = useState<MatchRow[]>([])
-  // "Pari du 1er but" (WeeklySpecial.tsx) peut désigner un 3e match dont les
+  // "But en or" (WeeklySpecial.tsx) peut désigner un 3e match dont les
   // points comptent x2 au classement — identifié par api_fixture_id (partagé
   // entre les copies par groupe d'un même match, voir seed_matches_for_new_period)
   const [bonusFixtureId, setBonusFixtureId] = useState<number | null>(null)
@@ -307,7 +307,7 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
                       <div className="match-row-v2">
                         <div className="match-meta-badge">⏱ {kickoffTime}</div>
                         {bonusFixtureId != null && m.api_fixture_id === bonusFixtureId && (
-                          <div className="match-bonus-badge">🎯 Pari du 1er but : points x2</div>
+                          <div className="match-bonus-badge">🎯 But en or : points x2</div>
                         )}
                       </div>
 
