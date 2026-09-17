@@ -6,6 +6,16 @@
   box-sizing: border-box;
 }
 
+/* Empêche l'effet de rebond élastique quand on scroll au-delà du haut/bas
+   de la page (Safari iOS notamment) — sur html ET body, pour que ce soit
+   pris en compte quel que soit l'élément qui porte le scroll réel selon le
+   navigateur. Même rendu que le viewport "user-scalable=no" (index.html) :
+   ça ne dépend pas d'être publié sur le Play Store, ça s'applique déjà à
+   la version web actuelle comme à la future TWA. */
+html {
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   font-family: 'Space Mono', 'Courier New', monospace;
@@ -13,6 +23,7 @@ body {
   background-image: repeating-linear-gradient(0deg, #0A2A21, #0A2A21 2px, #0F3B2E 2px, #0F3B2E 40px);
   background-attachment: fixed;
   color: #F4EFE2;
+  overscroll-behavior: none;
 }
 
 #root {
