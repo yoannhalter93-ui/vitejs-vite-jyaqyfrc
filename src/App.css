@@ -1065,6 +1065,53 @@ body {
   color: #2F7A4D;
 }
 
+/* Pari du 1er but (WeeklySpecial.tsx) : choix de l'équipe qui marque en
+   premier (3 boutons) puis, si domicile/extérieur, un champ minute. Reprend
+   les couleurs déjà utilisées pour les boutons Oui/Non des paris libres,
+   pour rester cohérent visuellement avec un autre écran de pronostic. */
+.weekly-special-picker {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.weekly-special-teams {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.weekly-special-team-btn {
+  flex: 1;
+  min-width: 90px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(27, 27, 31, 0.2);
+  background: #fff;
+  color: #1B1B1F;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.weekly-special-team-btn-active {
+  border-color: #D4A22C;
+  background: #D4A22C;
+  color: #1B1B1F;
+}
+
+.weekly-special-minute {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.weekly-special-minute label {
+  font-size: 13px;
+  color: rgba(27, 27, 31, 0.7);
+}
+
 .group-nav {
   display: flex;
   align-items: center;
