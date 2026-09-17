@@ -45,15 +45,44 @@ type RawReveal = {
     | null
 }
 
+interface BonusMatch {
+  week_start: string
+  api_fixture_id: number
+  home_team: string
+  away_team: string
+  kickoff_at: string
+}
+
 interface Props {
   groupId: string
   groupName: string
+  onGoToBonusMatch: () => void
 }
 
 const TEAM_LABELS: Record<'domicile' | 'exterieur' | 'aucun_but', string> = {
   domicile: 'Domicile',
   exterieur: 'Extérieur',
   aucun_but: 'Aucun but (0-0)',
+}
+
+// La minute du 1er but se choisit désormais par plage de 15 min (plus facile
+// à taper qu'un nombre exact) — on envoie au serveur le milieu de la plage
+// choisie comme minute pronostiquée, le barème (weekly_special_score côté
+// serveur, scoreForPrediction ci-dessous côté client) reste inchangé et
+// compare ce milieu à la vraie minute du but.
+const MINUTE_RANGES = [
+  { label: '1-15', min: 1, max: 15, mid: 8 },
+  { label: '16-30', min: 16, max: 30, mid: 23 },
+  { label: '31-45', min: 31, max: 45, mid: 38 },
+  { label: '46-60', min: 46, max: 60, mid: 53 },
+  { label: '61-75', min: 61, max: 75, mid: 68 },
+  { label: '76-90', min: 76, max: 90, mid: 83 },
+] as const
+
+function rangeLabelForMinute(minute: number | null | undefined): string {
+  if (minute == null) return ''
+  const range = MINUTE_RANGES.find((r) => minute >= r.min && minute <= r.max)
+  return range ? range.label : String(minute)
 }
 
 // Même barème que la fonction SQL weekly_special_score côté serveur : équipe
@@ -89,11 +118,11 @@ function scoreForPrediction(
   return pts
 }
 
-export default function WeeklySpecial({ groupId, groupName }: Props) {
+export default function WeeklySpecial({ groupId, groupName, onGoToBonusMatch }: Props) {
   const { user } = useAuth()
   const [matches, setMatches] = useState<SpecialMatch[]>([])
   const [predictions, setPredictions] = useState<Record<string, PredictionRow>>({})
-  const [minuteDrafts, setMinuteDrafts] = useState<Record<string, string>>({})
+  const [bonusMatch, setBonusMatch] = useState<BonusMatch | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -104,6 +133,17 @@ export default function WeeklySpecial({ groupId, groupName }: Props) {
     if (!user) return
     setLoading(true)
     setError(null)
+
+    // match bonus x2 de la semaine (3e match, parié normalement dans
+    // Pronostics) — indépendant des 2 matchs équipe+minute ci-dessous, donc
+    // chargé séparément et sans bloquer le reste si absent
+    const { data: bonus } = await supabase
+      .from('weekly_bonus_matches')
+      .select('week_start, api_fixture_id, home_team, away_team, kickoff_at')
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    setBonusMatch(bonus ?? null)
 
     // la semaine en cours = le week_start le plus récent présent en base
     // (une seule semaine à la fois est activée manuellement)
@@ -154,13 +194,10 @@ export default function WeeklySpecial({ groupId, groupName }: Props) {
       }
 
       const map: Record<string, PredictionRow> = {}
-      const minuteMap: Record<string, string> = {}
       for (const p of predsData ?? []) {
         map[p.match_id] = p
-        minuteMap[p.match_id] = p.pred_minute != null ? String(p.pred_minute) : ''
       }
       setPredictions(map)
-      setMinuteDrafts(minuteMap)
     }
 
     setLoading(false)
@@ -196,24 +233,23 @@ export default function WeeklySpecial({ groupId, groupName }: Props) {
       submitPrediction(matchId, team, null)
       return
     }
-    const minute = minuteDrafts[matchId]
-    if (minute !== undefined && minute !== '') {
-      submitPrediction(matchId, team, Number(minute))
+    const existingMinute = predictions[matchId]?.pred_minute ?? null
+    if (existingMinute != null) {
+      submitPrediction(matchId, team, existingMinute)
     } else {
-      // on retient le choix d'équipe localement en attendant la minute,
-      // sans encore rien envoyer (la minute est obligatoire pour domicile/extérieur)
+      // on retient le choix d'équipe localement en attendant la plage de
+      // minute, sans encore rien envoyer (obligatoire pour domicile/extérieur)
       setPredictions((prev) => ({
         ...prev,
-        [matchId]: { id: prev[matchId]?.id ?? '', match_id: matchId, pred_team: team, pred_minute: prev[matchId]?.pred_minute ?? null },
+        [matchId]: { id: prev[matchId]?.id ?? '', match_id: matchId, pred_team: team, pred_minute: null },
       }))
     }
   }
 
-  const handleMinuteChange = (matchId: string, value: string) => {
-    setMinuteDrafts((prev) => ({ ...prev, [matchId]: value }))
+  const handleMinutePick = (matchId: string, mid: number) => {
     const team = predictions[matchId]?.pred_team
-    if (team && team !== 'aucun_but' && value !== '') {
-      submitPrediction(matchId, team, Number(value))
+    if (team && team !== 'aucun_but') {
+      submitPrediction(matchId, team, mid)
     }
   }
 
@@ -255,10 +291,22 @@ export default function WeeklySpecial({ groupId, groupName }: Props) {
       </div>
 
       <p className="predictions-period">
-        Devine quelle équipe va marquer en premier sur chacun de ces 2 matchs, et à quelle minute (ou « aucun but »
-        si tu penses au 0-0) — équipe et minute comptent chacune pour leurs points, indépendamment. Le meilleur
-        total du groupe sur les 2 matchs remporte 3 points au classement général + 2 🪙 jetons.
+        Devine quelle équipe va marquer en premier sur chacun de ces 2 matchs, et dans quelle tranche de minutes (ou
+        « aucun but » si tu penses au 0-0) — équipe et minute comptent chacune pour leurs points, indépendamment. Le
+        meilleur total du groupe sur les 2 matchs remporte 3 points au classement général + 2 🪙 jetons.
       </p>
+
+      {bonusMatch && (
+        <button type="button" className="weekly-bonus-banner" onClick={onGoToBonusMatch}>
+          <span className="weekly-bonus-x2">x2</span>
+          <span className="weekly-bonus-text">
+            <strong>3e match bonus</strong>
+            <span>
+              {bonusMatch.home_team} vs {bonusMatch.away_team} — pronostic classique, points doublés au classement
+            </span>
+          </span>
+        </button>
+      )}
 
       {error && <p className="groups-error">{error}</p>}
 
@@ -309,7 +357,7 @@ export default function WeeklySpecial({ groupId, groupName }: Props) {
                     {pred && (
                       <span className="match-my-pred">
                         Ton pronostic : {TEAM_LABELS[pred.pred_team]}
-                        {pred.pred_team !== 'aucun_but' && pred.pred_minute != null ? ` à la ${pred.pred_minute}e minute` : ''}
+                        {pred.pred_team !== 'aucun_but' && pred.pred_minute != null ? ` — plage ${rangeLabelForMinute(pred.pred_minute)}` : ''}
                         {' — '}
                         {scoreForPrediction(pred.pred_team, pred.pred_minute, m.real_first_scorer_team, m.real_first_goal_minute)} pts / 15
                       </span>
@@ -335,7 +383,7 @@ export default function WeeklySpecial({ groupId, groupName }: Props) {
                                 size={28}
                               />
                               {r.pseudo} — {TEAM_LABELS[r.pred_team]}
-                              {r.pred_team !== 'aucun_but' && r.pred_minute != null ? ` (${r.pred_minute}e min)` : ''}
+                              {r.pred_team !== 'aucun_but' && r.pred_minute != null ? ` (plage ${rangeLabelForMinute(r.pred_minute)})` : ''}
                             </li>
                           ))
                         )}
@@ -360,16 +408,21 @@ export default function WeeklySpecial({ groupId, groupName }: Props) {
                     </div>
                     {pred?.pred_team && pred.pred_team !== 'aucun_but' && (
                       <div className="weekly-special-minute">
-                        <label htmlFor={`minute-${m.id}`}>Minute du 1er but :</label>
-                        <input
-                          id={`minute-${m.id}`}
-                          type="number"
-                          min={0}
-                          max={99}
-                          className="match-score-box"
-                          value={minuteDrafts[m.id] ?? ''}
-                          onChange={(e) => handleMinuteChange(m.id, e.target.value)}
-                        />
+                        <label>Minute du 1er but :</label>
+                        <div className="weekly-special-ranges">
+                          {MINUTE_RANGES.map((range) => (
+                            <button
+                              key={range.label}
+                              type="button"
+                              className={
+                                'weekly-special-range-btn' + (pred.pred_minute === range.mid ? ' weekly-special-range-btn-active' : '')
+                              }
+                              onClick={() => handleMinutePick(m.id, range.mid)}
+                            >
+                              {range.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                     <span
