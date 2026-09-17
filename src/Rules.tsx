@@ -95,7 +95,7 @@ export default function Rules({ onBack }: Props) {
       <div className="rules-section">
         <h3 className="rules-section-title">🎯 Pari du 1er but</h3>
         <p className="rules-section-text">
-          Deux vrais matchs de Ligue 1 mis en avant chaque semaine, les mêmes pour tout le groupe. Sur chacun, avant le coup d'envoi, tu fais 2 pronostics indépendants : quelle équipe (domicile ou extérieur) va marquer le premier but, et dans quelle tranche de 15 minutes (1-15, 16-30, 31-45, 46-60, 61-75, 76-90) — ou tu choisis Aucun but si tu penses à un 0-0. Chaque match se verrouille séparément à son coup d'envoi : rater le premier n'empêche pas de jouer le second.
+          C'est l'un des mini-jeux qui se partagent la case « Jeu de la semaine » (voir plus bas) — quand c'est son tour, il remplace le jonglage/dribble le temps de la semaine. Deux vrais matchs de Ligue 1 sont alors mis en avant, les mêmes pour tout le groupe. Sur chacun, avant le coup d'envoi, tu fais 2 pronostics indépendants : quelle équipe (domicile ou extérieur) va marquer le premier but, et dans quelle tranche de 15 minutes (1-15, 16-30, 31-45, 46-60, 61-75, 76-90) — ou tu choisis Aucun but si tu penses à un 0-0. Chaque match se verrouille séparément à son coup d'envoi : rater le premier n'empêche pas de jouer le second.
         </p>
         <ul className="rules-points">
           <li>Bonne équipe — 5 points</li>
@@ -108,7 +108,7 @@ export default function Rules({ onBack }: Props) {
           L'écart se calcule à partir du milieu de la tranche choisie (par exemple 16-30 → 23e minute), comparé à la vraie minute du but. Les deux se cumulent et comptent indépendamment : même en te trompant d'équipe, tu marques quand même les points de la minute. 15 points max par match, 30 sur les 2 matchs de la semaine. Aucun but deviné juste sur un vrai 0-0 rapporte 15 points d'un coup ; s'il y a eu un but, Aucun but ne rapporte rien.
         </p>
         <p className="rules-section-text">
-          Comme pour le Jeu de la semaine, seul le meilleur total du groupe sur les 2 matchs remporte la récompense du classement général : 3 points et 2 🪙 jetons. En cas d'égalité, c'est le plus petit écart cumulé sur les minutes pronostiquées qui départage ; à égalité parfaite, la victoire est partagée entre tous les joueurs encore à égalité.
+          Comme pour les autres mini-jeux de la semaine, seul le meilleur total du groupe sur les 2 matchs remporte la récompense du classement général : 3 points et 2 🪙 jetons. En cas d'égalité, c'est le plus petit écart cumulé sur les minutes pronostiquées qui départage ; à égalité parfaite, la victoire est partagée entre tous les joueurs encore à égalité.
         </p>
         <p className="rules-section-text">
           Un 3e match vient s'y ajouter chaque semaine : celui-là se parie normalement dans Pronostics (score exact, bon écart, bon résultat), rien ne change — sauf que les points qu'il rapporte comptent double au classement général. Il est repéré par un badge « x2 » dans Pronostics, et une bannière cliquable ici t'y emmène directement.
@@ -118,11 +118,12 @@ export default function Rules({ onBack }: Props) {
       <div className="rules-section">
         <h3 className="rules-section-title">🎮 Jeu de la semaine</h3>
         <p className="rules-section-text">
-          Mini-jeu solo, un différent chaque semaine — jonglage ou dribble :
+          Une seule case dans les mini-jeux, mais son contenu change chaque semaine — jonglage, dribble, ou Pari du 1er but :
         </p>
         <ul className="rules-points">
           <li>🤹 Jonglage — garde les ballons en l'air en tapant dessus au bon moment. Pas de chrono : un 2e ballon entre en jeu au bout de 30 secondes, un 3e au bout d'une minute, et la partie s'arrête dès qu'un seul ballon touche le sol.</li>
           <li>⚽ Dribble — des défenseurs descendent sur le terrain, ◀ / ▶ pour changer de couloir et les éviter. Certains sont plus rapides ou plongent au dernier moment, et quand les 3 couloirs se bloquent d'un coup, il faut déclencher le dribble 🌀 au bon moment pour passer en force.</li>
+          <li>🎯 Pari du 1er but — 2 vrais matchs de Ligue 1, devine qui marque en premier et à quelle minute (barème détaillé plus haut).</li>
         </ul>
         <p className="rules-section-text">
           Chaque semaine, le meilleur score du groupe au jeu du moment rapporte 3 points au classement et 2 🪙 jetons à son auteur (en cas d'égalité au sommet, tous les joueurs à égalité gagnent).
