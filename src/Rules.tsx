@@ -95,7 +95,7 @@ export default function Rules({ onBack }: Props) {
       <div className="rules-section">
         <h3 className="rules-section-title">🎯 Pari du 1er but</h3>
         <p className="rules-section-text">
-          Deux vrais matchs de Ligue 1 mis en avant chaque semaine, les mêmes pour tout le groupe. Sur chacun, avant le coup d'envoi, tu fais 2 pronostics indépendants : quelle équipe (domicile ou extérieur) va marquer le premier but, et à quelle minute — ou tu choisis Aucun but si tu penses à un 0-0. Chaque match se verrouille séparément à son coup d'envoi : rater le premier n'empêche pas de jouer le second.
+          Deux vrais matchs de Ligue 1 mis en avant chaque semaine, les mêmes pour tout le groupe. Sur chacun, avant le coup d'envoi, tu fais 2 pronostics indépendants : quelle équipe (domicile ou extérieur) va marquer le premier but, et dans quelle tranche de 15 minutes (1-15, 16-30, 31-45, 46-60, 61-75, 76-90) — ou tu choisis Aucun but si tu penses à un 0-0. Chaque match se verrouille séparément à son coup d'envoi : rater le premier n'empêche pas de jouer le second.
         </p>
         <ul className="rules-points">
           <li>Bonne équipe — 5 points</li>
@@ -105,10 +105,13 @@ export default function Rules({ onBack }: Props) {
           <li>Écart de plus de 45 minutes — 0 point</li>
         </ul>
         <p className="rules-section-text">
-          Les deux se cumulent et comptent indépendamment : même en te trompant d'équipe, tu marques quand même les points de la minute. 15 points max par match, 30 sur les 2 matchs de la semaine. Aucun but deviné juste sur un vrai 0-0 rapporte 15 points d'un coup ; s'il y a eu un but, Aucun but ne rapporte rien.
+          L'écart se calcule à partir du milieu de la tranche choisie (par exemple 16-30 → 23e minute), comparé à la vraie minute du but. Les deux se cumulent et comptent indépendamment : même en te trompant d'équipe, tu marques quand même les points de la minute. 15 points max par match, 30 sur les 2 matchs de la semaine. Aucun but deviné juste sur un vrai 0-0 rapporte 15 points d'un coup ; s'il y a eu un but, Aucun but ne rapporte rien.
         </p>
         <p className="rules-section-text">
           Comme pour le Jeu de la semaine, seul le meilleur total du groupe sur les 2 matchs remporte la récompense du classement général : 3 points et 2 🪙 jetons. En cas d'égalité, c'est le plus petit écart cumulé sur les minutes pronostiquées qui départage ; à égalité parfaite, la victoire est partagée entre tous les joueurs encore à égalité.
+        </p>
+        <p className="rules-section-text">
+          Un 3e match vient s'y ajouter chaque semaine : celui-là se parie normalement dans Pronostics (score exact, bon écart, bon résultat), rien ne change — sauf que les points qu'il rapporte comptent double au classement général. Il est repéré par un badge « x2 » dans Pronostics, et une bannière cliquable ici t'y emmène directement.
         </p>
       </div>
 
