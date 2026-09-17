@@ -89,7 +89,7 @@ const BOTTOM_TABS: { key: Screen; label: string; icon: string }[] = [
 ]
 
 // "Mini-jeu" est une case unique dont le contenu tourne chaque semaine
-// (jonglage / dribble / Pari du 1er but...) — voir activeMinigame ; son
+// (jonglage / dribble / But en or...) — voir activeMinigame ; son
 // icône/libellé/sous-titre sont recalculés à l'affichage plutôt que fixés
 // ici, pour refléter le jeu réellement actif cette semaine.
 const JEUX_HUB: { key: Screen; label: string; icon: string; sub: string; color: 'cream' | 'red' | 'green' | 'gold' }[] = [
@@ -1281,7 +1281,7 @@ function App() {
                     // du 1er but), plutôt que de rester figée sur 🤹.
                     const icon =
                       j.key !== 'jonglages' ? j.icon : activeMinigame === 'dribble' ? '⚽' : activeMinigame === 'jeu-semaine' ? '🎯' : j.icon
-                    const label = j.key === 'jonglages' && activeMinigame === 'jeu-semaine' ? 'Pari du 1er but' : j.label
+                    const label = j.key === 'jonglages' && activeMinigame === 'jeu-semaine' ? 'But en or' : j.label
                     const sub = j.key === 'jonglages' && activeMinigame === 'jeu-semaine' ? '2 matchs à deviner' : j.sub
                     return (
                       <button key={j.key} className={`jeux-hub-card jeux-hub-card-${j.color}`} onClick={() => setScreen(j.key)}>
@@ -1338,9 +1338,9 @@ function App() {
               // Le mini-jeu affiché ici change chaque semaine sans que rien
               // d'autre ne bouge dans la navigation (une seule case "Mini-jeu"
               // dans le hub) — jonglage/dribble sont des jeux instantanés,
-              // "Pari du 1er but" un jeu à pronostics étalé sur la semaine,
+              // "But en or" un jeu à pronostics étalé sur la semaine,
               // mais les trois se partagent le même emplacement. Tant que ce
-              // n'est pas encore son tour, "Pari du 1er but" est teasé
+              // n'est pas encore son tour, "But en or" est teasé
               // ("bientôt ton tour") au-dessus du jeu du moment — même
               // traitement que celui qu'on avait fait pour annoncer le
               // dribble avant son lancement.
@@ -1355,7 +1355,7 @@ function App() {
                   <div className="minigame-teaser">
                     <span className="minigame-teaser-icon">🎯</span>
                     <div className="minigame-teaser-text">
-                      <b>Pari du 1er but</b>
+                      <b>But en or</b>
                       <span>Nouveau mini-jeu — bientôt ton tour</span>
                     </div>
                     <span className="minigame-teaser-tag">Bientôt disponible</span>
