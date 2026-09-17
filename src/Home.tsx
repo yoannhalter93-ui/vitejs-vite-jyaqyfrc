@@ -323,7 +323,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
             </span>
             <span className="dash-v2-action-title">Jeu de la semaine</span>
             <span className="dash-v2-action-sub">
-              {activeMinigame === 'dribble' ? 'Dribble' : activeMinigame === 'jeu-semaine' ? 'Pari du 1er but' : 'Jonglage'}
+              {activeMinigame === 'dribble' ? 'Dribble' : activeMinigame === 'jeu-semaine' ? 'But en or' : 'Jonglage'}
             </span>
             <span className="dash-v3-action-arrow">›</span>
           </button>
