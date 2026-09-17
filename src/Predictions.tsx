@@ -5,6 +5,7 @@ import TeamBadge from './TeamBadge'
 
 interface MatchRow {
   id: string
+  api_fixture_id: number
   home_team: string
   away_team: string
   home_team_api_id: number | null
@@ -57,6 +58,10 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
   const { user } = useAuth()
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
   const [matches, setMatches] = useState<MatchRow[]>([])
+  // "Pari du 1er but" (WeeklySpecial.tsx) peut désigner un 3e match dont les
+  // points comptent x2 au classement — identifié par api_fixture_id (partagé
+  // entre les copies par groupe d'un même match, voir seed_matches_for_new_period)
+  const [bonusFixtureId, setBonusFixtureId] = useState<number | null>(null)
   const [predictions, setPredictions] = useState<Record<string, PredictionRow>>({})
   const [drafts, setDrafts] = useState<Record<string, { home: string; away: string }>>({})
   const [standings, setStandings] = useState<Record<number, number>>({})
@@ -86,6 +91,14 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
     setError(null)
     hasScrolledRef.current = false
 
+    const { data: bonus } = await supabase
+      .from('weekly_bonus_matches')
+      .select('api_fixture_id')
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    setBonusFixtureId(bonus?.api_fixture_id ?? null)
+
     const { data: period, error: periodError } = await supabase
       .from('group_periods')
       .select('id, label')
@@ -108,7 +121,7 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
 
     const { data: matchesData, error: matchesError } = await supabase
       .from('matches')
-      .select('id, home_team, away_team, home_team_api_id, away_team_api_id, kickoff_at, status, real_home_score, real_away_score')
+      .select('id, api_fixture_id, home_team, away_team, home_team_api_id, away_team_api_id, kickoff_at, status, real_home_score, real_away_score')
       .eq('group_id', groupId)
       .eq('period_id', period.id)
       .order('kickoff_at', { ascending: true })
@@ -293,6 +306,9 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
                     <li className="match-card-v2" key={m.id} ref={(el) => { matchRefs.current[m.id] = el }}>
                       <div className="match-row-v2">
                         <div className="match-meta-badge">⏱ {kickoffTime}</div>
+                        {bonusFixtureId != null && m.api_fixture_id === bonusFixtureId && (
+                          <div className="match-bonus-badge">🎯 Pari du 1er but : points x2</div>
+                        )}
                       </div>
 
                       <div className="match-row-v2 match-row-teams">
