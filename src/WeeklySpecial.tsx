@@ -287,7 +287,7 @@ export default function WeeklySpecial({ groupId, groupName, onGoToBonusMatch }: 
   return (
     <div className="predictions-screen">
       <div className="predictions-header">
-        <h2>Pari du 1er but — {groupName}</h2>
+        <h2>But en or — {groupName}</h2>
       </div>
 
       <p className="predictions-period">
