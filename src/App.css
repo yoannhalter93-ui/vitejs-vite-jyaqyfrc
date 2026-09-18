@@ -1104,7 +1104,7 @@ body {
 .weekly-special-minute {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 6px;
 }
 
@@ -1113,33 +1113,80 @@ body {
   color: rgba(27, 27, 31, 0.7);
 }
 
-/* La minute se choisit par plage de 15 min (boutons) plutôt qu'un nombre
-   exact tapé — mêmes proportions que .weekly-special-team-btn mais plus
-   petits vu qu'il y en a 6 à la fois. */
-.weekly-special-ranges {
+/* Curseur "ballon" pour choisir la minute exacte du 1er but, de 0 à 95 (le
+   +5 couvre le temps additionnel) — remplace les anciens boutons de plage de
+   15 min : un tap ou un glisser sur la barre, aussi rapide, mais la vraie
+   minute choisie est envoyée au serveur au lieu d'un milieu de plage. */
+.minute-slider {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  width: 100%;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0 2px;
 }
 
-.weekly-special-range-btn {
-  flex: 1;
-  min-width: 60px;
-  padding: 7px 6px;
-  border-radius: 8px;
-  border: 1.5px solid rgba(27, 27, 31, 0.2);
-  background: #fff;
-  color: #1B1B1F;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
+.minute-slider-track {
+  position: relative;
+  height: 28px;
+  border-radius: 999px;
+  background: #E8E0CC;
+  border: 1px solid rgba(27, 27, 31, 0.15);
+  touch-action: none;
   cursor: pointer;
 }
 
-.weekly-special-range-btn-active {
-  border-color: #D4A22C;
-  background: #D4A22C;
+.minute-slider-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: rgba(212, 162, 44, 0.35);
+  pointer-events: none;
+}
+
+.minute-slider-tick {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: 10px;
+  background: rgba(27, 27, 31, 0.2);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.minute-slider-tick-45 {
+  left: 47.37%;
+}
+
+.minute-slider-ball {
+  position: absolute;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid #1B1B1F;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.minute-slider-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: rgba(27, 27, 31, 0.45);
+  padding: 0 2px;
+}
+
+.minute-slider-value {
+  align-self: center;
+  font-size: 13px;
+  font-weight: 700;
   color: #1B1B1F;
 }
 
