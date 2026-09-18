@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import TeamBadge from './TeamBadge'
@@ -65,24 +66,83 @@ const TEAM_LABELS: Record<'domicile' | 'exterieur' | 'aucun_but', string> = {
   aucun_but: 'Aucun but (0-0)',
 }
 
-// La minute du 1er but se choisit désormais par plage de 15 min (plus facile
-// à taper qu'un nombre exact) — on envoie au serveur le milieu de la plage
-// choisie comme minute pronostiquée, le barème (weekly_special_score côté
-// serveur, scoreForPrediction ci-dessous côté client) reste inchangé et
-// compare ce milieu à la vraie minute du but.
-const MINUTE_RANGES = [
-  { label: '1-15', min: 1, max: 15, mid: 8 },
-  { label: '16-30', min: 16, max: 30, mid: 23 },
-  { label: '31-45', min: 31, max: 45, mid: 38 },
-  { label: '46-60', min: 46, max: 60, mid: 53 },
-  { label: '61-75', min: 61, max: 75, mid: 68 },
-  { label: '76-90', min: 76, max: 90, mid: 83 },
-] as const
+// Minute maximale de la barre : 95 plutôt que 90, pour couvrir les buts
+// marqués dans le temps additionnel (« 90+ ») sans avoir à zoomer plus loin
+// que ce qu'un vrai match peut produire.
+const MAX_MINUTE = 95
 
-function rangeLabelForMinute(minute: number | null | undefined): string {
-  if (minute == null) return ''
-  const range = MINUTE_RANGES.find((r) => minute >= r.min && minute <= r.max)
-  return range ? range.label : String(minute)
+// Au-delà de la 90e minute, affiché "90+" plutôt que la valeur exacte de la
+// barre — même convention que les commentateurs ("but à la 90+3e minute"),
+// plus lisible qu'un nombre brut type "93".
+function minuteLabel(minute: number): string {
+  return minute >= 90 ? '90+' : String(minute)
+}
+
+// Curseur "ballon" pour choisir la minute exacte du 1er but, sur une barre de
+// 0 à MAX_MINUTE — remplace les boutons de plage de 15 min utilisés avant
+// (plus rapide à taper qu'un nombre, mais imprécis) : ici on garde la
+// rapidité du geste (un tap ou un glisser) tout en envoyant la vraie minute
+// choisie au serveur, comparée telle quelle à la vraie minute du but (voir
+// weekly_special_score côté serveur / scoreForPrediction ci-dessous), sans
+// plus passer par un milieu de plage approximatif.
+function MinuteSlider({ value, onCommit }: { value: number; onCommit: (minute: number) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [dragValue, setDragValue] = useState(value)
+  const [dragging, setDragging] = useState(false)
+
+  useEffect(() => {
+    if (!dragging) setDragValue(value)
+  }, [value, dragging])
+
+  const minuteFromClientX = (clientX: number) => {
+    const track = trackRef.current
+    if (!track) return dragValue
+    const rect = track.getBoundingClientRect()
+    const ratio = rect.width > 0 ? Math.min(1, Math.max(0, (clientX - rect.left) / rect.width)) : 0
+    return Math.round(ratio * MAX_MINUTE)
+  }
+
+  const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setDragging(true)
+    setDragValue(minuteFromClientX(e.clientX))
+  }
+  const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragging) return
+    setDragValue(minuteFromClientX(e.clientX))
+  }
+  const handlePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragging) return
+    setDragging(false)
+    onCommit(minuteFromClientX(e.clientX))
+  }
+
+  const pct = (dragValue / MAX_MINUTE) * 100
+
+  return (
+    <div className="minute-slider">
+      <div
+        className="minute-slider-track"
+        ref={trackRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        <div className="minute-slider-fill" style={{ width: `${pct}%` }} />
+        <div className="minute-slider-tick minute-slider-tick-45" />
+        <div className="minute-slider-ball" style={{ left: `${pct}%` }}>
+          ⚽
+        </div>
+      </div>
+      <div className="minute-slider-scale">
+        <span>0</span>
+        <span>45</span>
+        <span>90+</span>
+      </div>
+      <div className="minute-slider-value">{minuteLabel(dragValue)}e minute</div>
+    </div>
+  )
 }
 
 // Même barème que la fonction SQL weekly_special_score côté serveur : équipe
@@ -237,8 +297,9 @@ export default function WeeklySpecial({ groupId, groupName, onGoToBonusMatch }: 
     if (existingMinute != null) {
       submitPrediction(matchId, team, existingMinute)
     } else {
-      // on retient le choix d'équipe localement en attendant la plage de
-      // minute, sans encore rien envoyer (obligatoire pour domicile/extérieur)
+      // on retient le choix d'équipe localement en attendant la minute (via
+      // le curseur), sans encore rien envoyer (obligatoire pour
+      // domicile/extérieur)
       setPredictions((prev) => ({
         ...prev,
         [matchId]: { id: prev[matchId]?.id ?? '', match_id: matchId, pred_team: team, pred_minute: null },
@@ -246,10 +307,10 @@ export default function WeeklySpecial({ groupId, groupName, onGoToBonusMatch }: 
     }
   }
 
-  const handleMinutePick = (matchId: string, mid: number) => {
+  const handleMinutePick = (matchId: string, minute: number) => {
     const team = predictions[matchId]?.pred_team
     if (team && team !== 'aucun_but') {
-      submitPrediction(matchId, team, mid)
+      submitPrediction(matchId, team, minute)
     }
   }
 
@@ -291,9 +352,10 @@ export default function WeeklySpecial({ groupId, groupName, onGoToBonusMatch }: 
       </div>
 
       <p className="predictions-period">
-        Devine quelle équipe va marquer en premier sur chacun de ces 2 matchs, et dans quelle tranche de minutes (ou
-        « aucun but » si tu penses au 0-0) — équipe et minute comptent chacune pour leurs points, indépendamment. Le
-        meilleur total du groupe sur les 2 matchs remporte 3 points au classement général + 2 🪙 jetons.
+        Devine quelle équipe va marquer en premier sur chacun de ces 2 matchs, et à quelle minute exacte (glisse le
+        ⚽ sur la barre, ou choisis « aucun but » si tu penses au 0-0) — équipe et minute comptent chacune pour leurs
+        points, indépendamment. Le meilleur total du groupe sur les 2 matchs remporte 3 points au classement général
+        + 2 🪙 jetons.
       </p>
 
       {bonusMatch && (
@@ -352,12 +414,12 @@ export default function WeeklySpecial({ groupId, groupName, onGoToBonusMatch }: 
                       Résultat :{' '}
                       {m.real_first_scorer_team === 'aucun_but'
                         ? 'aucun but marqué (0-0)'
-                        : `${TEAM_LABELS[m.real_first_scorer_team!]} à la ${m.real_first_goal_minute}e minute`}
+                        : `${TEAM_LABELS[m.real_first_scorer_team!]} à la ${minuteLabel(m.real_first_goal_minute ?? 0)}e minute`}
                     </span>
                     {pred && (
                       <span className="match-my-pred">
                         Ton pronostic : {TEAM_LABELS[pred.pred_team]}
-                        {pred.pred_team !== 'aucun_but' && pred.pred_minute != null ? ` — plage ${rangeLabelForMinute(pred.pred_minute)}` : ''}
+                        {pred.pred_team !== 'aucun_but' && pred.pred_minute != null ? ` — ${minuteLabel(pred.pred_minute)}e minute` : ''}
                         {' — '}
                         {scoreForPrediction(pred.pred_team, pred.pred_minute, m.real_first_scorer_team, m.real_first_goal_minute)} pts / 15
                       </span>
@@ -383,7 +445,7 @@ export default function WeeklySpecial({ groupId, groupName, onGoToBonusMatch }: 
                                 size={28}
                               />
                               {r.pseudo} — {TEAM_LABELS[r.pred_team]}
-                              {r.pred_team !== 'aucun_but' && r.pred_minute != null ? ` (plage ${rangeLabelForMinute(r.pred_minute)})` : ''}
+                              {r.pred_team !== 'aucun_but' && r.pred_minute != null ? ` (${minuteLabel(r.pred_minute)}e minute)` : ''}
                             </li>
                           ))
                         )}
@@ -409,20 +471,10 @@ export default function WeeklySpecial({ groupId, groupName, onGoToBonusMatch }: 
                     {pred?.pred_team && pred.pred_team !== 'aucun_but' && (
                       <div className="weekly-special-minute">
                         <label>Minute du 1er but :</label>
-                        <div className="weekly-special-ranges">
-                          {MINUTE_RANGES.map((range) => (
-                            <button
-                              key={range.label}
-                              type="button"
-                              className={
-                                'weekly-special-range-btn' + (pred.pred_minute === range.mid ? ' weekly-special-range-btn-active' : '')
-                              }
-                              onClick={() => handleMinutePick(m.id, range.mid)}
-                            >
-                              {range.label}
-                            </button>
-                          ))}
-                        </div>
+                        <MinuteSlider
+                          value={pred.pred_minute ?? 45}
+                          onCommit={(minute) => handleMinutePick(m.id, minute)}
+                        />
                       </div>
                     )}
                     <span
