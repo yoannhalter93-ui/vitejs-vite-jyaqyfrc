@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext'
 interface Props {
   groupId: string
   groupName: string
+  autoApplyAllLeagues: boolean
 }
 
 interface BestScore {
@@ -102,7 +103,7 @@ function newEngine(): Engine {
   }
 }
 
-export default function DribbleGame({ groupId, groupName }: Props) {
+export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues }: Props) {
   const { user } = useAuth()
 
   const fieldRef = useRef<HTMLDivElement>(null)
@@ -703,9 +704,18 @@ export default function DribbleGame({ groupId, groupName }: Props) {
         event: 'playing',
         payload: { action: 'stop', profileId: user.id },
       })
-      supabase.from('dribble_scores').insert({
-        group_id: groupId, profile_id: user.id, week_start: monday(), score: finalStreak,
-      }).then(() => { loadScores() })
+      // Réglage "Pronostics dans toutes mes ligues" actif : la RPC
+      // submit_dribble_score_all_leagues enregistre le même score dans
+      // toutes les ligues où je suis membre (le jeu de la semaine est
+      // identique pour tout le monde, voir get_active_minigame). Sinon,
+      // comportement inchangé : un seul insert sur cette ligue.
+      if (autoApplyAllLeagues) {
+        supabase.rpc('submit_dribble_score_all_leagues', { p_score: finalStreak }).then(() => { loadScores() })
+      } else {
+        supabase.from('dribble_scores').insert({
+          group_id: groupId, profile_id: user.id, week_start: monday(), score: finalStreak,
+        }).then(() => { loadScores() })
+      }
     }
   }
 
