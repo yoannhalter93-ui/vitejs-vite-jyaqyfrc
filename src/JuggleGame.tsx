@@ -89,6 +89,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
     const [wizzCooldown, setWizzCooldown] = useState(0)
     const [wizzFrom, setWizzFrom] = useState<string | null>(null)
     const [myPseudo, setMyPseudo] = useState<string | null>(null)
+    const [showRules, setShowRules] = useState(false)
     // balles en jeu (x/y/vx/vy en pixels "logiques", espace fixe 300x340, et en
   // px/s pour les vitesses) + score + horloge d'apparition du prochain ballon
   const stateRef = useRef<{ balls: Ball[]; running: boolean; score: number; nextSpawnAt: number }>({
@@ -464,7 +465,8 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
                 createElement('button', { className: 'predictions-back', onClick: onExit }, '← Accueil'),
                 createElement('h2', null, 'Jonglages — ', groupName)
               ),
-        createElement(
+        createElement('button', { type: 'button', className: 'juggle-rules-toggle', onClick: () => setShowRules((v: boolean) => !v) }, showRules ? 'Masquer les règles ▲' : 'Voir les règles ▼'),
+        showRules && createElement(
                 'p',
           { className: 'predictions-period' },
                 "Tape sur le ballon pour commencer, puis tape bien dessus à chaque fois qu'il redescend pour le renvoyer en l'air. Un tap trop loin ne compte pas, et s'il te tape de travers il part sur le côté. Pas de chrono : un nouveau ballon entre en jeu toutes les 30 secondes (jusqu'à 3 ballons), et la partie s'arrête dès qu'un seul ballon touche le sol — tiens le plus longtemps possible !"
@@ -477,7 +479,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
                           width: CANVAS_W,
                           height: CANVAS_H,
                           onPointerDown: handleCanvasTap,
-                          style: { background: '#171b24', borderRadius: 12, border: '1px solid #2a2f3a', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', maxWidth: '100%', height: 'auto' },
+                          style: { background: '#171b24', borderRadius: 12, border: '1px solid #2a2f3a', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', width: '100%', maxWidth: '100%', height: 'auto' },
                 }),
                 wizzShake &&
                   createElement(
