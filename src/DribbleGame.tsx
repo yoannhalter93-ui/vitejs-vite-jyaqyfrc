@@ -6,6 +6,7 @@ interface Props {
   groupId: string
   groupName: string
   autoApplyAllLeagues: boolean
+  onExit: () => void
 }
 
 interface BestScore {
@@ -103,7 +104,7 @@ function newEngine(): Engine {
   }
 }
 
-export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues }: Props) {
+export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, onExit }: Props) {
   const { user } = useAuth()
 
   const fieldRef = useRef<HTMLDivElement>(null)
@@ -727,6 +728,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues }:
   return (
     <div className="predictions-screen" ref={wrapperRef}>
       <div className="predictions-header">
+        <button className="predictions-back" onClick={onExit}>← Accueil</button>
         <h2>Dribble — {groupName}</h2>
       </div>
 
