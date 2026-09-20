@@ -109,6 +109,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
   const [animStage, setAnimStage] = useState<'start' | 'flying' | 'sent' | 'reveal' | 'result' | null>(null)
   const [animResult, setAnimResult] = useState<{ scored: boolean; points: number; shooterZone: string } | null>(null)
   const [finishedSoundPlayed, setFinishedSoundPlayed] = useState<string | null>(null)
+  const [revancheBusy, setRevancheBusy] = useState(false)
 
   const { playGoal, playPanenka, playSave, playKick, playVictory, playDefeat } = useSynth()
 
@@ -272,6 +273,21 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
     }, 550)
   }
 
+  // Bonus "Revanche" (5 jetons, 1x/semaine/joueur) : remet ce duel entier à
+  // zéro (les 2 moitiés) pour les 2 joueurs, comme s'il n'avait jamais eu
+  // lieu — n'apparaît que si je n'ai pas gagné (perdu ou match nul), même
+  // condition que côté serveur dans use_bonus_revanche_penalty.
+  const useRevanche = async () => {
+    if (!selected || revancheBusy) return
+    setRevancheBusy(true)
+    setError(null)
+    const { error: err } = await supabase.rpc('use_bonus_revanche_penalty', { p_duel_id: selected })
+    setRevancheBusy(false)
+    if (err) { setError(err.message); return }
+    await openDuel(selected)
+    await loadList()
+  }
+
   const zoneBtn = (value: string) => {
     const z = ZONES.find((zz) => zz.value === value)!
     return (
@@ -319,8 +335,15 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
             <p className="predictions-period">Dès qu'un nouveau joueur rejoint le groupe, le duel sera créé automatiquement.</p>
           </div>
         ) : duel?.phase === 'done' ? (
-          <p className="match-result">Score final : {duel.score_a} - {duel.score_b}
-            {duel.winner_id ? (duel.winner_id === user?.id ? ' — Tu as gagné !' : ' — Tu as perdu.') : ' — Match nul.'}</p>
+          <div className="roulette-result">
+            <p className="match-result">Score final : {duel.score_a} - {duel.score_b}
+              {duel.winner_id ? (duel.winner_id === user?.id ? ' — Tu as gagné !' : ' — Tu as perdu.') : ' — Match nul.'}</p>
+            {duel.winner_id !== user?.id && (
+              <button className="groups-action-btn groups-action-btn-secondary" disabled={revancheBusy} onClick={useRevanche}>
+                {revancheBusy ? 'Revanche...' : '🔁 Revanche (5 🪙) — rejouer ce duel'}
+              </button>
+            )}
+          </div>
         ) : myTurnToShoot || myTurnToSave ? (
           <div className="roulette-result">
             <div className={"penalty-cage" + (netShake ? ' penalty-cage-shake' : '')}>
