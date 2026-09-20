@@ -1284,7 +1284,7 @@ function App() {
           <Help onBack={() => setScreen('profil')} />
         ) : selectedGroup ? (
           <>
-            {screen !== 'team-reveal' && (
+            {screen !== 'team-reveal' && !isActionMinigame && (
             <div className="group-nav">
               <button className="group-selector-pill" onClick={() => setSelectedGroup(null)}>
                 🏆 {selectedGroup.name} <span className="group-selector-chevron">⌄</span>
@@ -1314,7 +1314,7 @@ function App() {
           </div>
             </div>
             )}
-            {(screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') && (
+            {(screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') && !isActionMinigame && (
               <button className="jeux-back-btn" onClick={() => setScreen('jeux')}>← Jeux</button>
             )}
             {screen === 'accueil' && (
