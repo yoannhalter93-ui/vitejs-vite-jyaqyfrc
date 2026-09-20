@@ -107,6 +107,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues }:
   const { user } = useAuth()
 
   const fieldRef = useRef<HTMLDivElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const runnerRef = useRef<HTMLDivElement>(null)
   const flareRef = useRef<HTMLDivElement>(null)
   const wallMsgRef = useRef<HTMLDivElement>(null)
@@ -644,6 +645,9 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues }:
   }
 
   const startGame = () => {
+    // Empeche le swipe vertical accidentel de faire defiler la page
+    // pendant la partie (classe retiree dans endGame ci-dessous).
+    wrapperRef.current?.classList.add('dribble-locked')
     ensureAudio()
     const eng = engineRef.current
     eng.playing = false
@@ -678,6 +682,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues }:
   }
 
   const endGame = () => {
+    wrapperRef.current?.classList.remove('dribble-locked')
     const eng = engineRef.current
     const finalStreak = Math.min(eng.streak, MAX_SCORE)
     eng.playing = false
@@ -720,7 +725,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues }:
   }
 
   return (
-    <div className="predictions-screen">
+    <div className="predictions-screen" ref={wrapperRef}>
       <div className="predictions-header">
         <h2>Dribble — {groupName}</h2>
       </div>
