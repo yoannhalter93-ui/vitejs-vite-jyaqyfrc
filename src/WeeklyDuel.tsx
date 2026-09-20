@@ -46,6 +46,7 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [review, setReview] = useState<ReviewRow[] | null>(null)
   const [reviewLoading, setReviewLoading] = useState(false)
+  const [revancheBusy, setRevancheBusy] = useState(false)
 
   const loadList = async () => {
     if (!user) return
@@ -133,6 +134,22 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
     await refresh(id)
   }
 
+  // Bonus "Revanche" (5 jetons, 1x/semaine/joueur) : remet ce duel entier à
+  // zéro pour les 2 joueurs avec de nouvelles questions, comme s'il n'avait
+  // jamais eu lieu — n'apparaît que si je n'ai pas gagné (perdu ou match
+  // nul), même condition que côté serveur dans use_bonus_revanche_quiz.
+  const useRevanche = async () => {
+    if (!selected || revancheBusy) return
+    setRevancheBusy(true)
+    setError(null)
+    const { error: err } = await supabase.rpc('use_bonus_revanche_quiz', { p_duel_id: selected })
+    setRevancheBusy(false)
+    if (err) { setError(err.message); return }
+    setReview(null)
+    await openDuel(selected)
+    await loadList()
+  }
+
   const loadReview = async () => {
     if (!selected) return
     setReviewLoading(true)
@@ -186,6 +203,12 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
           <>
             <p className="match-result">Score final : {duel.score_a} - {duel.score_b}
               {(duel.score_a ?? 0) === (duel.score_b ?? 0) ? ' — Match nul.' : ((duel.player_a_id === user?.id) === ((duel.score_a ?? 0) > (duel.score_b ?? 0)) ? ' — Tu as gagné !' : ' — Tu as perdu.')}</p>
+
+            {!((duel.score_a ?? 0) !== (duel.score_b ?? 0) && (duel.player_a_id === user?.id) === ((duel.score_a ?? 0) > (duel.score_b ?? 0))) && (
+              <button className="groups-action-btn groups-action-btn-secondary" disabled={revancheBusy} onClick={useRevanche}>
+                {revancheBusy ? 'Revanche...' : '🔁 Revanche (5 🪙) — rejouer ce duel'}
+              </button>
+            )}
 
             {review === null ? (
               <button className="match-save-btn" disabled={reviewLoading} onClick={loadReview}>
