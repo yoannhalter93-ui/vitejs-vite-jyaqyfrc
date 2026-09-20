@@ -1380,6 +1380,7 @@ function App() {
                 <WeeklySpecial
                   groupId={selectedGroup.id}
                   groupName={selectedGroup.name}
+                  autoApplyAllLeagues={autoApplyAllLeagues}
                   onGoToBonusMatch={() => setScreen('pronostics')}
                 />
               ) : (
@@ -1396,11 +1397,13 @@ function App() {
                     <DribbleGame
                       groupId={selectedGroup.id}
                       groupName={selectedGroup.name}
+                      autoApplyAllLeagues={autoApplyAllLeagues}
                     />
                   ) : (
                     <JuggleGame
                       groupId={selectedGroup.id}
                       groupName={selectedGroup.name}
+                      autoApplyAllLeagues={autoApplyAllLeagues}
                     />
                   )}
                 </>
