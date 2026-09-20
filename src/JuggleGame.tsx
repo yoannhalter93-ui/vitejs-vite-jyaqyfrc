@@ -11,6 +11,7 @@ interface ScoreRow {
 interface Props {
     groupId: string
     groupName: string
+    autoApplyAllLeagues: boolean
 }
 
 interface Ball {
@@ -69,7 +70,7 @@ function spawnBall(): Ball {
   return { x: 60 + Math.random() * 180, y: -BALL_RADIUS, vx: 0, vy: 0, missed: false }
 }
 
-export default function JuggleGame({ groupId, groupName }: Props) {
+export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues }: Props) {
     const { user } = useAuth()
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [playing, setPlaying] = useState(false)
@@ -436,9 +437,18 @@ export default function JuggleGame({ groupId, groupName }: Props) {
                 event: 'playing',
                 payload: { action: 'stop', profileId: user.id },
         })
-        await supabase.from('juggle_scores').insert({
-                group_id: groupId, profile_id: user.id, week_start: monday(), score: finalSc,
-        })
+        // Réglage "Pronostics dans toutes mes ligues" actif : la RPC
+        // submit_juggle_score_all_leagues enregistre le même score dans
+        // toutes les ligues où je suis membre (le jeu de la semaine est
+        // identique pour tout le monde, voir get_active_minigame). Sinon,
+        // comportement inchangé : un seul insert sur cette ligue.
+        if (autoApplyAllLeagues) {
+                await supabase.rpc('submit_juggle_score_all_leagues', { p_score: finalSc })
+        } else {
+                await supabase.from('juggle_scores').insert({
+                        group_id: groupId, profile_id: user.id, week_start: monday(), score: finalSc,
+                })
+        }
         await loadScores()
   }
 
