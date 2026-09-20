@@ -4090,7 +4090,7 @@ body {
   padding:14px;
   display:flex;
   flex:1;
-  min-height:0;
+  min-height:46vh;
 }
 .dribble-field{
   position:relative;
