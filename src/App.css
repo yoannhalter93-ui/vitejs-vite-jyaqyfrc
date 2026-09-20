@@ -3989,6 +3989,31 @@ body {
 }
 
 /* ===== Jeu de Dribble (mini-jeu hebdomadaire) ===== */
+/* Ecran Dribble en plein ecran (voir isActionMinigame dans App.tsx) :
+   masquer l'en-tete/la barre du bas ne suffisait pas, le terrain restait
+   plafonne a 380px de large avec un ratio fixe et laissait de l'espace
+   vide autour — retour explicite de Yoann le 2026-09-20 ("le jeu n'est
+   toujours pas en plein ecran"), confirme sur Dribble specifiquement.
+   Etire tout le bloc jeu pour remplir la hauteur de l'ecran ; classe
+   nouvelle et privee a cet ecran (Dribble est desormais TOUJOURS rendu en
+   plein ecran via le selecteur de mini-jeux), donc sans impact sur les
+   autres usages partages de .predictions-screen ailleurs dans l'appli.
+   Accepte explicitement par Yoann : comme eng.travel (vitesse des
+   defenseurs) est une DUREE fixe en millisecondes et non une distance, un
+   terrain plus haut fait paraitre les defenseurs legerement plus rapides
+   (meme timing, plus de pixels a parcourir a l'ecran) — aucun changement
+   de logique de jeu/collision, uniquement visuel. */
+.dribble-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+.dribble-page .predictions-header {
+  flex-shrink: 0;
+}
+
 .dribble-app{
   --pitch:#0F3B2E;
   --pitch-line:#0A2A21;
@@ -4002,11 +4027,11 @@ body {
   --field-bg:#0d3226;
   --lane-line:rgba(244,239,226,0.28);
   width:100%;
-  max-width:380px;
   display:flex;
   flex-direction:column;
   gap:14px;
-  margin:0 auto;
+  flex:1;
+  min-height:0;
 }
 .dribble-eyebrow{
   font-size:11px;
@@ -4063,11 +4088,15 @@ body {
   border:1px solid #234238;
   border-radius:14px;
   padding:14px;
+  display:flex;
+  flex:1;
+  min-height:0;
 }
 .dribble-field{
   position:relative;
   width:100%;
-  aspect-ratio:3/4.3;
+  flex:1;
+  min-height:0;
   border-radius:8px;
   overflow:hidden;
   background:
