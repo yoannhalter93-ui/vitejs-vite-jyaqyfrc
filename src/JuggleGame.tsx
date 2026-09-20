@@ -456,7 +456,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues }: 
   // partie visuelle est identique, seule la façon de l'écrire change.
   return createElement(
         'div',
-    { className: `predictions-screen${wizzShake ? ' juggle-wizz-shake' : ''}` },
+    { className: `predictions-screen${wizzShake ? ' juggle-wizz-shake' : ''}${playing ? ' juggle-locked' : ''}` },
         createElement(
                 'div',
           { className: 'predictions-header' },
