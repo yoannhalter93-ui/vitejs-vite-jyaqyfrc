@@ -466,6 +466,31 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
                             Pronostics clôturés
                             {hasPrediction && ` (ton pronostic : ${predictions[m.id].pred_home_score} - ${predictions[m.id].pred_away_score})`}
                           </span>
+                          {/* Match commencé (coup d'envoi passé) mais pas encore
+                              resolved : on peut déjà voir ce que les autres ont
+                              parié, même principe que pour un match terminé
+                              ci-dessus (get_match_predictions_reveal autorise
+                              désormais la révélation dès le coup d'envoi). */}
+                          <button
+                            className="groups-action-btn groups-action-btn-secondary bet-reveal-btn"
+                            disabled={revealLoading === m.id}
+                            onClick={() => toggleReveal(m.id)}
+                          >
+                            {revealLoading === m.id ? '...' : reveals[m.id] ? 'Masquer les pronostics' : 'Voir les pronostics des autres'}
+                          </button>
+                          {reveals[m.id] && (
+                            <ul className="bet-reveal-list">
+                              {reveals[m.id].length === 0 ? (
+                                <li className="groups-empty">Personne n'a pronostiqué ce match.</li>
+                              ) : (
+                                reveals[m.id].map((r) => (
+                                  <li className="bet-reveal-row" key={r.profile_id}>
+                                    {r.pseudo} — {r.pred_home_score} - {r.pred_away_score}
+                                  </li>
+                                ))
+                              )}
+                            </ul>
+                          )}
                         </div>
                       )}
                     </li>
