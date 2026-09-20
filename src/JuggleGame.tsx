@@ -90,6 +90,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
     const [wizzFrom, setWizzFrom] = useState<string | null>(null)
     const [myPseudo, setMyPseudo] = useState<string | null>(null)
     const [showRules, setShowRules] = useState(false)
+    const [showBoard, setShowBoard] = useState(false)
     // balles en jeu (x/y/vx/vy en pixels "logiques", espace fixe 300x340, et en
   // px/s pour les vitesses) + score + horloge d'apparition du prochain ballon
   const stateRef = useRef<{ balls: Ball[]; running: boolean; score: number; nextSpawnAt: number }>({
@@ -508,7 +509,10 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
         finalScore !== null &&
           !playing &&
           createElement('p', { className: 'match-result' }, 'Score final : ', finalScore, ' jonglages'),
-        (allTimeBest || lastWeekBest) &&
+        (allTimeBest || lastWeekBest || scores.length > 0) &&
+          createElement('button', { type: 'button', className: 'juggle-rules-toggle', onClick: () => setShowBoard((v: boolean) => !v) }, showBoard ? 'Masquer le classement ▲' : '🏆 Voir le classement ▼'),
+        showBoard &&
+          (allTimeBest || lastWeekBest) &&
           createElement(
                     'div',
             { className: 'juggle-palmares' },
@@ -530,7 +534,8 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
                                   ' (', lastWeekBest.pseudo, ')'
                                 )
                   ),
-        scores.length > 0 &&
+        showBoard &&
+          scores.length > 0 &&
           createElement(
                     'div',
             { className: 'roulette-teammates' },
