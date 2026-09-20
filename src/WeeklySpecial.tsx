@@ -59,6 +59,7 @@ interface Props {
   groupName: string
   autoApplyAllLeagues: boolean
   onGoToBonusMatch: () => void
+  onExit: () => void
 }
 
 const TEAM_LABELS: Record<'domicile' | 'exterieur' | 'aucun_but', string> = {
@@ -179,7 +180,7 @@ function scoreForPrediction(
   return pts
 }
 
-export default function WeeklySpecial({ groupId, groupName, autoApplyAllLeagues, onGoToBonusMatch }: Props) {
+export default function WeeklySpecial({ groupId, groupName, autoApplyAllLeagues, onGoToBonusMatch, onExit }: Props) {
   const { user } = useAuth()
   const [matches, setMatches] = useState<SpecialMatch[]>([])
   const [predictions, setPredictions] = useState<Record<string, PredictionRow>>({})
@@ -360,6 +361,7 @@ export default function WeeklySpecial({ groupId, groupName, autoApplyAllLeagues,
   return (
     <div className="predictions-screen">
       <div className="predictions-header">
+        <button className="predictions-back" onClick={onExit}>← Accueil</button>
         <h2>But en or — {groupName}</h2>
       </div>
 
