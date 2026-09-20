@@ -12,6 +12,7 @@ interface Props {
     groupId: string
     groupName: string
     autoApplyAllLeagues: boolean
+    onExit: () => void
 }
 
 interface Ball {
@@ -70,7 +71,7 @@ function spawnBall(): Ball {
   return { x: 60 + Math.random() * 180, y: -BALL_RADIUS, vx: 0, vy: 0, missed: false }
 }
 
-export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues }: Props) {
+export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, onExit }: Props) {
     const { user } = useAuth()
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [playing, setPlaying] = useState(false)
@@ -460,6 +461,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues }: 
         createElement(
                 'div',
           { className: 'predictions-header' },
+                createElement('button', { className: 'predictions-back', onClick: onExit }, '← Accueil'),
                 createElement('h2', null, 'Jonglages — ', groupName)
               ),
         createElement(
