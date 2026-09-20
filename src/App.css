@@ -1563,9 +1563,26 @@ body {
   min-height: 100svh;
 }
 
+/* Bouton pour replier/deplier le paragraphe de regles de Jonglage/Dribble,
+   replie par defaut sur l'ecran plein ecran : le paragraphe complet prenait
+   a lui seul une bonne partie de la hauteur disponible, ce qui poussait le
+   terrain de jeu hors de l'ecran et allait a l'encontre du "plein ecran". */
+.dribble-rules-toggle,
+.juggle-rules-toggle {
+  background: none;
+  border: 1px solid rgba(244, 239, 226, 0.25);
+  color: rgba(244, 239, 226, 0.8);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+}
+
 .juggle-canvas-wrap {
   position: relative;
-  display: inline-block;
+  display: block;
+  width: 100%;
   max-width: 100%;
 }
 
