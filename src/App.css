@@ -1540,6 +1540,19 @@ body {
   animation: juggle-wizz-shake 0.9s;
 }
 
+/* Pendant une partie de jonglage ou de dribble, on bloque le geste de
+   defilement du navigateur (pan) uniquement sur l'ecran du jeu concerne,
+   pour eviter qu'un swipe vertical accidentel ne fasse defiler la page
+   pendant qu'on joue. Les taps/clics restent fonctionnels : touch-action
+   ne desactive que le geste de panoramique/zoom du navigateur, pas les
+   evenements pointer. Portee volontairement limitee a ces deux ecrans
+   (jamais html/body), pour ne pas reproduire le bug de scroll global
+   deja rencontre. */
+.juggle-locked,
+.dribble-locked {
+  touch-action: none;
+}
+
 .juggle-canvas-wrap {
   position: relative;
   display: inline-block;
