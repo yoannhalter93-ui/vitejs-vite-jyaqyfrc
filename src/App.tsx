@@ -284,10 +284,6 @@ function App() {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
-  useEffect(() => {
-    if (screen !== 'jonglages') setMinigamePlaying(false)
-  }, [screen])
-
   const { session, loading, signOut } = useAuth();
   const [selectedGroup, setSelectedGroup] = useState<{
     id: string;
@@ -495,6 +491,10 @@ function App() {
   }
 
   const [screen, setScreen] = useState<Screen>('accueil');
+
+  useEffect(() => {
+    if (screen !== 'jonglages') setMinigamePlaying(false)
+  }, [screen])
 
   // nombre de paris libres ouverts sur lesquels je n'ai pas encore voté,
   // pour afficher un petit badge sur l'onglet "Paris libres" (même principe
