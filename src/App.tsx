@@ -99,6 +99,22 @@ const JEUX_HUB: { key: Screen; label: string; icon: string; sub: string; color: 
   { key: 'jonglages', label: 'Mini-jeu', icon: '🤹', sub: 'Le défi de la semaine', color: 'gold' },
 ]
 
+// Les 3 tuiles du sélecteur affiché en entrant dans "jonglages" : une case
+// par mini-jeu possible, celle qui correspond à activeMinigame est
+// cliquable (elle lance le jeu en plein écran), les deux autres restent
+// grisées — même traitement visuel que l'ancien "teaser" de But en or.
+const MINIGAME_TILES: {
+  key: 'jonglage' | 'dribble' | 'jeu-semaine'
+  icon: string
+  label: string
+  subActive: string
+  subDisabled: string
+}[] = [
+  { key: 'jonglage', icon: '🤹', label: 'Jonglages', subActive: 'Ton défi de la semaine', subDisabled: 'Pas cette semaine' },
+  { key: 'dribble', icon: '⚽', label: 'Dribble', subActive: 'Ton défi de la semaine', subDisabled: 'Pas cette semaine' },
+  { key: 'jeu-semaine', icon: '🎯', label: 'But en or', subActive: '2 matchs à deviner', subDisabled: 'Pas cette semaine' },
+]
+
 // à quel onglet du bas rattacher chaque écran interne (ex. "pronostics",
 // atteint depuis le tableau de bord, reste sous l'onglet "Pronos")
 function bottomTabFor(screen: Screen): Screen {
@@ -245,6 +261,11 @@ function App() {
   // semaine via public.minigame_weeks, même classement/mêmes récompenses
   // des deux côtés, seul le jeu affiché change.
   const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble' | 'jeu-semaine'>('jonglage')
+  // écran "jonglages" : false = on affiche le sélecteur des 3 mini-jeux
+  // (celui de la semaine cliquable, les 2 autres grisés) ; true = le jeu
+  // choisi est lancé en plein écran. Remis à false dès qu'on quitte l'écran,
+  // pour retomber sur le sélecteur à chaque nouvelle visite.
+  const [minigamePlaying, setMinigamePlaying] = useState(false)
 
   useEffect(() => {
     const checkActiveMinigame = () => {
@@ -262,6 +283,10 @@ function App() {
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
+
+  useEffect(() => {
+    if (screen !== 'jonglages') setMinigamePlaying(false)
+  }, [screen])
 
   const { session, loading, signOut } = useAuth();
   const [selectedGroup, setSelectedGroup] = useState<{
@@ -889,13 +914,13 @@ function App() {
     return <Login />;
   }
 
-  // Jonglage et dribble doivent se sentir comme un vrai jeu en plein ecran
-  // (pas juste un bout de contenu au milieu de l'appli) : on masque
-  // l'en-tete et la barre du bas le temps d'etre sur cet ecran, et on
-  // retire le padding qui leur laissait de la place. "But en or" (meme
-  // onglet "Mini-jeu") reste affiche normalement : c'est un jeu a
-  // pronostics etale sur la semaine, pas une partie en direct.
-  const isActionMinigame = screen === 'jonglages' && activeMinigame !== 'jeu-semaine'
+  // Chaque mini-jeu (jonglage, dribble, But en or) doit se sentir comme un
+  // vrai jeu en plein ecran une fois lance depuis le selecteur (pas juste
+  // un bout de contenu au milieu de l'appli) : on masque l'en-tete et la
+  // barre du bas tant qu'une partie est en cours, et on retire le padding
+  // qui leur laissait de la place. Le selecteur lui-meme (minigamePlaying
+  // === false) reste affiche normalement, avec l'en-tete et la nav.
+  const isActionMinigame = screen === 'jonglages' && minigamePlaying
 
   return (
     <div className="home-screen">
@@ -1377,48 +1402,57 @@ function App() {
               />
             )}
             {screen === 'jonglages' && (
-              // Le mini-jeu affiché ici change chaque semaine sans que rien
-              // d'autre ne bouge dans la navigation (une seule case "Mini-jeu"
-              // dans le hub) — jonglage/dribble sont des jeux instantanés,
-              // "But en or" un jeu à pronostics étalé sur la semaine,
-              // mais les trois se partagent le même emplacement. Tant que ce
-              // n'est pas encore son tour, "But en or" est teasé
-              // ("bientôt ton tour") au-dessus du jeu du moment — même
-              // traitement que celui qu'on avait fait pour annoncer le
-              // dribble avant son lancement.
-              activeMinigame === 'jeu-semaine' ? (
+              // Une seule case "Mini-jeu" dans le hub, mais 3 jeux possibles
+              // en dessous (jonglage / dribble / But en or) qui tournent
+              // chaque semaine. On affiche d'abord un sélecteur avec les 3
+              // vignettes : seule celle du jeu actif cette semaine est
+              // cliquable, les 2 autres restent grisées comme l'ancien
+              // "teaser" de But en or. Cliquer dessus lance ce jeu en plein
+              // écran (voir isActionMinigame).
+              !minigamePlaying ? (
+                <div className="minigame-tiles">
+                  {MINIGAME_TILES.map((tile) => {
+                    const isActive = activeMinigame === tile.key
+                    return (
+                      <button
+                        key={tile.key}
+                        type="button"
+                        className={`minigame-tile ${isActive ? 'minigame-tile-active' : 'minigame-tile-disabled'}`}
+                        disabled={!isActive}
+                        onClick={() => isActive && setMinigamePlaying(true)}
+                      >
+                        <span className="minigame-tile-icon">{tile.icon}</span>
+                        <div className="minigame-tile-text">
+                          <b>{tile.label}</b>
+                          <span>{isActive ? tile.subActive : tile.subDisabled}</span>
+                        </div>
+                        <span className="minigame-tile-tag">{isActive ? 'Cette semaine' : 'Bientôt disponible'}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : activeMinigame === 'jeu-semaine' ? (
                 <WeeklySpecial
                   groupId={selectedGroup.id}
                   groupName={selectedGroup.name}
                   autoApplyAllLeagues={autoApplyAllLeagues}
                   onGoToBonusMatch={() => setScreen('pronostics')}
+                  onExit={() => setScreen('accueil')}
+                />
+              ) : activeMinigame === 'dribble' ? (
+                <DribbleGame
+                  groupId={selectedGroup.id}
+                  groupName={selectedGroup.name}
+                  autoApplyAllLeagues={autoApplyAllLeagues}
+                  onExit={() => setScreen('accueil')}
                 />
               ) : (
-                <>
-                  <div className="minigame-teaser">
-                    <span className="minigame-teaser-icon">🎯</span>
-                    <div className="minigame-teaser-text">
-                      <b>But en or</b>
-                      <span>Nouveau mini-jeu — bientôt ton tour</span>
-                    </div>
-                    <span className="minigame-teaser-tag">Bientôt disponible</span>
-                  </div>
-                  {activeMinigame === 'dribble' ? (
-                    <DribbleGame
-                      groupId={selectedGroup.id}
-                      groupName={selectedGroup.name}
-                      autoApplyAllLeagues={autoApplyAllLeagues}
-                      onExit={() => setScreen('accueil')}
-                    />
-                  ) : (
-                    <JuggleGame
-                      groupId={selectedGroup.id}
-                      groupName={selectedGroup.name}
-                      autoApplyAllLeagues={autoApplyAllLeagues}
-                      onExit={() => setScreen('accueil')}
-                    />
-                  )}
-                </>
+                <JuggleGame
+                  groupId={selectedGroup.id}
+                  groupName={selectedGroup.name}
+                  autoApplyAllLeagues={autoApplyAllLeagues}
+                  onExit={() => setScreen('accueil')}
+                />
               )
             )}
             {screen === 'chat' && (
