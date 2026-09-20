@@ -129,6 +129,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   const [scores, setScores] = useState<ScoreRow[]>([])
   const [lastWeekBest, setLastWeekBest] = useState<BestScore | null>(null)
   const [allTimeBest, setAllTimeBest] = useState<BestScore | null>(null)
+  const [showRules, setShowRules] = useState(false)
   const wizzChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   const loadScores = async () => {
@@ -733,9 +734,14 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
       </div>
 
       <div className={`dribble-app`}>
-        <p className="dribble-intro">
-          Des défenseurs descendent sur le terrain : ◀ / ▶ pour changer de couloir et les éviter. Certains sont plus rapides (orange) ou plongent vers ton couloir au dernier moment. Chaque défenseur évité accélère le suivant, et passé quelques arrêts d'affilée, 2 défenseurs peuvent débouler sur 2 couloirs en même temps — il en reste toujours un de libre. Parfois les 3 couloirs sont bloqués d'un coup : impossible d'esquiver, il faut alors appuyer sur 🌀 au bon moment pour passer en dribble (roulette), qui rapporte plus qu'une esquive classique. Trop tôt, trop tard, ou pas de dribble : contact, la course s'arrête.
-        </p>
+        <button type="button" className="dribble-rules-toggle" onClick={() => setShowRules((v) => !v)}>
+          {showRules ? 'Masquer les règles ▲' : 'Voir les règles ▼'}
+        </button>
+        {showRules && (
+          <p className="dribble-intro">
+            Des défenseurs descendent sur le terrain : ◀ / ▶ pour changer de couloir et les éviter. Certains sont plus rapides (orange) ou plongent vers ton couloir au dernier moment. Chaque défenseur évité accélère le suivant, et passé quelques arrêts d'affilée, 2 défenseurs peuvent débouler sur 2 couloirs en même temps — il en reste toujours un de libre. Parfois les 3 couloirs sont bloqués d'un coup : impossible d'esquiver, il faut alors appuyer sur 🌀 au bon moment pour passer en dribble (roulette), qui rapporte plus qu'une esquive classique. Trop tôt, trop tard, ou pas de dribble : contact, la course s'arrête.
+          </p>
+        )}
 
         <div className="dribble-stat-row">
           <div className="dribble-stat"><b ref={streakElRef as any}>0</b><span>Série en cours</span></div>
