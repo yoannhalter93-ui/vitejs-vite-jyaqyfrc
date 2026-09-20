@@ -519,7 +519,7 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGroup?.id, session?.user?.id, screen])
 
-  const BONUS_CODES = ['echange_equipe', 'retirage_force', 'double_ou_rien', 'bonus_inverse']
+  const BONUS_CODES = ['echange_equipe', 'retirage_force', 'double_ou_rien', 'bonus_inverse', 'revanche_duel']
   const [tokenBalance, setTokenBalance] = useState<number | null>(null)
   const [bonusCatalog, setBonusCatalog] = useState<any[]>([])
   const [showBonusPanel, setShowBonusPanel] = useState(false)
@@ -755,6 +755,16 @@ function App() {
     if (code === 'double_ou_rien') {
       setShowBonusPanel(false)
       setScreen('paris')
+      return
+    }
+    // Revanche s'utilise sur un duel précis (penalty ou quiz), pas sur un
+    // adversaire générique : on ferme juste le panneau et on emmène vers le
+    // hub Jeux, où le vrai bouton "Revanche" apparaît directement sur
+    // l'écran du duel terminé concerné (même principe que double ou rien
+    // ci-dessus, qui renvoie vers Paris libres plutôt que d'agir ici).
+    if (code === 'revanche_duel') {
+      setShowBonusPanel(false)
+      setScreen('jeux')
       return
     }
     openBonusTargetPicker(code)
