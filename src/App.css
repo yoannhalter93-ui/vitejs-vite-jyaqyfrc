@@ -1553,6 +1553,16 @@ body {
   touch-action: none;
 }
 
+/* Jonglage/Dribble en plein ecran (voir isActionMinigame dans App.tsx) :
+   plus d'en-tete ni de barre du bas a compenser, on retire donc le padding
+   qui leur laissait de la place et on garde une hauteur minimale de
+   l'ecran pour que le jeu se sente comme un vrai jeu, pas un bout de page. */
+.home-main-fullscreen {
+  padding: 12px 16px 20px;
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
 .juggle-canvas-wrap {
   position: relative;
   display: inline-block;
