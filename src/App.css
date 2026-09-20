@@ -3907,46 +3907,68 @@ body {
   flex: 1;
 }
 
-/* Vignette d'annonce pour un mini-jeu pas encore actif (voir screen === 'jonglages') */
-.minigame-teaser {
+/* Sélecteur des 3 mini-jeux (jonglage / dribble / But en or) affiché en
+   entrant dans l'écran "jonglages" : seule la vignette du jeu actif cette
+   semaine est cliquable, les 2 autres restent grisées (voir screen === 'jonglages') */
+.minigame-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.minigame-tile {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #E8E0CC;
-  border: 1px dashed rgba(27, 27, 31, 0.25);
+  width: 100%;
+  box-sizing: border-box;
   border-radius: 12px;
   padding: 12px 14px;
-  margin-bottom: 14px;
-  opacity: 0.85;
+  text-align: left;
 }
 
-.minigame-teaser-icon {
+.minigame-tile-disabled {
+  background: #E8E0CC;
+  border: 1px dashed rgba(27, 27, 31, 0.25);
+  opacity: 0.85;
+  cursor: default;
+}
+
+.minigame-tile-active {
+  background: #E8E0CC;
+  border: 1px solid rgba(212, 162, 44, 0.6);
+  box-shadow: 0 2px 8px rgba(212, 162, 44, 0.18);
+  cursor: pointer;
+}
+
+.minigame-tile-icon {
   font-size: 24px;
+}
+
+.minigame-tile-disabled .minigame-tile-icon {
   filter: grayscale(1);
 }
 
-.minigame-teaser-text {
+.minigame-tile-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.minigame-teaser-text b {
+.minigame-tile-text b {
   color: #1B1B1F;
   font-size: 14px;
 }
 
-.minigame-teaser-text span {
+.minigame-tile-text span {
   color: rgba(27, 27, 31, 0.55);
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.minigame-teaser-tag {
+.minigame-tile-tag {
   margin-left: auto;
-  background: rgba(212, 162, 44, 0.2);
-  color: #8a6410;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -3954,6 +3976,16 @@ body {
   padding: 4px 8px;
   border-radius: 20px;
   white-space: nowrap;
+}
+
+.minigame-tile-disabled .minigame-tile-tag {
+  background: rgba(212, 162, 44, 0.2);
+  color: #8a6410;
+}
+
+.minigame-tile-active .minigame-tile-tag {
+  background: #D4A22C;
+  color: #1B1B1F;
 }
 
 /* ===== Jeu de Dribble (mini-jeu hebdomadaire) ===== */
