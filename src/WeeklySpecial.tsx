@@ -57,6 +57,7 @@ interface BonusMatch {
 interface Props {
   groupId: string
   groupName: string
+  autoApplyAllLeagues: boolean
   onGoToBonusMatch: () => void
 }
 
@@ -178,7 +179,7 @@ function scoreForPrediction(
   return pts
 }
 
-export default function WeeklySpecial({ groupId, groupName, onGoToBonusMatch }: Props) {
+export default function WeeklySpecial({ groupId, groupName, autoApplyAllLeagues, onGoToBonusMatch }: Props) {
   const { user } = useAuth()
   const [matches, setMatches] = useState<SpecialMatch[]>([])
   const [predictions, setPredictions] = useState<Record<string, PredictionRow>>({})
@@ -271,12 +272,23 @@ export default function WeeklySpecial({ groupId, groupName, onGoToBonusMatch }: 
   const submitPrediction = async (matchId: string, team: 'domicile' | 'exterieur' | 'aucun_but', minute: number | null) => {
     setSavingId(matchId)
     setError(null)
-    const { error: rpcError } = await supabase.rpc('submit_weekly_special_prediction', {
-      p_match_id: matchId,
-      p_group_id: groupId,
-      p_pred_team: team,
-      p_pred_minute: minute,
-    })
+    // Réglage "Pronostics dans toutes mes ligues" actif : la RPC
+    // submit_weekly_special_prediction_all_leagues applique le même
+    // pronostic à toutes les ligues où je suis membre (le match "But en or"
+    // est global, partagé par toutes les ligues la même semaine). Sinon,
+    // comportement inchangé : RPC mono-ligue.
+    const { error: rpcError } = autoApplyAllLeagues
+      ? (await supabase.rpc('submit_weekly_special_prediction_all_leagues', {
+          p_match_id: matchId,
+          p_pred_team: team,
+          p_pred_minute: minute,
+        }))
+      : (await supabase.rpc('submit_weekly_special_prediction', {
+          p_match_id: matchId,
+          p_group_id: groupId,
+          p_pred_team: team,
+          p_pred_minute: minute,
+        }))
     if (rpcError) {
       setError(rpcError.message)
     } else {
