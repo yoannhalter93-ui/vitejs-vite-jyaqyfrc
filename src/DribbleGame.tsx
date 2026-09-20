@@ -727,7 +727,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   }
 
   return (
-    <div className="predictions-screen" ref={wrapperRef}>
+    <div className="predictions-screen dribble-page" ref={wrapperRef}>
       <div className="predictions-header">
         <button className="predictions-back" onClick={onExit}>← Accueil</button>
         <h2>Dribble — {groupName}</h2>
