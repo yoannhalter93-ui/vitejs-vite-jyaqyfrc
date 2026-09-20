@@ -33,6 +33,7 @@ interface RevealRow {
 interface Props {
   groupId: string
   groupName: string
+  autoApplyAllLeagues: boolean
   onBack: () => void
 }
 
@@ -54,7 +55,7 @@ function groupByDay(matches: MatchRow[]): { key: string; label: string; matches:
   return groups
 }
 
-export default function Predictions({ groupId, groupName, onBack }: Props) {
+export default function Predictions({ groupId, groupName, autoApplyAllLeagues, onBack }: Props) {
   const { user } = useAuth()
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
   const [matches, setMatches] = useState<MatchRow[]>([])
@@ -63,6 +64,10 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
   // entre les copies par groupe d'un même match, voir seed_matches_for_new_period)
   const [bonusFixtureId, setBonusFixtureId] = useState<number | null>(null)
   const [predictions, setPredictions] = useState<Record<string, PredictionRow>>({})
+  // Nombre de ligues où le dernier pronostic a été appliqué — uniquement
+  // rempli/affiché quand le réglage "Pronostics dans toutes mes ligues" est
+  // actif (voir handleSave et Paramètres dans App.tsx).
+  const [appliedCounts, setAppliedCounts] = useState<Record<string, number>>({})
   const [drafts, setDrafts] = useState<Record<string, { home: string; away: string }>>({})
   const [standings, setStandings] = useState<Record<number, number>>({})
   const [loading, setLoading] = useState(true)
@@ -225,6 +230,42 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
     setSavingId(matchId)
     setError(null)
 
+    // Réglage "Pronostics dans toutes mes ligues" actif : on passe par la RPC
+    // submit_prediction_all_leagues, qui retrouve — côté base — toutes les
+    // copies du même match (même api_fixture_id) dans les autres ligues où je
+    // suis membre et où le match est encore ouvert, et y applique le même
+    // score. Sinon, comportement inchangé : upsert direct sur ce seul match.
+    if (autoApplyAllLeagues) {
+      const match = matches.find((mm) => mm.id === matchId)
+      if (!match) {
+        setSavingId(null)
+        return
+      }
+      const { data: count, error: rpcError } = await supabase.rpc('submit_prediction_all_leagues', {
+        p_api_fixture_id: match.api_fixture_id,
+        p_home_score: Number(draft.home),
+        p_away_score: Number(draft.away),
+        p_scorer_id: null,
+      })
+
+      if (rpcError) {
+        setError(rpcError.message)
+      } else {
+        setPredictions((prev) => ({
+          ...prev,
+          [matchId]: {
+            id: prev[matchId]?.id ?? matchId,
+            match_id: matchId,
+            pred_home_score: Number(draft.home),
+            pred_away_score: Number(draft.away),
+          },
+        }))
+        setAppliedCounts((prev) => ({ ...prev, [matchId]: typeof count === 'number' ? count : 1 }))
+      }
+      setSavingId(null)
+      return
+    }
+
     const { data, error: saveError } = await supabase
       .from('match_predictions')
       .upsert(
@@ -274,6 +315,9 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
       </div>
 
       {periodLabel && <p className="predictions-period">Période : {periodLabel}</p>}
+      {autoApplyAllLeagues && (
+        <p className="predictions-period">🔁 Réglage actif : tes pronostics sont appliqués à toutes tes ligues</p>
+      )}
 
       {error && <p className="groups-error">{error}</p>}
       {revealError && <p className="groups-error">{revealError}</p>}
@@ -406,7 +450,9 @@ export default function Predictions({ groupId, groupName, onBack }: Props) {
                             {savingId === m.id
                               ? 'Enregistrement...'
                               : hasPrediction
-                              ? '✓ Pronostic enregistré'
+                              ? autoApplyAllLeagues && (appliedCounts[m.id] ?? 0) > 1
+                                ? `✓ Pronostic enregistré (appliqué à ${appliedCounts[m.id]} ligues)`
+                                : '✓ Pronostic enregistré'
                               : 'Entre un score, il est enregistré automatiquement'}
                           </span>
                         </div>
