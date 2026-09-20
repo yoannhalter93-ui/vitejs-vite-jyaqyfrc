@@ -889,8 +889,17 @@ function App() {
     return <Login />;
   }
 
+  // Jonglage et dribble doivent se sentir comme un vrai jeu en plein ecran
+  // (pas juste un bout de contenu au milieu de l'appli) : on masque
+  // l'en-tete et la barre du bas le temps d'etre sur cet ecran, et on
+  // retire le padding qui leur laissait de la place. "But en or" (meme
+  // onglet "Mini-jeu") reste affiche normalement : c'est un jeu a
+  // pronostics etale sur la semaine, pas une partie en direct.
+  const isActionMinigame = screen === 'jonglages' && activeMinigame !== 'jeu-semaine'
+
   return (
     <div className="home-screen">
+      {!isActionMinigame && (
       <header className="home-header">
         <button type="button" className="brand-block brand-block-btn" onClick={() => setScreen('accueil')}>
           <span className="brand-logo">Entre Nous</span>
@@ -930,6 +939,7 @@ function App() {
           </button>
         </div>
       </header>
+      )}
       {!pushTipDismissed && pushStatus === 'ios-needs-install' && (
         <div className="push-tip">
           <span>📲 Pour recevoir les notifications sur iPhone : appuie sur Partager, puis « Sur l'écran d'accueil », et rouvre l'appli depuis cette icône.</span>
@@ -1108,7 +1118,7 @@ function App() {
           </div>
         </div>
       )}
-      <main className="home-main">
+      <main className={isActionMinigame ? 'home-main home-main-fullscreen' : 'home-main'}>
         {screen === 'parametres' ? (
           <div className="parametres-screen">
             <div className="predictions-header">
@@ -1398,12 +1408,14 @@ function App() {
                       groupId={selectedGroup.id}
                       groupName={selectedGroup.name}
                       autoApplyAllLeagues={autoApplyAllLeagues}
+                      onExit={() => setScreen('accueil')}
                     />
                   ) : (
                     <JuggleGame
                       groupId={selectedGroup.id}
                       groupName={selectedGroup.name}
                       autoApplyAllLeagues={autoApplyAllLeagues}
+                      onExit={() => setScreen('accueil')}
                     />
                   )}
                 </>
@@ -1432,7 +1444,7 @@ function App() {
           </>
         )}
       </main>
-      {selectedGroup && screen !== 'team-reveal' && (
+      {selectedGroup && screen !== 'team-reveal' && !isActionMinigame && (
         <BottomNav
           tabs={BOTTOM_TABS.map((t) =>
             t.key === 'paris' ? { ...t, badge: openBetsToVoteCount } :
