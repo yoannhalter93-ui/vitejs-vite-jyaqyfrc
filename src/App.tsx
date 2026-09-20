@@ -222,6 +222,8 @@ function App() {
   const [myPseudo, setMyPseudo] = useState<string | null>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null)
+  const [autoApplyAllLeagues, setAutoApplyAllLeagues] = useState(false)
+  const [autoApplySaving, setAutoApplySaving] = useState(false)
   const [editingPseudo, setEditingPseudo] = useState(false)
   const [pseudoInput, setPseudoInput] = useState('')
   const [pseudoSaving, setPseudoSaving] = useState(false)
@@ -300,13 +302,14 @@ function App() {
     if (!session?.user?.id) return
     supabase
       .from('profiles')
-      .select('pseudo, avatar_url, avatar_emoji')
+      .select('pseudo, avatar_url, avatar_emoji, auto_apply_all_leagues')
       .eq('id', session.user.id)
       .maybeSingle()
       .then(({ data }) => {
         setMyPseudo(data?.pseudo ?? null)
         setAvatarUrl(data?.avatar_url ?? null)
         setAvatarEmoji(data?.avatar_emoji ?? null)
+        setAutoApplyAllLeagues(data?.auto_apply_all_leagues ?? false)
       })
   }, [session?.user?.id])
 
@@ -335,6 +338,21 @@ function App() {
     }
     setMyPseudo(trimmed)
     setEditingPseudo(false)
+  }
+
+  // Pronostics appliqués automatiquement à toutes les ligues : simple mise à
+  // jour optimiste de la colonne profiles.auto_apply_all_leagues (policy RLS
+  // "modifier son profil" déjà en place, comme pour le pseudo). Le fan-out
+  // réel vers les autres ligues se fait côté RPC submit_prediction_all_leagues
+  // (voir Predictions.tsx), pas ici.
+  const handleToggleAutoApplyAllLeagues = async () => {
+    if (!session?.user?.id || autoApplySaving) return
+    const next = !autoApplyAllLeagues
+    setAutoApplySaving(true)
+    setAutoApplyAllLeagues(next)
+    const { error } = await supabase.from('profiles').update({ auto_apply_all_leagues: next }).eq('id', session.user.id)
+    setAutoApplySaving(false)
+    if (error) setAutoApplyAllLeagues(!next)
   }
 
   // Changement de mot de passe : Supabase permet de mettre à jour le mot de
@@ -1164,6 +1182,19 @@ function App() {
                 <span className="parametres-row-label">Compétition</span>
                 <span className="parametres-row-value">Ligue 1</span>
               </div>
+              <div className="parametres-row parametres-row-static">
+                <span className="parametres-row-icon">🔁</span>
+                <span className="parametres-row-label">Pronostics dans toutes mes ligues</span>
+                <button
+                  className={"parametres-toggle" + (autoApplyAllLeagues ? " parametres-toggle-on" : "")}
+                  disabled={autoApplySaving}
+                  onClick={handleToggleAutoApplyAllLeagues}
+                  aria-label={autoApplyAllLeagues ? 'Désactiver' : 'Activer'}
+                  title="Quand tu pronostiques un match, applique automatiquement le même score dans toutes tes autres ligues où ce match existe encore"
+                >
+                  <span className="parametres-toggle-knob" />
+                </button>
+              </div>
               <button className="parametres-row" onClick={() => setComingSoon('Thème')}>
                 <span className="parametres-row-icon">🌙</span>
                 <span className="parametres-row-label">Thème</span>
@@ -1262,6 +1293,7 @@ function App() {
               <Predictions
                 groupId={selectedGroup.id}
                 groupName={selectedGroup.name}
+                autoApplyAllLeagues={autoApplyAllLeagues}
                 onBack={() => setScreen('accueil')}
               />
             )}
