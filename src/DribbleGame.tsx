@@ -130,6 +130,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   const [lastWeekBest, setLastWeekBest] = useState<BestScore | null>(null)
   const [allTimeBest, setAllTimeBest] = useState<BestScore | null>(null)
   const [showRules, setShowRules] = useState(false)
+  const [showBoard, setShowBoard] = useState(false)
   const wizzChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   const loadScores = async () => {
@@ -784,7 +785,13 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         </div>
       </div>
 
-      {(allTimeBest || lastWeekBest) && (
+      {(allTimeBest || lastWeekBest || scores.length > 0) && (
+        <button type="button" className="dribble-rules-toggle" onClick={() => setShowBoard((v) => !v)}>
+          {showBoard ? 'Masquer le classement ▲' : '🏆 Voir le classement ▼'}
+        </button>
+      )}
+
+      {showBoard && (allTimeBest || lastWeekBest) && (
         <div className="juggle-palmares">
           <p className="predictions-period">🏆 Palmarès</p>
           {allTimeBest && (
@@ -796,7 +803,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         </div>
       )}
 
-      {scores.length > 0 && (
+      {showBoard && scores.length > 0 && (
         <div className="roulette-teammates">
           <p className="predictions-period">Meilleures séries de la semaine :</p>
           <ul className="matches-list">
