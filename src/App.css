@@ -6,21 +6,21 @@
   box-sizing: border-box;
 }
 
-/* Empêche l'effet de rebond élastique quand on scroll au-delà du haut/bas
-   de la page (Safari iOS notamment) — sur html ET body, pour que ce soit
-   pris en compte quel que soit l'élément qui porte le scroll réel selon le
-   navigateur. Même rendu que le viewport "user-scalable=no" (index.html) :
-   ça ne dépend pas d'être publié sur le Play Store, ça s'applique déjà à
-   la version web actuelle comme à la future TWA.
-   touch-action: pan-y autorise uniquement le défilement vertical au doigt
-   et bloque le pincer-zoomer ET le balayage horizontal au niveau du geste
-   lui-même — nécessaire car Chrome/Samsung Internet ignorent depuis
-   longtemps le "user-scalable=no" du viewport (accessibilité), donc le
-   meta tag seul ne suffit pas sur ces navigateurs. overflow-x:hidden en
-   filet de sécurité contre tout débordement horizontal résiduel. */
+/* Bug critique constaté le 20/09 par un vrai testeur (Jérémy, groupe beta
+   test) : plus aucun défilement vertical possible sur AUCUN écran de
+   l'appli (les boutons répondaient encore, seul le swipe/scroll était
+   mort) — régression de la tentative anti-pincer-zoomer ci-dessous.
+   `touch-action: pan-y` + `overscroll-behavior: none` sur html ET body
+   sont censés, selon la spec, autoriser le défilement vertical tout en
+   bloquant juste le pincer-zoomer et le rebond — mais au moins un
+   navigateur Android réel les a manifestement traités comme un blocage
+   total du scroll. Retiré : on ne garde que overflow-x:hidden (protection
+   de mise en page, sans rapport avec les gestes tactiles) + le blocage JS
+   du pincer-zoomer dans main.tsx (touchmove à 2 doigts + gesturestart),
+   déjà noté comme plus robuste que le CSS seul et surtout ciblé
+   précisément sur le geste à 2 doigts, donc sans risque de toucher au
+   scroll normal à 1 doigt. */
 html {
-  overscroll-behavior: none;
-  touch-action: pan-y;
   overflow-x: hidden;
 }
 
@@ -31,9 +31,7 @@ body {
   background-image: repeating-linear-gradient(0deg, #0A2A21, #0A2A21 2px, #0F3B2E 2px, #0F3B2E 40px);
   background-attachment: fixed;
   color: #F4EFE2;
-  touch-action: pan-y;
   overflow-x: hidden;
-  overscroll-behavior: none;
 }
 
 #root {
