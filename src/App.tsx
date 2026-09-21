@@ -266,6 +266,14 @@ function App() {
   // choisi est lancé en plein écran. Remis à false dès qu'on quitte l'écran,
   // pour retomber sur le sélecteur à chaque nouvelle visite.
   const [minigamePlaying, setMinigamePlaying] = useState(false)
+  // Résultat de la dernière semaine jouée pour chaque mini-jeu (jonglage /
+  // dribble / but en or) : affiché directement sur la vignette grisée du
+  // sélecteur, pour que "qui a gagné avec quel score" reste consultable même
+  // une fois la semaine passée (la vignette n'étant alors plus cliquable, on
+  // ne peut plus rentrer dans l'écran du jeu pour y voir son Palmarès).
+  const [lastMinigameResults, setLastMinigameResults] = useState<
+    Record<string, { weekStart: string; winners: string[]; score: number } | null>
+  >({})
 
   useEffect(() => {
     const checkActiveMinigame = () => {
@@ -495,6 +503,23 @@ function App() {
   useEffect(() => {
     if (screen !== 'jonglages') setMinigamePlaying(false)
   }, [screen])
+
+  // Résultats de la dernière semaine jouée pour chaque mini-jeu, chargés en
+  // entrant sur l'écran du sélecteur (voir lastMinigameResults ci-dessus).
+  useEffect(() => {
+    if (screen !== 'jonglages' || !selectedGroup?.id) return
+    const groupId = selectedGroup.id
+    ;(['jonglage', 'dribble', 'jeu-semaine'] as const).forEach((key) => {
+      supabase.rpc('get_last_minigame_result', { p_group_id: groupId, p_game_key: key }).then(({ data, error }: any) => {
+        if (error) return
+        const row = Array.isArray(data) ? data[0] : data
+        setLastMinigameResults((prev) => ({
+          ...prev,
+          [key]: row ? { weekStart: row.week_start, winners: row.winners ?? [], score: row.score } : null,
+        }))
+      })
+    })
+  }, [screen, selectedGroup?.id])
 
   // nombre de paris libres ouverts sur lesquels je n'ai pas encore voté,
   // pour afficher un petit badge sur l'onglet "Paris libres" (même principe
@@ -1423,6 +1448,7 @@ function App() {
                 <div className="minigame-tiles">
                   {MINIGAME_TILES.map((tile) => {
                     const isActive = activeMinigame === tile.key
+                    const lastResult = lastMinigameResults[tile.key]
                     return (
                       <button
                         key={tile.key}
@@ -1434,7 +1460,13 @@ function App() {
                         <span className="minigame-tile-icon">{tile.icon}</span>
                         <div className="minigame-tile-text">
                           <b>{tile.label}</b>
-                          <span>{isActive ? tile.subActive : tile.subDisabled}</span>
+                          <span>
+                            {isActive
+                              ? tile.subActive
+                              : lastResult
+                              ? `Semaine dernière : ${lastResult.winners.join(', ')} — ${lastResult.score}`
+                              : tile.subDisabled}
+                          </span>
                         </div>
                         <span className="minigame-tile-tag">{isActive ? 'Cette semaine' : 'Bientôt disponible'}</span>
                       </button>
