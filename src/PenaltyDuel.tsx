@@ -111,6 +111,8 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
   const [animResult, setAnimResult] = useState<{ scored: boolean; points: number; shooterZone: string } | null>(null)
   const [finishedSoundPlayed, setFinishedSoundPlayed] = useState<string | null>(null)
   const [revancheBusy, setRevancheBusy] = useState(false)
+  const [tab, setTab] = useState<'current' | 'history'>('current')
+  const [playFlags, setPlayFlags] = useState<{ duel_id: string; shooter_id: string; keeper_id: string; shooter_zone: string | null; keeper_zone: string | null }[]>([])
 
   const { playGoal, playPanenka, playSave, playKick, playVictory, playDefeat } = useSynth()
 
@@ -142,6 +144,22 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
       .order('created_at', { ascending: true })
     setAllDuels(all ?? [])
 
+    // qui a déjà tiré/gardé (au moins un tir enregistré) sur les duels en
+    // cours, pour afficher "X a joué, à toi de jouer" plutôt qu'un vague
+    // "En cours" qui ne dit pas où en est réellement le duel
+    const inProgressIds = [...new Set([...(d ?? []), ...(all ?? [])]
+      .filter((x) => x.phase === 'in_progress')
+      .map((x) => x.id))]
+    if (inProgressIds.length > 0) {
+      const { data: flags } = await supabase
+        .from('penalty_duel_attempts')
+        .select('duel_id, shooter_id, keeper_id, shooter_zone, keeper_zone')
+        .in('duel_id', inProgressIds)
+      setPlayFlags(flags ?? [])
+    } else {
+      setPlayFlags([])
+    }
+
     setLoading(false)
   }
 
@@ -149,6 +167,42 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
     loadList()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, user])
+
+  const hasPlayed = (duelId: string, profileId: string) =>
+    playFlags.some((a) => a.duel_id === duelId && (
+      (a.shooter_id === profileId && a.shooter_zone !== null) ||
+      (a.keeper_id === profileId && a.keeper_zone !== null)
+    ))
+
+  // Statut lisible d'un duel "en cours" pour la liste "Mes duels" : dit qui
+  // a déjà tiré, plutôt qu'un simple "En cours" qui ne distingue pas
+  // "personne n'a joué" de "l'adversaire attend que je joue".
+  const myDuelStatusLabel = (d: Duel) => {
+    if (d.phase === 'waiting_opponent') return "⏳ En attente d'un adversaire"
+    const oppId = d.player_a_id === user?.id ? d.player_b_id : d.player_a_id
+    const oppName = oppId ? (pseudos[oppId] ?? '???') : '???'
+    const meP = user ? hasPlayed(d.id, user.id) : false
+    const oppP = oppId ? hasPlayed(d.id, oppId) : false
+    if (meP && oppP) return `En cours (${d.score_a} - ${d.score_b})`
+    if (meP) return `Tu as joué, en attente de ${oppName}`
+    if (oppP) return `${oppName} a joué, à toi de jouer !`
+    return "Personne n'a encore tiré"
+  }
+
+  // Même idée pour "Tous les duels de la semaine", où les 2 joueurs sont
+  // nommément affichés (pas de notion de "moi").
+  const weekDuelStatusLabel = (d: Duel) => {
+    if (d.phase === 'done') return `${d.score_a} - ${d.score_b}`
+    if (d.phase === 'waiting_opponent') return "En attente d'un adversaire"
+    const aName = pseudos[d.player_a_id] ?? '???'
+    const bName = d.player_b_id ? (pseudos[d.player_b_id] ?? '???') : 'en attente…'
+    const aP = hasPlayed(d.id, d.player_a_id)
+    const bP = d.player_b_id ? hasPlayed(d.id, d.player_b_id) : false
+    if (aP && bP) return `En cours (${d.score_a} - ${d.score_b})`
+    if (aP) return `${aName} a joué, en attente de ${bName}`
+    if (bP) return `${bName} a joué, en attente de ${aName}`
+    return "Personne n'a encore tiré"
+  }
 
   const openDuel = async (id: string) => {
     setSelected(id)
@@ -426,38 +480,65 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
       </p>
       {error && <p className="groups-error">{error}</p>}
 
-      {loading ? (
-        <p className="groups-loading">Chargement...</p>
-      ) : duels.length === 0 ? (
-        <p className="groups-empty">Ton premier duel de penaltys arrive au prochain tirage au sort hebdomadaire.</p>
-      ) : (
-        <ul className="matches-list">
-          {duels.map((d) => {
-            const opponentId = d.player_a_id === user?.id ? d.player_b_id : d.player_a_id
-            return (
-              <li className="match-card groups-card-clickable" key={d.id} onClick={() => openDuel(d.id)}>
-                {d.phase === 'waiting_opponent' ? (
-                  <>
-                    <div className="match-teams"><span>⏳ En attente d'un adversaire</span></div>
-                    <div className="match-kickoff">Duel créé dès qu'un nouveau joueur rejoint</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="match-teams">
-                      <span>vs {opponentId ? pseudos[opponentId] ?? '???' : '???'}</span>
-                    </div>
-                    {d.phase === 'done' ? (
-                      <div className="match-result">Terminé : {d.score_a} - {d.score_b}</div>
-                    ) : (
-                      <div className="match-kickoff">En cours</div>
-                    )}
-                  </>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      )}
+      {(() => {
+        const currentDuels = duels.filter((d) => d.phase !== 'done')
+        const historyDuels = duels.filter((d) => d.phase === 'done')
+        const shown = tab === 'current' ? currentDuels : historyDuels
+        return (
+          <>
+            {duels.length > 0 && (
+              <div className="group-nav-tabs bet-tabs">
+                <button className={"group-nav-tab" + (tab === 'current' ? ' group-nav-tab-active' : '')} onClick={() => setTab('current')}>
+                  En cours{currentDuels.length > 0 ? ` (${currentDuels.length})` : ''}
+                </button>
+                <button className={"group-nav-tab" + (tab === 'history' ? ' group-nav-tab-active' : '')} onClick={() => setTab('history')}>
+                  Historique
+                </button>
+              </div>
+            )}
+
+            {loading ? (
+              <p className="groups-loading">Chargement...</p>
+            ) : duels.length === 0 ? (
+              <p className="groups-empty">Ton premier duel de penaltys arrive au prochain tirage au sort hebdomadaire.</p>
+            ) : shown.length === 0 ? (
+              <p className="groups-empty">{tab === 'current' ? 'Aucun duel en cours.' : "Aucun duel terminé pour l'instant."}</p>
+            ) : (
+              <ul className="matches-list">
+                {shown.map((d) => {
+                  const opponentId = d.player_a_id === user?.id ? d.player_b_id : d.player_a_id
+                  return (
+                    <li className="match-card groups-card-clickable" key={d.id} onClick={() => openDuel(d.id)}>
+                      {d.phase === 'waiting_opponent' ? (
+                        <>
+                          <div className="match-teams"><span>⏳ En attente d'un adversaire</span></div>
+                          <div className="match-kickoff">Duel créé dès qu'un nouveau joueur rejoint</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="match-teams">
+                            <span>vs {opponentId ? pseudos[opponentId] ?? '???' : '???'}</span>
+                          </div>
+                          {d.phase === 'done' ? (
+                            <div className="match-result">
+                              Terminé : {d.score_a} - {d.score_b}
+                              {(d.finished_at ?? d.created_at) && (
+                                <span className="match-kickoff"> · {new Date(d.finished_at ?? d.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="match-kickoff">{myDuelStatusLabel(d)}</div>
+                          )}
+                        </>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </>
+        )
+      })()}
 
       {allDuels.length > 0 && (
         <>
@@ -470,10 +551,8 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
                 </div>
                 {d.phase === 'done' ? (
                   <div className="match-result">{d.score_a} - {d.score_b}</div>
-                ) : d.phase === 'waiting_opponent' ? (
-                  <div className="match-kickoff">En attente d'un adversaire</div>
                 ) : (
-                  <div className="match-kickoff">En cours ({d.score_a} - {d.score_b})</div>
+                  <div className="match-kickoff">{weekDuelStatusLabel(d)}</div>
                 )}
               </li>
             ))}
