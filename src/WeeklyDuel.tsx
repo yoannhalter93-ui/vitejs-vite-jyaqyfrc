@@ -9,6 +9,7 @@ interface Duel {
   status: string
   score_a: number | null
   score_b: number | null
+  week_start: string
 }
 
 interface CurrentQuestion {
@@ -47,6 +48,11 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
   const [review, setReview] = useState<ReviewRow[] | null>(null)
   const [reviewLoading, setReviewLoading] = useState(false)
   const [revancheBusy, setRevancheBusy] = useState(false)
+  // le week_start le plus récent pour ce groupe : sert à savoir si le duel
+  // actuellement ouvert est bien celui de la semaine en cours, seul cas où
+  // le bonus Revanche est proposé (même convention que côté serveur dans
+  // use_bonus_revanche_quiz)
+  const [latestWeekStart, setLatestWeekStart] = useState<string | null>(null)
 
   const loadList = async () => {
     if (!user) return
@@ -61,7 +67,7 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
     }
 
     const { data: d, error: dErr } = await supabase
-      .from('weekly_duels').select('id, player_a_id, player_b_id, status, score_a, score_b')
+      .from('weekly_duels').select('id, player_a_id, player_b_id, status, score_a, score_b, week_start')
       .eq('group_id', groupId).or(`player_a_id.eq.${user.id},player_b_id.eq.${user.id}`)
       .order('created_at', { ascending: false })
     if (dErr) setError(dErr.message)
@@ -72,9 +78,10 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
     const { data: latest } = await supabase
       .from('weekly_duels').select('week_start')
       .eq('group_id', groupId).order('week_start', { ascending: false }).limit(1).maybeSingle()
+    setLatestWeekStart(latest?.week_start ?? null)
     if (latest?.week_start) {
       const { data: all } = await supabase
-        .from('weekly_duels').select('id, player_a_id, player_b_id, status, score_a, score_b')
+        .from('weekly_duels').select('id, player_a_id, player_b_id, status, score_a, score_b, week_start')
         .eq('group_id', groupId).eq('week_start', latest.week_start)
         .order('created_at', { ascending: true })
       setAllDuels(all ?? [])
@@ -111,7 +118,7 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
 
   const refresh = async (id: string) => {
     const { data: d } = await supabase
-      .from('weekly_duels').select('id, player_a_id, player_b_id, status, score_a, score_b')
+      .from('weekly_duels').select('id, player_a_id, player_b_id, status, score_a, score_b, week_start')
       .eq('id', id).maybeSingle()
     setDuel((d as Duel) ?? null)
 
@@ -137,7 +144,8 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
   // Bonus "Revanche" (5 jetons, 1x/semaine/joueur) : remet ce duel entier à
   // zéro pour les 2 joueurs avec de nouvelles questions, comme s'il n'avait
   // jamais eu lieu — n'apparaît que si je n'ai pas gagné (perdu ou match
-  // nul), même condition que côté serveur dans use_bonus_revanche_quiz.
+  // nul) ET que le duel ouvert est celui de la semaine en cours (pas un
+  // ancien duel), mêmes conditions que côté serveur dans use_bonus_revanche_quiz.
   const useRevanche = async () => {
     if (!selected || revancheBusy) return
     setRevancheBusy(true)
@@ -204,7 +212,7 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
             <p className="match-result">Score final : {duel.score_a} - {duel.score_b}
               {(duel.score_a ?? 0) === (duel.score_b ?? 0) ? ' — Match nul.' : ((duel.player_a_id === user?.id) === ((duel.score_a ?? 0) > (duel.score_b ?? 0)) ? ' — Tu as gagné !' : ' — Tu as perdu.')}</p>
 
-            {!((duel.score_a ?? 0) !== (duel.score_b ?? 0) && (duel.player_a_id === user?.id) === ((duel.score_a ?? 0) > (duel.score_b ?? 0))) && (
+            {!((duel.score_a ?? 0) !== (duel.score_b ?? 0) && (duel.player_a_id === user?.id) === ((duel.score_a ?? 0) > (duel.score_b ?? 0))) && duel.week_start === latestWeekStart && (
               <button className="groups-action-btn groups-action-btn-secondary" disabled={revancheBusy} onClick={useRevanche}>
                 {revancheBusy ? 'Revanche...' : '🔁 Revanche (5 🪙) — rejouer ce duel'}
               </button>
