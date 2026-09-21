@@ -137,7 +137,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
     // tous les duels du groupe pour la semaine en cours (qui affronte qui,
     // et où ils en sont), pas seulement les miens
     const { data: all } = await supabase
-      .from('penalty_duels').select('id, player_a_id, player_b_id, phase, score_a, score_b, winner_id, finished_at')
+      .from('penalty_duels').select('id, player_a_id, player_b_id, phase, score_a, score_b, winner_id, finished_at, created_at')
       .eq('group_id', groupId).gte('created_at', mondayUtcISO())
       .order('created_at', { ascending: true })
     setAllDuels(all ?? [])
