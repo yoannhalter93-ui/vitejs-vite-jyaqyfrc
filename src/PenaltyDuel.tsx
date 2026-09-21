@@ -61,6 +61,7 @@ interface Duel {
   score_b: number
   winner_id: string | null
   finished_at: string | null
+  created_at: string
 }
 
 interface Attempt {
@@ -127,7 +128,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
     }
 
     const { data: d, error: dErr } = await supabase
-      .from('penalty_duels').select('id, player_a_id, player_b_id, phase, score_a, score_b, winner_id, finished_at')
+      .from('penalty_duels').select('id, player_a_id, player_b_id, phase, score_a, score_b, winner_id, finished_at, created_at')
       .eq('group_id', groupId).or(`player_a_id.eq.${user.id},player_b_id.eq.${user.id}`)
       .order('created_at', { ascending: false })
     if (dErr) setError(dErr.message)
@@ -275,8 +276,9 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
 
   // Bonus "Revanche" (5 jetons, 1x/semaine/joueur) : remet ce duel entier à
   // zéro (les 2 moitiés) pour les 2 joueurs, comme s'il n'avait jamais eu
-  // lieu — n'apparaît que si je n'ai pas gagné (perdu ou match nul), même
-  // condition que côté serveur dans use_bonus_revanche_penalty.
+  // lieu — n'apparaît que si je n'ai pas gagné (perdu ou match nul) ET que
+  // le duel a été créé cette semaine (pas un ancien duel), mêmes conditions
+  // que côté serveur dans use_bonus_revanche_penalty.
   const useRevanche = async () => {
     if (!selected || revancheBusy) return
     setRevancheBusy(true)
@@ -338,7 +340,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
           <div className="roulette-result">
             <p className="match-result">Score final : {duel.score_a} - {duel.score_b}
               {duel.winner_id ? (duel.winner_id === user?.id ? ' — Tu as gagné !' : ' — Tu as perdu.') : ' — Match nul.'}</p>
-            {duel.winner_id !== user?.id && (
+            {duel.winner_id !== user?.id && new Date(duel.created_at) >= new Date(mondayUtcISO()) && (
               <button className="groups-action-btn groups-action-btn-secondary" disabled={revancheBusy} onClick={useRevanche}>
                 {revancheBusy ? 'Revanche...' : '🔁 Revanche (5 🪙) — rejouer ce duel'}
               </button>
