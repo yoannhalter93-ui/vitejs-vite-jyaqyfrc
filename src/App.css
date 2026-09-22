@@ -32,6 +32,25 @@ body {
   background-attachment: fixed;
   color: #F4EFE2;
   overflow-x: hidden;
+  /* Désactive la sélection de texte au appui-long (menu "Copier / Traduire /
+     Tout sélectionner" sur Android, callout iOS) sur toute l'appli — cf.
+     demande du 22/09. Volontairement UNIQUEMENT user-select/touch-callout
+     (aucun rapport avec touch-action/overscroll-behavior, responsables du
+     bug critique de scroll cassé du 20/09 ci-dessus) : ça ne touche pas au
+     défilement. Les champs de saisie (input/textarea/contenteditable) sont
+     réactivés juste après pour ne pas gêner la frappe/le copier-coller dans
+     les formulaires. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 #root {
