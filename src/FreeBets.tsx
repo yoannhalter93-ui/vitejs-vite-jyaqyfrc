@@ -71,6 +71,15 @@ interface Voter {
   avatar_emoji: string | null
 }
 
+// Un des groupes (ligues) du joueur, pour le sélecteur "publier dans" —
+// permet à quelqu'un qui a plusieurs groupes de proposer le même pari
+// simultanément dans plusieurs d'entre eux plutôt que de le recréer à la
+// main dans chacun.
+interface GroupOption {
+  id: string
+  name: string
+}
+
 interface Props {
   groupId: string
   groupName: string
@@ -94,7 +103,6 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
   const { user } = useAuth()
   const [isAdmin, setIsAdmin] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
-  const [periodId, setPeriodId] = useState<string | null>(null)
   const [bets, setBets] = useState<Bet[]>([])
   const [pseudos, setPseudos] = useState<Record<string, string>>({})
   const [myVotes, setMyVotes] = useState<Record<string, string>>({})
@@ -118,6 +126,12 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // tous les groupes du joueur (pas seulement celui-ci), pour proposer un
+  // même pari dans plusieurs ligues à la fois — pré-coché sur le groupe
+  // actuellement affiché seulement, le reste est un ajout volontaire
+  const [myGroups, setMyGroups] = useState<GroupOption[]>([])
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([groupId])
+
   // "En cours" = paris encore ouverts, votables. "Historique" = paris
   // verrouillés (échéance passée) : plus votable, mais on peut y voir qui a
   // voté quoi — jamais avant, pour ne pas influencer les votes en cours.
@@ -135,8 +149,14 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     setIsAdmin(mem?.role === 'owner' || mem?.role === 'admin')
     setIsOwner(mem?.role === 'owner')
 
-    const { data: period } = await supabase.from('group_periods').select('id').eq('group_id', groupId).eq('is_current', true).maybeSingle()
-    setPeriodId(period?.id ?? null)
+    // tous les groupes où je suis membre, pour le sélecteur "publier dans"
+    const { data: mships } = await supabase
+      .from('group_members').select('groups(id, name)').eq('profile_id', user.id)
+    setMyGroups(
+      ((mships ?? []) as unknown as { groups: GroupOption | null }[])
+        .map((m) => m.groups)
+        .filter((g): g is GroupOption => g !== null)
+    )
 
     // pseudos des membres du groupe, pour afficher qui a proposé chaque pari
     const { data: gm } = await supabase.from('group_members').select('profile_id').eq('group_id', groupId)
@@ -214,19 +234,51 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, user])
 
+  // repart d'une sélection propre (juste le groupe affiché) à chaque
+  // changement de groupe, pour ne jamais laisser une sélection d'un ancien
+  // groupe traîner par erreur
+  useEffect(() => {
+    setSelectedGroupIds([groupId])
+  }, [groupId])
+
+  const toggleGroupSelection = (gid: string) => {
+    setSelectedGroupIds((prev) => (prev.includes(gid) ? prev.filter((x) => x !== gid) : [...prev, gid]))
+  }
+
   const createBet = async (e: FormEvent) => {
     e.preventDefault()
-    if (!user || !periodId || !text.trim() || !deadline) return
+    if (!user || !text.trim() || !deadline) return
     setError(null)
+    const targetGroupIds = selectedGroupIds.length > 0 ? selectedGroupIds : [groupId]
+
+    // un même pari peut être publié dans plusieurs groupes (ligues) d'un
+    // coup pour ceux qui en ont plusieurs — chaque groupe reçoit sa PROPRE
+    // copie indépendante (ses propres votes/sa propre validation), liée à
+    // LA période en cours de CE groupe (pas forcément celle du groupe
+    // actuellement affiché)
+    const { data: periods } = await supabase
+      .from('group_periods').select('group_id, id').in('group_id', targetGroupIds).eq('is_current', true)
+    const periodByGroup: Record<string, string> = {}
+    for (const p of periods ?? []) periodByGroup[p.group_id] = p.id
+
     // celui qui propose le pari est seul responsable d'en confirmer le
     // résultat une fois l'échéance passée ("mode confiance") — en cas de
     // litige ou d'absence de confirmation, un owner/admin du groupe peut
     // trancher (voir resolveContested)
-    const { error: err } = await supabase.from('free_bets').insert({
-      group_id: groupId, author_id: user.id, text: text.trim(),
-      deadline: new Date(deadline).toISOString(), validation_mode: 'confiance', validator_id: user.id,
-      status: 'open', period_id: periodId,
-    })
+    const rows = targetGroupIds
+      .filter((gid) => periodByGroup[gid])
+      .map((gid) => ({
+        group_id: gid, author_id: user.id, text: text.trim(),
+        deadline: new Date(deadline).toISOString(), validation_mode: 'confiance', validator_id: user.id,
+        status: 'open', period_id: periodByGroup[gid],
+      }))
+
+    if (rows.length === 0) {
+      setError("Aucune période en cours dans le(s) groupe(s) sélectionné(s).")
+      return
+    }
+
+    const { error: err } = await supabase.from('free_bets').insert(rows)
     if (err) setError(err.message)
     setText('')
     setDeadline('')
@@ -467,6 +519,23 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
         <form className="groups-form" onSubmit={createBet}>
           <input className="groups-input" placeholder="Ex: Mbappé marque ce week-end" value={text} onChange={(e) => setText(e.target.value)} required />
           <input className="groups-input" type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} required />
+          {myGroups.length > 1 && (
+            <div className="bet-groups-picker">
+              <span className="bet-groups-picker-label">Publier ce pari dans :</span>
+              <div className="bet-groups-picker-list">
+                {myGroups.map((g) => (
+                  <label className="bet-groups-picker-item" key={g.id}>
+                    <input
+                      type="checkbox"
+                      checked={selectedGroupIds.includes(g.id)}
+                      onChange={() => toggleGroupSelection(g.id)}
+                    />
+                    {g.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           <button className="groups-submit" type="submit">Publier</button>
         </form>
       )}
