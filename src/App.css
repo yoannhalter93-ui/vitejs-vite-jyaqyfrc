@@ -573,6 +573,36 @@ body {
   cursor: default;
 }
 
+/* Sélecteur "publier dans" (paris libres) — flex-basis:100% pour que ce
+   bloc passe toujours à sa propre ligne dans .groups-form (flex-wrap),
+   plutôt que de se serrer entre les 2 champs et le bouton. */
+.bet-groups-picker {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bet-groups-picker-label {
+  font-size: 13px;
+  color: rgba(244, 239, 226, 0.7);
+}
+
+.bet-groups-picker-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.bet-groups-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #F4EFE2;
+  cursor: pointer;
+}
+
 .groups-error {
   color: #C1443C;
   font-size: 13px;
