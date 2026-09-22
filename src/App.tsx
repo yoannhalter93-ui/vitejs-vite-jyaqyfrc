@@ -773,6 +773,18 @@ function App() {
       // même ref_table 'groups') emmènent directement sur le Tchat du groupe
       if (n.type === 'message') setScreen('chat')
       setShowNotifPanel(false)
+    } else if (n.ref_table === 'free_bets' && n.ref_id) {
+      // notif de nouveau pari libre (type 'free_bet') ou de résultat (type
+      // 'result') : les deux pointent vers un free_bets.id, direction Paris
+      // libres du bon groupe (avec la publication multi-ligues, un même
+      // texte de pari peut exister en plusieurs copies, une par groupe — le
+      // ref_id ici est bien celui de LA copie qui a généré cette notif)
+      const { data: betRow } = await supabase.from('free_bets').select('group_id').eq('id', n.ref_id).maybeSingle()
+      if (!betRow?.group_id) return
+      const { data: groupRow } = await supabase.from('groups').select('name').eq('id', betRow.group_id).maybeSingle()
+      await handleSelectGroup(betRow.group_id, groupRow?.name ?? '')
+      setScreen('paris')
+      setShowNotifPanel(false)
     }
   }
 
