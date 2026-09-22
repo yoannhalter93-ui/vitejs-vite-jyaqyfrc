@@ -24,9 +24,16 @@ interface Ball {
 }
 
 function monday(): string {
-    const d = new Date()
-    const day = d.getDay() || 7
-    if (day !== 1) d.setDate(d.getDate() - day + 1)
+    // Calcul entièrement en UTC (cf. mondayUtcISO() dans PenaltyDuel.tsx) :
+    // l'ancienne version mélangeait getDay()/setDate() en heure LOCALE avec un
+    // rendu toISOString() en UTC, ce qui décalait week_start d'un jour (au
+    // dimanche au lieu du lundi) pour toute partie jouée juste après minuit
+    // heure locale mais encore la veille en UTC — bug confirmé en base
+    // (22/09/2026, scores réels mal datés côté Dribble et Jonglage).
+    const now = new Date()
+    const day = now.getUTCDay()
+    const diff = day === 0 ? 6 : day - 1
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - diff))
     return d.toISOString().slice(0, 10)
 }
 
