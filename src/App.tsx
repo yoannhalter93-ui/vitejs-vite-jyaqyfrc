@@ -142,6 +142,17 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray
 }
 
+// "aujourd'hui 17:00", "hier 17:00", sinon "24 sept. 17:00"
+function friendlyDate(iso: string): string {
+  const d = new Date(iso)
+  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const days = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000)
+  if (days === 0) return `aujourd'hui ${time}`
+  if (days === 1) return `hier ${time}`
+  return `${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} ${time}`
+}
+
 type PushStatus = 'ok' | 'unsupported' | 'ios-needs-install' | 'needs-permission' | 'denied' | 'error' | 'disabled'
 
 // Un abonnement push est propre à cet appareil/navigateur (l'endpoint est
@@ -1075,7 +1086,7 @@ function App() {
                 {notifications.map((n) => (
                   <div key={n.id} className={`notif-row ${n.read ? '' : 'notif-unread'}`} onClick={() => goToNotification(n)}>
                     <div className="notif-text">{n.text}</div>
-                    <div className="notif-date">{new Date(n.created_at).toLocaleString('fr-FR')}</div>
+                    <div className="notif-date">{friendlyDate(n.created_at)}</div>
                     {n.type === 'jongle' && n.related_profile_id && (
                       <button
                         className="juggle-wizz-btn"
