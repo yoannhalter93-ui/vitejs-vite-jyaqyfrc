@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext'
 import Rules from './Rules'
 import { shareInvite } from './invite'
 import { Squiggle, SketchFootball, SketchPeople, SketchTactics } from './Icons'
+import LoadingSkeleton from './LoadingSkeleton'
 
 // Petit hash stable (pas besoin de cryptographique, juste répartir les
 // groupes sur une pastille d'icône et une citation de façon consistante
@@ -387,7 +388,7 @@ export default function Groups({ onSelectGroup }: Props) {
       {error && <p className="groups-error">{error}</p>}
 
       {loading ? (
-        <p className="groups-loading">Chargement des groupes...</p>
+        <LoadingSkeleton rows={3} />
       ) : memberships.length === 0 ? (
         <p className="groups-empty">Tu n'as pas encore de groupe. Crée-en un ou rejoins-en un avec un code.</p>
       ) : (

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import TeamBadge from './TeamBadge'
+import LoadingSkeleton from './LoadingSkeleton'
 
 interface HistoryRow {
   predictionId: string
@@ -137,7 +138,7 @@ export default function PredictionsHistory({ onBack }: Props) {
       {error && <p className="groups-error">{error}</p>}
 
       {loading ? (
-        <p className="groups-loading">Chargement...</p>
+        <LoadingSkeleton rows={5} />
       ) : rows.length === 0 ? (
         <p className="groups-empty">Aucun pronostic résolu pour l'instant.</p>
       ) : (

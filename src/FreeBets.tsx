@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import Avatar from './Avatar'
+import LoadingSkeleton from './LoadingSkeleton'
 
 // Aperçu en direct de la cote (mêmes calculs que close_expired_free_bets()
 // côté base) : le camp majoritaire rapporte 1 point, le camp minoritaire
@@ -550,7 +551,7 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
       </div>
 
       {loading ? (
-        <p className="groups-loading">Chargement...</p>
+        <LoadingSkeleton rows={3} />
       ) : tab === 'ouverts' ? (
         openBets.length === 0 ? (
           <p className="groups-empty">Aucun pari en cours pour l'instant.</p>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import TeamBadge from './TeamBadge'
+import LoadingSkeleton from './LoadingSkeleton'
 
 interface MatchRow {
   id: string
@@ -323,7 +324,7 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
       {revealError && <p className="groups-error">{revealError}</p>}
 
       {loading ? (
-        <p className="groups-loading">Chargement des matchs...</p>
+        <LoadingSkeleton rows={5} />
       ) : matches.length === 0 ? (
         <p className="groups-empty">Aucun match pour la période en cours.</p>
       ) : (

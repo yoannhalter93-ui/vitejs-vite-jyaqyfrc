@@ -5,6 +5,7 @@ import TeamBadge from './TeamBadge'
 import { SketchBall } from './Icons'
 import Avatar from './Avatar'
 import { shareInvite } from './invite'
+import LoadingSkeleton from './LoadingSkeleton'
 
 interface MatchRow {
   id: string
@@ -305,7 +306,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
     : null
 
   if (loading) {
-    return <p className="groups-loading">Chargement...</p>
+    return <LoadingSkeleton variant="home" />
   }
 
   return (

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import Avatar from './Avatar'
+import LoadingSkeleton from './LoadingSkeleton'
 
 interface Row {
   profile_id: string
@@ -161,7 +162,7 @@ export default function Classement({ groupId, groupName }: Props) {
       </div>
 
       {loading ? (
-        <p className="groups-loading">Chargement du classement...</p>
+        <LoadingSkeleton rows={6} />
       ) : members.length === 0 ? (
         <p className="groups-empty">Aucun membre dans ce groupe pour l'instant.</p>
       ) : visibleRows.length === 0 ? (

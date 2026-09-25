@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
+import LoadingSkeleton from './LoadingSkeleton'
 
 interface Duel {
   id: string
@@ -322,7 +323,7 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
       {error && <p className="groups-error">{error}</p>}
 
       {loading ? (
-        <p className="groups-loading">Chargement...</p>
+        <LoadingSkeleton rows={3} />
       ) : duels.length === 0 ? (
         <p className="groups-empty">Ton premier quiz-duel arrive au prochain tirage au sort hebdomadaire.</p>
       ) : (

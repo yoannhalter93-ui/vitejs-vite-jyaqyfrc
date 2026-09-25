@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
+import LoadingSkeleton from './LoadingSkeleton'
 
 const ZONES: { value: string; label: string }[] = [
   { value: 'haut-gauche', label: 'Haut gauche' },
@@ -499,7 +500,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
             )}
 
             {loading ? (
-              <p className="groups-loading">Chargement...</p>
+              <LoadingSkeleton rows={3} />
             ) : duels.length === 0 ? (
               <p className="groups-empty">Ton premier duel de penaltys arrive au prochain tirage au sort hebdomadaire.</p>
             ) : shown.length === 0 ? (

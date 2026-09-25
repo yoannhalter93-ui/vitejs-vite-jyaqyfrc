@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
+import LoadingSkeleton from './LoadingSkeleton'
 
 interface Team {
   api_team_id: number
@@ -137,7 +138,7 @@ export default function Roulette({ groupId, groupName }: Props) {
       {error && <p className="groups-error">{error}</p>}
 
       {loading ? (
-        <p className="groups-loading">Chargement...</p>
+        <LoadingSkeleton rows={3} />
       ) : !periodId ? (
         <p className="groups-empty">Aucune période en cours.</p>
       ) : myTeam ? (

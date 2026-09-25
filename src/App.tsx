@@ -20,6 +20,7 @@ import WeeklySpecial from './WeeklySpecial';
 import Avatar from './Avatar'
 import PredictionsHistory from './PredictionsHistory'
 import MyStats from './MyStats'
+import PullToRefresh from './PullToRefresh'
 import Help from './Help'
 import { SketchController } from './Icons'
 import Chat from './Chat'
@@ -578,6 +579,9 @@ function App() {
   // duels (quiz / penalty) de la semaine où c'est à moi de jouer : badge sur
   // l'onglet "Jeux", même principe que le badge "Paris"
   const [duelsToPlayCount, setDuelsToPlayCount] = useState(0)
+  // incrémenté par "tirer pour rafraîchir" : sert de key à <main>, ce qui
+  // remonte l'écran courant et recharge donc ses données
+  const [refreshKey, setRefreshKey] = useState(0)
   useEffect(() => {
     if (!selectedGroup?.id || !session?.user?.id) { setDuelsToPlayCount(0); return }
     let cancelled = false
@@ -586,7 +590,7 @@ function App() {
       setDuelsToPlayCount((data.quiz?.state === 'to_play' ? 1 : 0) + (data.penalty?.state === 'to_play' ? 1 : 0))
     })
     return () => { cancelled = true }
-  }, [selectedGroup?.id, session?.user?.id, screen])
+  }, [selectedGroup?.id, session?.user?.id, screen, refreshKey])
 
   const BONUS_CODES = ['echange_equipe', 'retirage_force', 'double_ou_rien', 'bonus_inverse', 'revanche_duel']
   const [tokenBalance, setTokenBalance] = useState<number | null>(null)
@@ -1027,6 +1031,17 @@ function App() {
   // === false) reste affiche normalement, avec l'en-tete et la nav.
   const isActionMinigame = screen === 'jonglages' && minigamePlaying
 
+  // Tirer pour rafraîchir : désactivé sur les écrans où un remontage ferait
+  // perdre quelque chose (pronos en cours de saisie, duel en pleine partie,
+  // mini-jeu, tirage d'équipe, formulaires des paramètres).
+  const pullToRefreshEnabled = !['pronostics', 'quiz', 'penalty', 'jonglages', 'roulette', 'team-reveal', 'parametres'].includes(screen)
+  const handlePullRefresh = () => {
+    setRefreshKey((k) => k + 1)
+    loadNotifications()
+    refreshTokenBalance()
+    refreshOpenBetsToVoteCount()
+  }
+
   return (
     <div className="home-screen">
       {!isActionMinigame && (
@@ -1243,7 +1258,8 @@ function App() {
           </div>
         </div>
       )}
-      <main className={isActionMinigame ? 'home-main home-main-fullscreen' : 'home-main'}>
+      <PullToRefresh enabled={pullToRefreshEnabled} onRefresh={handlePullRefresh} />
+      <main key={refreshKey} className={isActionMinigame ? 'home-main home-main-fullscreen' : 'home-main'}>
         {screen === 'parametres' ? (
           <div className="parametres-screen">
             <div className="predictions-header">

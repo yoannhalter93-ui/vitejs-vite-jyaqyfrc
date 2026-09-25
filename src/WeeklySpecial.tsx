@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import TeamBadge from './TeamBadge'
 import Avatar from './Avatar'
+import LoadingSkeleton from './LoadingSkeleton'
 
 interface SpecialMatch {
   id: string
@@ -387,7 +388,7 @@ export default function WeeklySpecial({ groupId, groupName, autoApplyAllLeagues,
       {error && <p className="groups-error">{error}</p>}
 
       {loading ? (
-        <p className="groups-loading">Chargement...</p>
+        <LoadingSkeleton rows={3} />
       ) : matches.length === 0 ? (
         <p className="groups-empty">Pas de pari du 1er but actif pour l'instant.</p>
       ) : (
