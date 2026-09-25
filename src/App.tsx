@@ -821,6 +821,14 @@ function App() {
       // même ref_table 'groups') emmènent directement sur le Tchat du groupe
       if (n.type === 'message') setScreen('chat')
       setShowNotifPanel(false)
+    } else if (n.ref_table === 'matches' && n.ref_id) {
+      // rappel "coup d'envoi bientôt, il te manque des pronos"
+      const { data: matchRow } = await supabase.from('matches').select('group_id').eq('id', n.ref_id).maybeSingle()
+      if (!matchRow?.group_id) return
+      const { data: groupRow } = await supabase.from('groups').select('name').eq('id', matchRow.group_id).maybeSingle()
+      await handleSelectGroup(matchRow.group_id, groupRow?.name ?? '')
+      setScreen('pronostics')
+      setShowNotifPanel(false)
     } else if (n.ref_table === 'free_bets' && n.ref_id) {
       // notif de nouveau pari libre (type 'free_bet') ou de résultat (type
       // 'result') : les deux pointent vers un free_bets.id, direction Paris
