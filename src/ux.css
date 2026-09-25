@@ -304,3 +304,20 @@ html, body { overscroll-behavior-y: contain; }
   border-color: #D4A22C;
   background: #FBF1D6;
 }
+
+/* ===== Écran de connexion : lisibilité ===== */
+/* La carte translucide laissait trop passer la photo : textes gris peu
+   lisibles, surtout au soleil. Fond plus opaque, textes plus contrastés. */
+.login-card {
+  background: rgba(244, 239, 226, 0.86);
+  backdrop-filter: blur(8px) saturate(1.1);
+  -webkit-backdrop-filter: blur(8px) saturate(1.1);
+}
+
+.login-subtitle,
+.login-label,
+.login-switch {
+  color: rgba(27, 27, 31, 0.78);
+}
+
+.login-legal-link { color: rgba(27, 27, 31, 0.6); }
