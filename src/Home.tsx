@@ -91,12 +91,12 @@ function duelSubtitle(s: DuelStatus | undefined, fallback: string): string {
   if (!s) return fallback
   const opp = s.opponent ?? 'ton adversaire'
   switch (s.state) {
-    case 'to_play': return `À toi de jouer contre ${opp} !`
+    case 'to_play': return 'À toi de jouer !'
     case 'waiting': return `En attente de ${opp}`
     case 'waiting_draw': return "En attente d'un adversaire"
-    case 'won': return `Gagné contre ${opp} 🎉`
-    case 'lost': return `Perdu contre ${opp}`
-    case 'draw': return `Égalité avec ${opp}`
+    case 'won': return `Gagné vs ${opp} 🎉`
+    case 'lost': return `Perdu vs ${opp}`
+    case 'draw': return `Nul vs ${opp}`
     default: return 'Pas de duel cette semaine'
   }
 }

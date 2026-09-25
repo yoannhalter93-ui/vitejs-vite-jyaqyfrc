@@ -60,7 +60,7 @@
   border-radius: 14px;
   border: 1.5px dashed rgba(212, 162, 44, 0.8);
   background: rgba(212, 162, 44, 0.12);
-  color: inherit;
+  color: #F4EFE2;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
@@ -321,3 +321,17 @@ html, body { overscroll-behavior-y: contain; }
 }
 
 .login-legal-link { color: rgba(27, 27, 31, 0.6); }
+
+/* Tuiles de l'accueil : le statut du duel ("À toi de jouer contre Seb !")
+   tient sur 2 lignes au lieu d'être coupé par "…" */
+.dash-v2-action-sub {
+  white-space: normal !important;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Titres des écrans secondaires (Paramètres, Pronostics, Stats...) : ils
+   héritaient du gris du modèle Vite de départ (#6b6375), quasi illisible
+   sur le fond vert. */
+.predictions-header h2 { color: #F4EFE2; }
