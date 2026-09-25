@@ -1,0 +1,1460 @@
+/* Styles de l'accueil et de l'habillage général. Fusion (dans le même ordre
+   de cascade) des anciennes couches successives home-v2 → home-approved-final,
+   après retrait des déclarations écrasées et des classes inutilisées. */
+
+/* ---- ex-home-v2.css ---- */
+/* Entre Nous — accueil mobile v2
+ * Importé par Vite depuis src pour garantir le chargement en preview/PWA.
+ * Toutes les règles de structure sont limitées au dashboard.
+ */
+
+:root {
+  --en-cream: #F4EFE2;
+  --en-paper: #FAF6EA;
+  --en-ink: #1B1B1F;
+  --en-gold: #D4A22C;
+  --en-green: #0F3B2E;
+  --en-green-2: #2F8F5B;
+  --en-red: #C1443C;
+}
+
+/* Le décor renforcé ne s'active que lorsque le dashboard est affiché. */
+.home-screen:has(.dash-screen) {
+  min-height: 100vh;
+}
+
+.home-screen:has(.dash-screen) .home-header {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.home-screen:has(.dash-screen) .brand-logo {
+  font-family: 'Pacifico', cursive !important;
+  font-weight: 400 !important;
+  letter-spacing: -.035em !important;
+}
+
+.home-screen:has(.dash-screen) .brand-tagline {
+  font-family: 'Space Mono', monospace !important;
+  text-transform: uppercase;
+}
+
+.home-screen:has(.dash-screen) .group-selector-pill,
+.home-screen:has(.dash-screen) .token-balance-btn {
+  color: var(--en-cream) !important;
+  background: rgba(244,239,226,.07) !important;
+  border: 1px solid rgba(244,239,226,.16) !important;
+  box-shadow: none !important;
+}
+
+.dash-screen {
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0;
+  padding-bottom: 18px;
+}
+
+.dash-v2-hero {
+  position: relative;
+  isolation: isolate;
+  background: var(--en-paper);
+  color: var(--en-ink);
+}
+
+.dash-v2-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .12;
+  background-image: radial-gradient(rgba(27,27,31,.38) .55px, transparent .55px);
+  background-size: 7px 7px;
+  z-index: -1;
+}
+
+.dash-v2-hero::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(212,162,44,.15);
+  z-index: -1;
+}
+
+.dash-v2-hero-top,
+.dash-v2-match-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dash-v2-eyebrow,
+.dash-v2-match-kicker,
+.dash-v2-match-date {
+  font-family: 'Space Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+
+.dash-v2-eyebrow {
+  color: rgba(27,27,31,.55);
+  font-weight: 700;
+}
+
+.dash-v2-hero-main {
+  display: grid;
+}
+
+.dash-v2-title {
+  margin: 0;
+  color: var(--en-green) !important;
+  font: 700 clamp(40px, 12vw, 58px)/.95 'Oswald', sans-serif !important;
+  text-transform: uppercase;
+}
+
+.dash-v2-subtitle {
+  margin: 9px 0 0;
+  color: var(--en-ink) !important;
+  font: 600 15px/1.3 'Oswald', sans-serif !important;
+}
+
+.dash-v2-hero-ball {
+  justify-self: end;
+  color: var(--en-green) !important;
+  opacity: .96;
+}
+
+.dash-v2-progress-track {
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(27,27,31,.11);
+}
+
+.dash-v2-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--en-gold), #E6B943);
+}
+
+.dash-v2-nextline {
+  display: flex;
+  align-items: center;
+  margin: 14px 0 0;
+  color: rgba(27,27,31,.72) !important;
+  font: 700 11px/1.4 'Space Mono', monospace !important;
+}
+
+.dash-v2-nextline-icon {
+  flex: 0 0 30px;
+}
+
+.dash-v2-cta {
+  width: 100%;
+  border: 0 !important;
+  background: var(--en-gold) !important;
+  color: var(--en-ink) !important;
+  font: 700 17px/1 'Oswald', sans-serif !important;
+  cursor: pointer;
+}
+
+.dash-v2-section { min-width: 0; }
+
+.dash-v2-section-heading {
+  display: flex;
+  gap: 10px;
+}
+
+.dash-v2-section-heading h3 {
+  margin: 0 !important;
+  color: var(--en-cream) !important;
+}
+
+.dash-v2-section-heading h3::after {
+  content: '';
+  display: block;
+  border-radius: 999px;
+  background: var(--en-gold);
+}
+
+.dash-v2-section-link {
+  margin-left: auto;
+  padding: 8px 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: rgba(244,239,226,.78) !important;
+  font: 700 10px/1.2 'Space Mono', monospace !important;
+  cursor: pointer;
+}
+
+.dash-v2-actions {
+  display: grid;
+}
+
+.dash-v2-action {
+  min-width: 0;
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start !important;
+  text-align: left !important;
+  border: 1px solid rgba(244,239,226,.15) !important;
+  background: rgba(244,239,226,.075) !important;
+  color: var(--en-cream) !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.dash-v2-action-primary {
+  color: var(--en-green) !important;
+  border-color: transparent !important;
+}
+
+.dash-v2-action-accent {
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+.dash-v2-action-icon {
+  display: grid;
+  place-items: center;
+}
+
+.dash-v2-action-title {
+  display: block;
+}
+
+.dash-v2-action-sub {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: .72;
+}
+
+.dash-v2-match-card {
+  overflow: hidden;
+  background: var(--en-paper);
+  color: var(--en-ink);
+  box-shadow: 0 12px 30px rgba(4,21,16,.16);
+}
+
+.dash-v2-match-kicker,
+.dash-v2-match-date {
+  color: rgba(27,27,31,.52);
+  font-weight: 700;
+}
+
+.dash-v2-match-date { text-align: right; }
+
+.dash-v2-match-body {
+  display: grid;
+  align-items: center;
+}
+
+.dash-v2-team {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.dash-v2-team-name {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--en-ink) !important;
+  font: 700 15px/1.1 'Oswald', sans-serif !important;
+}
+
+.dash-v2-prediction {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dash-v2-prediction-label {
+  font: 700 8px/1.2 'Space Mono', monospace;
+}
+
+.dash-v2-prediction-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #F0E5C8;
+  color: var(--en-ink) !important;
+  font: 700 23px/1 'Space Mono', monospace !important;
+}
+
+.dash-v2-prediction-score.is-empty {
+  color: var(--en-green) !important;
+}
+
+.dash-v2-match-footer {
+  width: 100%;
+  border: 0 !important;
+  border-top: 1px solid rgba(27,27,31,.08) !important;
+  background: rgba(15,59,46,.035) !important;
+  color: var(--en-green) !important;
+  font: 700 11px/1 'Space Mono', monospace !important;
+  cursor: pointer;
+}
+
+.dash-v2-ranking-card {
+  overflow: hidden;
+  border: 1px solid rgba(244,239,226,.14);
+  border-radius: 20px;
+  background: rgba(244,239,226,.07);
+}
+
+.dash-v2-ranking-list {
+  list-style: none;
+  margin: 0;
+}
+
+.dash-v2-ranking-row {
+  display: grid;
+  align-items: center;
+  border-bottom: 1px solid rgba(244,239,226,.08);
+  color: var(--en-cream);
+}
+
+.dash-v2-ranking-row:last-child { border-bottom: 0; }
+
+.dash-v2-ranking-row.is-me {
+  margin-inline: -14px;
+  padding-inline: 14px;
+  background: rgba(212,162,44,.075);
+}
+
+.dash-v2-rank {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(244,239,226,.14);
+  color: var(--en-cream);
+  font: 700 12px/1 'Space Mono', monospace;
+}
+
+.dash-v2-rank.rank-1 { background: var(--en-gold); color: var(--en-ink); }
+.dash-v2-rank.rank-2 { background: #D8D9D5; color: var(--en-ink); }
+.dash-v2-rank.rank-3 { background: #C8783D; color: #fff; }
+
+.dash-v2-player {
+  display: flex;
+  align-items: center;
+  color: var(--en-cream) !important;
+  font: 700 15px/1.1 'Oswald', sans-serif !important;
+}
+
+.dash-v2-points {
+  color: var(--en-gold) !important;
+  font: 700 12px/1 'Space Mono', monospace !important;
+}
+
+/* Navigation basse uniquement sur le dashboard : plus lisible en PWA. */
+.home-screen:has(.dash-screen) .bottom-nav {
+  box-shadow: 0 -10px 28px rgba(3,18,13,.12) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.home-screen:has(.dash-screen) .bottom-nav-tab {
+  position: relative;
+  color: rgba(27,27,31,.58) !important;
+}
+
+.home-screen:has(.dash-screen) .bottom-nav-tab-active { color: var(--en-green) !important; }
+
+.home-screen:has(.dash-screen) .bottom-nav-tab-active::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 28px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--en-gold);
+  transform: translateX(-50%);
+}
+
+.home-screen:has(.dash-screen) .bottom-nav-label {
+  font-family: 'Oswald', sans-serif !important;
+  font-weight: 600 !important;
+}
+
+@media (max-width: 760px) {
+  .home-screen:has(.dash-screen) .home-main {
+    margin-inline: auto !important;
+  }
+
+  .home-screen:has(.dash-screen) .group-nav {
+    margin-bottom: 15px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .dash-v2-match-body { padding-inline: 10px; }
+}
+
+/* ---- ex-home-v2-details.css ---- */
+/* Petits détails illustrés de l'accueil Entre Nous. */
+
+.dash-v2-ball-wrap {
+  justify-self: end;
+  padding-top: 2px;
+}
+
+.dash-v2-ball-wrap .dash-v2-hero-ball {
+  display: block;
+}
+
+.dash-v2-ball-caption {
+  display: block;
+  margin-top: -4px;
+  opacity: .78;
+}
+
+/* ---- ex-home-visual-reference.css ---- */
+/* Match the approved Entre Nous mobile reference as closely as possible. */
+
+.home-screen:has(.dash-screen) .brand-block {
+  position: relative;
+}
+
+.home-screen:has(.dash-screen) .brand-block::after {
+  content: '';
+  position: absolute;
+  border-radius: 99px;
+  background: #D4A22C;
+  transform: rotate(-2deg);
+}
+
+.home-screen:has(.dash-screen) .brand-tagline {
+  display: block;
+  color: rgba(244,239,226,.86) !important;
+}
+
+.home-screen:has(.dash-screen) .group-selector-pill {
+  justify-content: flex-start;
+}
+
+.home-screen:has(.dash-screen) .group-selector-chevron {
+  margin-left: auto;
+}
+
+.dash-v3-ambient {
+  align-self: flex-end;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: rgba(244,239,226,.62);
+  font: 500 14px/1.12 'Space Mono', monospace;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+.dash-v3-crown {
+  color: rgba(244,239,226,.68);
+  line-height: 1;
+}
+
+.home-screen:has(.dash-screen) .home-main::before {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 182px;
+  width: 92px;
+  height: 112px;
+  opacity: .2;
+  pointer-events: none;
+  border: 2px solid #F4EFE2;
+  border-left-width: 3px;
+  transform: rotate(8deg);
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 12px, rgba(244,239,226,.9) 13px 14px, transparent 15px),
+    linear-gradient(90deg, transparent 48%, rgba(244,239,226,.9) 49% 51%, transparent 52%);
+}
+
+.dash-v2-hero-top {
+  margin-bottom: 6px;
+}
+
+.dash-v2-subtitle {
+  font-weight: 700 !important;
+}
+
+.dash-v2-progress-wrap {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+}
+
+.dash-v3-progress-value {
+  color: #0F3B2E;
+  font: 700 16px/1 'Space Mono', monospace;
+}
+
+.dash-v2-nextline-icon {
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.dash-v2-section-heading h3 {
+  font-family: Georgia, 'Times New Roman', serif !important;
+  font-weight: 700 !important;
+  letter-spacing: -.03em !important;
+}
+
+.dash-v2-actions {
+  grid-template-columns: repeat(3,minmax(0,1fr)) !important;
+}
+
+.dash-v2-action-icon {
+  border-radius: 50% !important;
+}
+
+.dash-v2-action-title {
+  margin-top: 0 !important;
+}
+
+.dash-v2-action-sub {
+  font: 400 12px/1.25 'Space Mono', monospace !important;
+}
+
+.dash-v3-action-arrow {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(15,59,46,.1);
+  line-height: 1;
+}
+
+.dash-v2-action-accent .dash-v3-action-arrow,
+.dash-v2-action:not(.dash-v2-action-primary) .dash-v3-action-arrow {
+  background: rgba(255,255,255,.09);
+}
+
+.dash-v2-prediction {
+  border-left: 1px solid rgba(27,27,31,.12);
+  border-right: 1px solid rgba(27,27,31,.12);
+}
+
+.dash-v2-prediction-label {
+  text-transform: none !important;
+  color: #1B1B1F !important;
+}
+
+.dash-v3-ranking-card {
+  position: relative;
+  display: grid;
+  align-items: stretch;
+}
+
+.dash-v3-player-avatar {
+  display: grid;
+  place-items: center;
+  border: 2px solid #F4EFE2;
+  border-radius: 50%;
+  background: rgba(244,239,226,.12);
+  color: #F4EFE2;
+  font: 700 13px/1 'Oswald', sans-serif;
+}
+
+.dash-v3-ranking-note {
+  border-left: 1px solid rgba(244,239,226,.18);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.home-screen:has(.dash-screen) .bottom-nav {
+  background: #F4EFE2 !important;
+  border-top: 1px solid rgba(27,27,31,.08) !important;
+}
+
+.home-screen:has(.dash-screen) .bottom-nav-tab:first-child .bottom-nav-label {
+  font-size: 0 !important;
+}
+.home-screen:has(.dash-screen) .bottom-nav-tab:first-child .bottom-nav-label::after {
+  content: 'Accueil';
+  font-size: 11px;
+}
+.home-screen:has(.dash-screen) .bottom-nav-tab:first-child .bottom-nav-icon {
+  font-size: 0 !important;
+}
+.home-screen:has(.dash-screen) .bottom-nav-tab:first-child .bottom-nav-icon::after {
+  content: '⌂';
+  font-size: 29px;
+  line-height: 1;
+}
+
+@media (max-width: 420px) {
+  .dash-v3-ambient { margin-right: 0; }
+  .dash-v2-match-body { padding-inline: 10px !important; }
+  .dash-v2-prediction { padding-inline: 7px; }
+}
+
+/* ---- ex-home-reference-polish.css ---- */
+/* Dernière passe mobile : se rapproche du visuel validé et corrige les débordements réels. */
+
+.home-screen:has(.dash-screen) .token-balance-wrap {
+  display: none !important;
+}
+
+.home-screen:has(.dash-screen) .group-nav {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+}
+
+.home-screen:has(.dash-screen) .group-selector-pill {
+  min-width: 0 !important;
+  font-size: 17px !important;
+}
+
+.dash-v2-ball-caption {
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+
+.dash-v2-section-heading {
+  align-items: center !important;
+}
+
+.dash-v2-section-heading h3 {
+  line-height: .95 !important;
+}
+
+.dash-v2-section-link {
+  text-align: right;
+}
+
+.dash-v2-action-title {
+  line-height: .98 !important;
+}
+
+.dash-v2-action-sub {
+  line-height: 1.15 !important;
+}
+
+.dash-v3-team-home,
+.dash-v3-team-away {
+  flex-direction: row !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  text-align: left !important;
+}
+
+.dash-v3-team-away {
+  flex-direction: row-reverse !important;
+  text-align: right !important;
+}
+
+.dash-v2-team svg,
+.dash-v2-team img {
+  flex: 0 0 auto;
+}
+
+.dash-v2-team-name {
+  min-width: 0;
+  white-space: normal !important;
+}
+
+.dash-v2-prediction {
+  min-width: 0;
+}
+
+.dash-v2-prediction-label {
+  line-height: 1.1 !important;
+}
+
+.dash-v2-match-footer {
+  padding: 0 10px !important;
+}
+
+.dash-v2-ranking-list {
+  min-width: 0;
+  padding: 0 9px 0 0 !important;
+}
+
+.dash-v2-ranking-row {
+  min-width: 0;
+}
+
+.dash-v2-player {
+  min-width: 0 !important;
+  overflow: hidden;
+}
+
+.dash-v3-player-name {
+  min-width: 0;
+}
+
+.dash-v2-points {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dash-v3-ranking-note {
+  min-width: 0;
+  font-size: 8.5px !important;
+  line-height: 1.2 !important;
+}
+
+.dash-v3-ranking-note .dash-v3-crown {
+  margin-bottom: 4px;
+}
+
+.home-screen:has(.dash-screen) .bottom-nav {
+  padding-top: 6px !important;
+  padding-bottom: max(7px, env(safe-area-inset-bottom)) !important;
+}
+
+@media (max-width: 380px) {
+  .home-screen:has(.dash-screen) .home-main {
+    padding-inline: 12px !important;
+  }
+
+  .home-screen:has(.dash-screen) .group-selector-pill {
+    font-size: 16px !important;
+  }
+
+  .dash-v2-action {
+    padding-inline: 9px !important;
+  }
+
+  .dash-v2-match-body {
+    padding-inline: 9px !important;
+  }
+
+  .dash-v2-prediction {
+    padding-inline: 4px !important;
+  }
+
+  .dash-v3-player-avatar {
+    flex-basis: 27px;
+  }
+}
+
+/* ---- ex-home-reference-exact.css ---- */
+/* Entre Nous — passe "maquette de référence".
+   Objectif: retrouver les proportions compactes du visuel validé sur téléphone. */
+
+.home-screen:has(.dash-screen) {
+  background:
+    radial-gradient(circle at 16% 3%, rgba(47,143,91,.18), transparent 26rem),
+    radial-gradient(circle at 88% 28%, rgba(212,162,44,.07), transparent 20rem),
+    linear-gradient(rgba(255,255,255,.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.015) 1px, transparent 1px),
+    #0F3B2E !important;
+  background-size: auto, auto, 44px 44px, 44px 44px, auto;
+}
+
+.home-screen:has(.dash-screen) .home-header {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 16px 20px 10px !important;
+  border-bottom: 0 !important;
+  background: transparent !important;
+}
+
+.home-screen:has(.dash-screen) .brand-logo {
+  font-size: 43px !important;
+  line-height: .9 !important;
+  color: #F4EFE2 !important;
+  text-shadow: 0 1px 0 rgba(0,0,0,.06);
+}
+
+.home-screen:has(.dash-screen) .brand-block {
+  padding-bottom: 10px !important;
+}
+
+.home-screen:has(.dash-screen) .brand-block::after {
+  left: 4px !important;
+  bottom: 5px !important;
+  width: 142px !important;
+  height: 3px !important;
+}
+
+.home-screen:has(.dash-screen) .brand-tagline {
+  margin-top: 7px !important;
+  padding-left: 47px !important;
+  font-size: 8px !important;
+  letter-spacing: .25em !important;
+}
+
+.home-screen:has(.dash-screen) .notif-bell-btn {
+  font-size: 22px !important;
+}
+
+.home-screen:has(.dash-screen) .avatar-badge {
+  width: 46px !important;
+  height: 46px !important;
+  border: 2px solid #F4EFE2 !important;
+  background: #1B1B1F !important;
+  color: #D4A22C !important;
+  font: 700 18px/1 'Oswald', sans-serif !important;
+}
+
+.home-screen:has(.dash-screen) .home-main {
+  width: min(100%, 760px) !important;
+  margin: 0 auto !important;
+  padding: 2px 20px 92px !important;
+  position: relative;
+}
+
+.home-screen:has(.dash-screen) .group-nav {
+  height: 58px;
+  margin: 0 0 12px !important;
+  position: relative;
+  z-index: 3;
+}
+
+.home-screen:has(.dash-screen) .group-selector-pill {
+  width: 53% !important;
+  max-width: 360px !important;
+  min-height: 52px !important;
+  padding: 0 16px !important;
+  border-radius: 15px !important;
+  border: 1px solid rgba(244,239,226,.28) !important;
+  background: rgba(244,239,226,.055) !important;
+  font: 700 17px/1 'Georgia', serif !important;
+}
+
+.home-screen:has(.dash-screen) .group-selector-chevron {
+  font-size: 18px !important;
+}
+
+.dash-screen {
+  gap: 13px !important;
+}
+
+/* Dans la maquette, cette annotation est à droite du sélecteur de groupe,
+   pas entre le sélecteur et la carte. */
+.dash-v3-ambient {
+  position: absolute !important;
+  top: -61px !important;
+  right: 7px !important;
+  margin: 0 !important;
+  max-width: 145px;
+  font-size: 10px !important;
+  line-height: 1.13 !important;
+  letter-spacing: .035em !important;
+  transform: rotate(-7deg) !important;
+}
+
+.dash-v3-crown { font-size: 17px !important; }
+
+/* Carte JOURNÉE : la référence est beaucoup plus basse/compacte que nos passes précédentes. */
+.dash-v2-hero {
+  min-height: 0 !important;
+  box-shadow: 0 7px 20px rgba(0,0,0,.11) !important;
+}
+
+.dash-v2-hero::after {
+  width: 145px !important;
+  height: 145px !important;
+  right: -68px !important;
+  top: -70px !important;
+}
+
+.dash-v2-hero-top { margin: 0 0 1px !important; }
+.dash-v2-eyebrow { font-size: 8px !important; letter-spacing: .12em !important; }
+
+.dash-v2-hero-main {
+  margin-top: 0 !important;
+}
+
+.dash-v2-title {
+  letter-spacing: -.04em !important;
+}
+
+.dash-v2-subtitle {
+  line-height: 1 !important;
+}
+
+.dash-v2-progress-wrap {
+  gap: 8px !important;
+}
+
+.dash-v2-nextline {
+  min-height: 20px;
+  line-height: 1.15 !important;
+}
+
+.dash-v2-cta {
+  border-radius: 10px !important;
+}
+
+/* Titres de sections */
+.dash-v2-section-heading {
+  min-height: 27px !important;
+  margin-bottom: 6px !important;
+}
+
+.dash-v2-section-heading h3 {
+  font: 700 22px/.95 Georgia, 'Times New Roman', serif !important;
+}
+
+.dash-v2-section-heading h3::after {
+  margin-top: 4px !important;
+}
+
+.dash-v2-section-link {
+  max-width: 45%;
+  font-size: 9px !important;
+  line-height: 1.05 !important;
+}
+
+/* Les 3 cartes sont presque carrées dans la référence, pas de gros pavés verticaux. */
+.dash-v2-actions { gap: 8px !important; }
+.dash-v2-action {
+  border-radius: 12px !important;
+}
+
+.dash-v2-action-title {
+  font: 700 15px/.98 Georgia, 'Times New Roman', serif !important;
+}
+
+.dash-v2-action-sub {
+  margin-top: 4px !important;
+  padding-right: 20px !important;
+}
+
+.dash-v3-action-arrow {
+  width: 23px !important;
+  height: 23px !important;
+  right: 7px !important;
+  bottom: 8px !important;
+  font-size: 19px !important;
+}
+
+/* Carte match compacte, proche de la référence. */
+.dash-v2-match-card { border-radius: 12px !important; }
+.dash-v2-match-meta { padding: 9px 11px 3px !important; }
+.dash-v2-match-date,
+.dash-v2-match-kicker { font-size: 7.5px !important; }
+
+.dash-v2-match-body {
+  grid-template-columns: minmax(0,1fr) 70px minmax(0,1fr) !important;
+  gap: 5px !important;
+  padding: 6px 10px 9px !important;
+}
+
+.dash-v2-team { gap: 4px !important; }
+.dash-v2-team svg,
+.dash-v2-team img { width: 40px !important; height: 40px !important; }
+.dash-v2-team-name {
+  font-size: 10px !important;
+  line-height: 1.02 !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+}
+
+.dash-v2-prediction {
+  padding: 0 5px !important;
+  gap: 4px !important;
+}
+.dash-v2-prediction-label { font-size: 7px !important; }
+.dash-v2-prediction-score,
+.dash-v2-prediction-score.is-empty {
+  min-width: 58px !important;
+  min-height: 36px !important;
+  padding: 5px !important;
+  border-radius: 8px !important;
+  font-size: 16px !important;
+}
+.dash-v2-prediction-score.is-empty { font-size: 9px !important; }
+.dash-v2-match-footer {
+  min-height: 37px !important;
+  font-size: 9px !important;
+}
+
+/* Classement : lisible, sans chevauchement, avec la note manuscrite à droite. */
+.dash-v3-ranking-card {
+  padding: 5px 0 5px 8px !important;
+  border-radius: 12px !important;
+}
+
+.dash-v2-ranking-list { padding-right: 8px !important; }
+.dash-v2-ranking-row {
+  min-height: 41px !important;
+}
+.dash-v2-rank {
+  width: 25px !important;
+  height: 25px !important;
+  font-size: 9px !important;
+}
+.dash-v3-player-avatar {
+  width: 25px !important;
+  height: 25px !important;
+  flex: 0 0 25px !important;
+  font-size: 9px !important;
+}
+.dash-v2-player {
+  gap: 5px !important;
+}
+.dash-v3-player-name {
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+.dash-v3-ranking-note .dash-v3-crown { font-size: 14px !important; }
+
+/* Bottom nav : même présence visuelle que la maquette, sans prendre trop de hauteur. */
+.home-screen:has(.dash-screen) .bottom-nav {
+  min-height: 72px !important;
+  padding: 5px 8px max(7px, env(safe-area-inset-bottom)) !important;
+}
+.home-screen:has(.dash-screen) .bottom-nav-tab { min-height: 54px !important; }
+.home-screen:has(.dash-screen) .bottom-nav-icon { font-size: 20px !important; }
+.home-screen:has(.dash-screen) .bottom-nav-label { font-size: 8px !important; }
+
+@media (max-width: 390px) {
+  .home-screen:has(.dash-screen) .home-header { padding-inline: 16px !important; }
+  .home-screen:has(.dash-screen) .home-main { padding-inline: 16px !important; }
+  .home-screen:has(.dash-screen) .group-selector-pill { width: 54% !important; font-size: 15px !important; }
+  .dash-v3-ambient { right: 1px !important; max-width: 125px; font-size: 9px !important; }
+  .dash-v2-match-body { grid-template-columns: minmax(0,1fr) 64px minmax(0,1fr) !important; }
+  .dash-v2-team-name { font-size: 9.5px !important; }
+  .dash-v2-prediction-score,
+  .dash-v2-prediction-score.is-empty { min-width: 54px !important; }
+}
+
+/* ---- ex-home-approved-final.css ---- */
+/* FINAL — écran d'accueil calé sur la maquette validée du 13/09/2026. */
+
+/* Le faux terrain de la passe précédente disparaît : on utilise maintenant un vrai SVG dédié. */
+.home-screen:has(.dash-screen) .home-main::before,
+.home-screen:has(.dash-screen) .home-main::after {
+  display: none !important;
+}
+
+.home-screen:has(.dash-screen) .home-main {
+  overflow: visible !important;
+}
+
+.dash-screen {
+  position: relative;
+  overflow: visible;
+}
+
+/* Petit terrain griffonné en haut à droite, comme sur la maquette. */
+.dash-v4-field-sketch {
+  position: absolute;
+  top: -76px;
+  right: -34px;
+  width: 88px;
+  height: 118px;
+  z-index: 0;
+  overflow: visible;
+  fill: none;
+  stroke: rgba(244,239,226,.43);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.dash-v4-field-sketch .dash-v4-field-dot {
+  fill: rgba(244,239,226,.43);
+  stroke: none;
+}
+
+.dash-v3-ambient {
+  z-index: 2 !important;
+}
+
+/* HERO : proportions proches de la maquette de référence. */
+.dash-v2-hero {
+  overflow: hidden !important;
+  padding: 14px 14px 14px !important;
+  border-radius: 14px !important;
+}
+
+.dash-v2-hero-main {
+  grid-template-columns: minmax(0,1fr) 108px !important;
+  gap: 7px !important;
+  align-items: center !important;
+}
+
+.dash-v2-title {
+  font-size: clamp(38px, 10.7vw, 50px) !important;
+  line-height: .91 !important;
+  white-space: nowrap;
+}
+
+.dash-v2-subtitle {
+  font-size: 16px !important;
+  margin-top: 5px !important;
+}
+
+/* Ballon : les anciennes petites barres droites sont désactivées. */
+
+/* Le ballon et sa légende sont désormais empilés (ballon puis texte en-dessous)
+   plutôt que la légende posée en absolu sur un coin du ballon : avec les deux
+   lignes "On joue / entre nous" en gros Pacifico, l'ancien positionnement en
+   coin les faisait chevaucher. */
+.dash-v2-ball-wrap {
+  position: relative !important;
+  width: 108px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 3px;
+  overflow: visible !important;
+}
+
+.dash-v2-hero-ball,
+.dash-v2-ball-wrap .dash-v2-hero-ball {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  width: 100px !important;
+  height: 100px !important;
+  transform: rotate(-5deg) !important;
+  filter: drop-shadow(0 6px 10px rgba(4,21,16,.28));
+}
+
+/* Arcs griffonnés autour du ballon, façon "swoosh" de mouvement. */
+.dash-v2-ball-swoosh {
+  position: absolute;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2.2px solid #0F3B2E;
+  border-color: #0F3B2E transparent transparent transparent;
+  opacity: .9;
+  pointer-events: none;
+}
+
+.dash-v2-ball-swoosh-top {
+  top: -4px;
+  left: -10px;
+  transform: rotate(-38deg);
+}
+
+.dash-v2-ball-swoosh-bottom {
+  top: 58px;
+  right: -12px;
+  transform: rotate(148deg);
+}
+
+.dash-v2-ball-caption {
+  position: relative !important;
+  z-index: 3;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 2px 0 0 !important;
+  color: #0F3B2E !important;
+  font: 400 14px/1.15 'Pacifico', cursive !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  transform: rotate(6deg) !important;
+  text-align: center;
+  white-space: normal;
+}
+
+.dash-v2-ball-caption::after {
+  content: '';
+  display: block;
+  width: 34px;
+  height: 2.5px;
+  margin: 3px auto 0;
+  border-radius: 99px;
+  background: #D4A22C;
+  transform: rotate(6deg);
+}
+
+/* Progression */
+.dash-v2-progress-wrap {
+  margin-top: 6px !important;
+}
+
+.dash-v2-progress-track {
+  height: 8px !important;
+}
+
+.dash-v3-progress-value {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+/* Calendrier dessiné, à la place du carré ▣. */
+.dash-v4-calendar {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: #0F3B2E;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: middle;
+}
+
+.dash-v4-calendar-day {
+  fill: #0F3B2E;
+  stroke: none;
+}
+
+.dash-v2-nextline-icon {
+  display: grid !important;
+  place-items: center !important;
+  width: 26px !important;
+  height: 26px !important;
+  flex-basis: 26px !important;
+  color: #0F3B2E !important;
+  font-size: 0 !important;
+}
+
+.dash-v2-nextline-icon .dash-v4-calendar {
+  width: 22px;
+  height: 22px;
+}
+
+.dash-v2-nextline {
+  gap: 8px !important;
+  margin-top: 9px !important;
+  font-size: 10px !important;
+}
+
+/* Le "visual-reference" précédent avait mis box-shadow:none sur ce bouton,
+   ce qui l'avait rendu complètement plat. On lui redonne un vrai relief de
+   bouton (bord épais en dessous + ombre portée) qui s'aplatit à l'appui. */
+.dash-v2-cta {
+  margin-top: 8px !important;
+  min-height: 48px !important;
+  font-size: 18px !important;
+  box-shadow: 0 4px 0 #8F6A1D, 0 8px 18px rgba(0,0,0,.25) !important;
+  transition: transform .08s ease, box-shadow .08s ease !important;
+}
+
+.dash-v2-cta:active {
+  transform: translateY(4px) !important;
+  box-shadow: 0 0 0 #8F6A1D, 0 3px 8px rgba(0,0,0,.18) !important;
+}
+
+/* Titres : un peu plus proches de la référence. */
+.dash-v2-section-heading h3 {
+  font-size: 24px !important;
+}
+
+.dash-v2-section-heading h3::after {
+  width: 31px !important;
+  height: 3px !important;
+}
+
+/* Cartes de jeu : plus propres / équilibrées. */
+.dash-v2-action {
+  position: relative !important;
+  overflow: hidden !important;
+  isolation: isolate;
+  min-height: 103px !important;
+  padding: 10px 10px 9px !important;
+}
+
+/* Le contenu (icône, titres) reste toujours au-dessus des textures ci-dessous. */
+.dash-v2-action > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Voile doux en haut à gauche, façon lumière rasante. */
+.dash-v2-action::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(120% 140% at 18% 0%, rgba(255,255,255,.32), transparent 62%);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+/* Grain fin en pointillé, pour casser l'aplat des cartes. */
+.dash-v2-action::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: radial-gradient(rgba(0,0,0,.5) 1px, transparent 1.4px);
+  background-size: 5px 5px;
+  mix-blend-mode: overlay;
+  opacity: .1;
+  pointer-events: none;
+}
+
+.dash-v2-action-accent {
+  background: linear-gradient(135deg, #C1443C 0%, #BE3E37 38%, #A82F2A 100%) !important;
+}
+
+.dash-v2-action:not(.dash-v2-action-primary):not(.dash-v2-action-accent) {
+  background: linear-gradient(135deg, #1B5A45 0%, #0F3B2E 48%, #0B2F25 100%) !important;
+}
+
+.dash-v2-action-primary {
+  background: linear-gradient(180deg, #F4EFE2 0%, #EEE7D7 100%) !important;
+}
+
+.dash-v2-action-primary::before {
+  opacity: .5;
+}
+
+.dash-v2-action-primary::after {
+  opacity: .05;
+}
+
+.dash-v2-action-icon {
+  width: 42px !important;
+  height: 42px !important;
+  font-size: 21px !important;
+  margin-bottom: 8px !important;
+  background: rgba(244,239,226,.10) !important;
+}
+
+.dash-v2-action-primary .dash-v2-action-icon {
+  background: rgba(27,27,31,.06) !important;
+}
+
+.dash-v2-action-title {
+  font-size: 15px !important;
+}
+
+.dash-v2-action-sub {
+  font-size: 8.5px !important;
+}
+
+/* Ligne date de la carte match avec le même vrai calendrier. */
+.dash-v2-match-date {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+}
+
+.dash-v4-calendar-small {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2;
+}
+
+.dash-v2-match-meta {
+  align-items: center !important;
+}
+
+/* Classement : donne plus d'air à la phrase et la rend réellement lisible. */
+.dash-v3-ranking-card {
+  grid-template-columns: minmax(0,1fr) 116px !important;
+}
+
+.dash-v3-ranking-note {
+  position: relative;
+  padding: 8px 8px 9px !important;
+  color: rgba(244,239,226,.96) !important;
+  font: 400 15px/1.03 'Pacifico', cursive !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  transform: rotate(-4deg) !important;
+}
+
+.dash-v4-note-crown {
+  width: 31px;
+  height: 24px;
+  margin-bottom: 4px;
+  fill: none;
+  stroke: rgba(244,239,226,.92);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dash-v4-note-underline {
+  display: block;
+  width: 39px;
+  height: 3px;
+  margin-top: 7px;
+  border-radius: 99px;
+  background: #D4A22C;
+  transform: rotate(-6deg);
+}
+
+/* La zone joueurs garde sa largeur malgré l'agrandissement de la note. */
+.dash-v2-ranking-row {
+  grid-template-columns: 26px minmax(0,1fr) 45px !important;
+  gap: 6px !important;
+}
+
+.dash-v2-player {
+  font-size: 11.5px !important;
+}
+
+.dash-v2-points {
+  width: 45px !important;
+  font-size: 8.5px !important;
+}
+
+@media (max-width: 390px) {
+  .dash-v4-field-sketch {
+    top: -70px;
+    right: -38px;
+    width: 82px;
+    height: 110px;
+  }
+
+  .dash-v2-hero-main {
+    grid-template-columns: minmax(0,1fr) 101px !important;
+  }
+
+  .dash-v2-title {
+    font-size: 36px !important;
+  }
+
+  .dash-v2-ball-wrap {
+    width: 101px !important;
+  }
+
+  .dash-v2-hero-ball,
+  .dash-v2-ball-wrap .dash-v2-hero-ball {
+    width: 92px !important;
+    height: 92px !important;
+  }
+
+  .dash-v2-ball-swoosh {
+    width: 40px;
+    height: 40px;
+  }
+
+  .dash-v2-ball-swoosh-top {
+    top: -3px;
+    left: -9px;
+  }
+
+  .dash-v2-ball-swoosh-bottom {
+    top: 53px;
+    right: -10px;
+  }
+
+  .dash-v2-ball-caption {
+    font-size: 12.5px !important;
+  }
+
+  .dash-v3-ranking-card {
+    grid-template-columns: minmax(0,1fr) 106px !important;
+  }
+
+  .dash-v3-ranking-note {
+    font-size: 13.5px !important;
+  }
+
+  .dash-v4-note-crown {
+    width: 28px;
+    height: 22px;
+  }
+}
