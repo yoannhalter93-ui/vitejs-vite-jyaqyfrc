@@ -19,6 +19,7 @@ import DribbleGame from './DribbleGame';
 import WeeklySpecial from './WeeklySpecial';
 import Avatar from './Avatar'
 import PredictionsHistory from './PredictionsHistory'
+import MyStats from './MyStats'
 import Help from './Help'
 import { SketchController } from './Icons'
 import Chat from './Chat'
@@ -72,6 +73,7 @@ type Screen =
   | 'profil'
   | 'parametres'
   | 'historique-pronos'
+  | 'stats'
   | 'aide'
   // écran d'accueil de groupe (une seule fois, à la première entrée dans
   // un groupe) : explique + révèle l'équipe tirée au sort, voir TeamReveal
@@ -122,7 +124,7 @@ const MINIGAME_TILES: {
 function bottomTabFor(screen: Screen): Screen {
   if (screen === 'pronostics') return 'accueil'
   if (screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') return 'jeux'
-  if (screen === 'parametres' || screen === 'historique-pronos' || screen === 'aide') return 'profil'
+  if (screen === 'parametres' || screen === 'historique-pronos' || screen === 'stats' || screen === 'aide') return 'profil'
   return screen
 }
 
@@ -254,10 +256,6 @@ function App() {
   const [newPasswordConfirmInput, setNewPasswordConfirmInput] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
-  // Petites fonctionnalités du nouvel écran Paramètres pas encore
-  // développées (thème, confidentialité...) : au lieu de masquer la ligne,
-  // on l'affiche mais elle ouvre juste ce petit message générique.
-  const [comingSoon, setComingSoon] = useState<string | null>(null)
   // mini-jeu hebdomadaire actif (jonglages ou dribble) : change chaque
   // semaine via public.minigame_weeks, même classement/mêmes récompenses
   // des deux côtés, seul le jeu affiché change.
@@ -925,14 +923,9 @@ function App() {
       </div>
 
       <div className="profil-v2-menu">
-        <button className="profil-v2-menu-row" onClick={() => setComingSoon('Mes statistiques')}>
+        <button className="profil-v2-menu-row" onClick={() => setScreen('stats')}>
           <span className="profil-v2-menu-icon">📊</span>
           <span className="profil-v2-menu-label">Mes statistiques</span>
-          <span className="profil-v2-menu-chevron">›</span>
-        </button>
-        <button className="profil-v2-menu-row" onClick={() => setComingSoon('Mes badges')}>
-          <span className="profil-v2-menu-icon">🛡️</span>
-          <span className="profil-v2-menu-label">Mes badges</span>
           <span className="profil-v2-menu-chevron">›</span>
         </button>
         <button className="profil-v2-menu-row" onClick={() => setScreen('historique-pronos')}>
@@ -1250,17 +1243,6 @@ function App() {
           </div>
         </div>
       )}
-      {comingSoon && (
-        <div className="avatar-picker-overlay" onClick={() => setComingSoon(null)}>
-          <div className="avatar-picker-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{comingSoon}</h3>
-            <p className="coming-soon-text">Bientôt disponible !</p>
-            <button className="groups-action-btn groups-action-btn-secondary" onClick={() => setComingSoon(null)}>
-              Fermer
-            </button>
-          </div>
-        </div>
-      )}
       <main className={isActionMinigame ? 'home-main home-main-fullscreen' : 'home-main'}>
         {screen === 'parametres' ? (
           <div className="parametres-screen">
@@ -1348,12 +1330,6 @@ function App() {
                   <span className="parametres-toggle-knob" />
                 </button>
               </div>
-              <button className="parametres-row" onClick={() => setComingSoon('Thème')}>
-                <span className="parametres-row-icon">🌙</span>
-                <span className="parametres-row-label">Thème</span>
-                <span className="parametres-row-value">Sombre</span>
-                <span className="parametres-row-chevron">›</span>
-              </button>
             </div>
 
             <div className="parametres-card">
@@ -1398,6 +1374,8 @@ function App() {
           </div>
         ) : screen === 'historique-pronos' ? (
           <PredictionsHistory onBack={() => setScreen('profil')} />
+        ) : screen === 'stats' ? (
+          <MyStats onBack={() => setScreen('profil')} />
         ) : screen === 'aide' ? (
           <Help onBack={() => setScreen('profil')} />
         ) : selectedGroup ? (

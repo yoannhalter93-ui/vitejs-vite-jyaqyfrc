@@ -65,3 +65,153 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+/* ===== Profil > Mes statistiques ===== */
+.stats-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 420px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.stats-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 12px 12px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(212, 162, 44, 0.28), rgba(212, 162, 44, 0.08));
+  border: 1px solid rgba(212, 162, 44, 0.45);
+  color: #F4EFE2;
+}
+
+.stats-hero-value {
+  font-family: 'Oswald', sans-serif;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1;
+  color: #D4A22C;
+}
+
+.stats-hero-label {
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.stats-card {
+  background: #F4EFE2;
+  color: #1B1B1F;
+  border-radius: 16px;
+  padding: 12px 14px 14px;
+}
+
+.stats-card-title {
+  margin: 0 0 10px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: rgba(27, 27, 31, 0.6);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+}
+
+.stats-grid > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: 10px;
+  background: rgba(27, 27, 31, 0.05);
+}
+
+.stats-grid b {
+  font-family: 'Oswald', sans-serif;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.stats-grid span {
+  font-size: 11px;
+  color: rgba(27, 27, 31, 0.6);
+}
+
+.stats-record {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.stats-record b { font-family: 'Oswald', sans-serif; font-size: 22px; margin-right: 2px; }
+.stats-record-won b { color: #2f8f4e; }
+.stats-record-draw b { color: #8a7a50; }
+.stats-record-lost b { color: #c43d3d; }
+
+.stats-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(27, 27, 31, 0.08);
+}
+
+.stats-bar-won { background: #2f8f4e; }
+.stats-bar-draw { background: #c9b98a; }
+.stats-bar-lost { background: #c43d3d; }
+
+.stats-sub,
+.stats-empty {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: rgba(27, 27, 31, 0.6);
+}
+
+/* ===== Squelettes de chargement ===== */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgba(244, 239, 226, 0.12);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(244, 239, 226, 0.16), transparent);
+  animation: skeleton-shimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+}
+
+.skeleton-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeleton-block { height: 110px; }
+.skeleton-hero { height: 190px; border-radius: 20px; }
+.skeleton-row { height: 64px; }
+.skeleton-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.skeleton-tile { height: 104px; }
