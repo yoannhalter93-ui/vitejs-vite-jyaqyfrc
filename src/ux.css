@@ -22,3 +22,46 @@
 @media (prefers-reduced-motion: reduce) {
   .dash-action-todo-dot { animation: none; }
 }
+
+/* Bouton "Inviter" (lien partageable) sur les cartes de groupe */
+.groups-card-share-btn {
+  margin-left: auto;
+  border: none;
+  background: #D4A22C;
+  color: #1b1b1f;
+  border-radius: 8px;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Bandeau "un pote t'invite" sur l'écran de connexion */
+.login-invite-banner {
+  margin: 10px 0 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(212, 162, 44, 0.18);
+  border: 1px solid rgba(212, 162, 44, 0.5);
+  color: #1b1b1f;
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+/* Bouton "Inviter des potes" en bas de l'accueil du groupe */
+.dash-invite-btn {
+  display: block;
+  width: 100%;
+  margin: 18px 0 8px;
+  padding: 13px 16px;
+  border-radius: 14px;
+  border: 1.5px dashed rgba(212, 162, 44, 0.8);
+  background: rgba(212, 162, 44, 0.12);
+  color: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}

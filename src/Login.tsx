@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { EyeIcon, EyeOffIcon } from './Icons'
+import { readPendingJoin } from './invite'
 
 type Mode = 'signin' | 'signup'
 
 export default function Login() {
-  const [mode, setMode] = useState<Mode>('signin')
+  // arrivé par un lien d'invitation : très probablement un nouveau joueur,
+  // on ouvre directement sur l'inscription
+  const [invited] = useState(() => !!readPendingJoin())
+  const [mode, setMode] = useState<Mode>(invited ? 'signup' : 'signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -190,6 +194,9 @@ export default function Login() {
         <p className="login-subtitle">
           {mode === 'signin' ? 'Connecte-toi pour rejoindre tes groupes' : 'Crée ton compte pour commencer'}
         </p>
+        {invited && (
+          <p className="login-invite-banner">🎉 Un pote t'invite dans son groupe : tu le rejoindras automatiquement une fois connecté.</p>
+        )}
 
         {linkError && (
           <div className="login-link-error">

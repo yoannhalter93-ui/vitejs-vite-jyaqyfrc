@@ -23,6 +23,7 @@ import Help from './Help'
 import { SketchController } from './Icons'
 import Chat from './Chat'
 import { useWizzChannel } from './wizzChannel'
+import { readPendingJoin, clearPendingJoin } from './invite'
 
 // Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
 // d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
@@ -874,6 +875,25 @@ function App() {
     setScreen(next)
   }
 
+  // Lien d'invitation (?join=CODE, voir invite.ts) : dès qu'une session
+  // existe, on rejoint le groupe et on l'ouvre directement.
+  const [inviteMessage, setInviteMessage] = useState<string | null>(null)
+  useEffect(() => {
+    const code = readPendingJoin()
+    if (!session?.user?.id || !code) return
+    clearPendingJoin()
+    ;(async () => {
+      const { data: gid, error } = await supabase.rpc('join_group', { p_invite_code: code })
+      if (error || !gid) {
+        setInviteMessage("Ce lien d'invitation n'est plus valide. Demande un nouveau lien à ton pote.")
+        return
+      }
+      const { data: groupRow } = await supabase.from('groups').select('name').eq('id', gid).maybeSingle()
+      await handleSelectGroup(gid as string, groupRow?.name ?? '')
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id])
+
   // Carte profil (photo/emoji + pseudo, éditables) — partagée entre les deux
   // écrans Profil (avec et sans groupe sélectionné) pour ne pas dupliquer
   // toute la logique d'édition ; showJetons masque juste la ligne jetons
@@ -1094,6 +1114,12 @@ function App() {
             {pushEnabling ? '...' : 'Réessayer'}
           </button>
           <button className="wizz-alert-close" onClick={() => setPushTipDismissed(true)} aria-label="Fermer">✕</button>
+        </div>
+      )}
+      {inviteMessage && (
+        <div className="push-tip">
+          <span>⚠️ {inviteMessage}</span>
+          <button className="wizz-alert-close" onClick={() => setInviteMessage(null)} aria-label="Fermer">✕</button>
         </div>
       )}
       {juggleAlert && (

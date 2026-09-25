@@ -3,6 +3,7 @@ import type { FormEvent, MouseEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import Rules from './Rules'
+import { shareInvite } from './invite'
 import { Squiggle, SketchFootball, SketchPeople, SketchTactics } from './Icons'
 
 // Petit hash stable (pas besoin de cryptographique, juste répartir les
@@ -169,6 +170,16 @@ export default function Groups({ onSelectGroup }: Props) {
       window.setTimeout(() => setCopiedCode((c) => (c === code ? null : c)), 1500)
     } catch {
       // ignoré
+    }
+  }
+
+  // Lien d'invitation (partage natif ou copie, voir invite.ts)
+  const [sharedCode, setSharedCode] = useState<string | null>(null)
+  const handleShareInvite = async (name: string, code: string) => {
+    const result = await shareInvite(name, code)
+    if (result === 'copied') {
+      setSharedCode(code)
+      window.setTimeout(() => setSharedCode((c) => (c === code ? null : c)), 2000)
     }
   }
 
@@ -406,22 +417,27 @@ export default function Groups({ onSelectGroup }: Props) {
                     <span className="groups-card-meta-sep">·</span>
                     <span>👥 {memberCount ?? '…'} membre{memberCount === 1 ? '' : 's'}</span>
                   </div>
-                  {m.role === 'owner' && (
-                    <div className="groups-card-invite">
-                      <span className="groups-card-invite-label">Code d'invitation</span>
-                      <div className="groups-card-invite-row" onClick={(e) => e.stopPropagation()}>
-                        <code>{m.groups.invite_code}</code>
-                        <button
-                          type="button"
-                          className="groups-card-copy-btn"
-                          onClick={(e) => copyInviteCode(m.groups.invite_code, e)}
-                          title="Copier le code"
-                        >
-                          {copiedCode === m.groups.invite_code ? '✓' : '📋'}
-                        </button>
-                      </div>
+                  <div className="groups-card-invite">
+                    <span className="groups-card-invite-label">Code d'invitation</span>
+                    <div className="groups-card-invite-row" onClick={(e) => e.stopPropagation()}>
+                      <code>{m.groups.invite_code}</code>
+                      <button
+                        type="button"
+                        className="groups-card-copy-btn"
+                        onClick={(e) => copyInviteCode(m.groups.invite_code, e)}
+                        title="Copier le code"
+                      >
+                        {copiedCode === m.groups.invite_code ? '✓' : '📋'}
+                      </button>
+                      <button
+                        type="button"
+                        className="groups-card-share-btn"
+                        onClick={(e) => { e.stopPropagation(); handleShareInvite(m.groups.name, m.groups.invite_code) }}
+                      >
+                        {sharedCode === m.groups.invite_code ? 'Lien copié ✓' : '📤 Inviter'}
+                      </button>
                     </div>
-                  )}
+                  </div>
                   {m.role === 'owner' && (
                     <div className="groups-card-owner-actions" onClick={(e) => e.stopPropagation()}>
                       <button

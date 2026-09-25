@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext'
 import TeamBadge from './TeamBadge'
 import { SketchBall } from './Icons'
 import Avatar from './Avatar'
+import { shareInvite } from './invite'
 
 interface MatchRow {
   id: string
@@ -137,6 +138,21 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   // mini-jeu hebdomadaire actif (jonglages ou dribble), même logique que App.tsx
   const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble' | 'jeu-semaine'>('jonglage')
   const [weekDuels, setWeekDuels] = useState<{ quiz: DuelStatus; penalty: DuelStatus } | null>(null)
+  const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const [inviteCopied, setInviteCopied] = useState(false)
+
+  useEffect(() => {
+    supabase.from('groups').select('invite_code').eq('id', groupId).maybeSingle()
+      .then(({ data }) => setInviteCode(data?.invite_code ?? null))
+  }, [groupId])
+
+  const handleInvite = async () => {
+    if (!inviteCode) return
+    if ((await shareInvite(groupName, inviteCode)) === 'copied') {
+      setInviteCopied(true)
+      window.setTimeout(() => setInviteCopied(false), 2000)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -487,6 +503,12 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
           </div>
         )}
       </section>
+
+      {inviteCode && (
+        <button className="dash-invite-btn" onClick={handleInvite}>
+          {inviteCopied ? 'Lien copié ✓ Colle-le à tes potes' : '📤 Inviter des potes dans le groupe'}
+        </button>
+      )}
     </div>
   )
 }

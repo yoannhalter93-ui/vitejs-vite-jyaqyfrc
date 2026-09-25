@@ -10,6 +10,10 @@ import './home-reference-exact.css'
 import './home-approved-final.css'
 import './ux.css'
 import { AuthProvider } from './AuthContext'
+import { capturePendingJoinFromUrl } from './invite'
+
+// lien d'invitation ?join=CODE : mémorisé avant tout rendu (voir invite.ts)
+capturePendingJoinFromUrl()
 
 // Bloque le pincer-zoomer "pour de vrai" : le CSS touch-action seul (voir
 // App.css) ne suffit pas sur certains navigateurs Android (Samsung
