@@ -2,14 +2,13 @@ self.addEventListener('push', (event) => {
   let data = {}
   try {
     data = event.data ? event.data.json() : {}
-  } catch (e) {
+  } catch {
     data = {}
   }
   const title = data.title || 'Entre Nous'
   const options = {
     body: data.body || '',
-    icon: '/vitejs-vite-jyaqyfrc/favicon.svg',
-    badge: '/vitejs-vite-jyaqyfrc/favicon.svg',
+    icon: '/vitejs-vite-jyaqyfrc/icon-192.png',
     data: { url: data.url || '/vitejs-vite-jyaqyfrc/' },
   }
   event.waitUntil(self.registration.showNotification(title, options))

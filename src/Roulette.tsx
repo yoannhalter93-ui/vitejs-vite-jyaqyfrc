@@ -106,29 +106,23 @@ export default function Roulette({ groupId, groupName }: Props) {
       count++
       if (count > 12) {
         clearInterval(spinInterval)
-        finish(available)
+        finish()
       }
     }, 100)
   }
 
-  const finish = async (available: Team[]) => {
+  const finish = async () => {
     if (!user || !periodId) return
-    const chosen = available[Math.floor(Math.random() * available.length)]
+    // Le tirage réel se fait côté serveur (assign_random_team) : l'animation
+    // ci-dessus n'est que visuelle, le client ne choisit plus l'équipe.
+    const { data, error: rpcErr } = await supabase.rpc('assign_random_team', { p_group_id: groupId })
+    const chosen = (Array.isArray(data) ? data[0] : data) as { team_name: string } | null
 
-    const { error: insErr } = await supabase.from('team_assignments').insert({
-      group_id: groupId,
-      profile_id: user.id,
-      team_name: chosen.name,
-      api_team_id: chosen.api_team_id,
-      period_id: periodId,
-      inverted: false,
-    })
-
-    if (insErr) {
-      setError(insErr.message)
+    if (rpcErr || !chosen) {
+      setError(rpcErr?.message ?? 'Tirage impossible pour le moment.')
     } else {
-      setSpinLabel(chosen.name)
-      setMyTeam(chosen.name)
+      setSpinLabel(chosen.team_name)
+      setMyTeam(chosen.team_name)
     }
     setSpinning(false)
     await load()

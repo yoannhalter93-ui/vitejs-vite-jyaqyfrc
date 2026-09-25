@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
+import { useWizzChannel } from './wizzChannel'
 
 interface Props {
   groupId: string
@@ -138,7 +139,6 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   const [allTimeBest, setAllTimeBest] = useState<BestScore | null>(null)
   const [showRules, setShowRules] = useState(false)
   const [showBoard, setShowBoard] = useState(false)
-  const wizzChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   const loadScores = async () => {
     const { data: s } = await supabase.from('dribble_scores').select('profile_id, score')
@@ -191,16 +191,13 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   // les autres mini-jeux) : sert uniquement à diffuser le début/fin de partie
   // pour le bandeau "X joue au mini-jeu !" affiché aux autres membres (via
   // App.tsx). Le wizz (effet reçu pendant la partie) est réservé au jonglage.
+  const sendOnWizzChannel = useWizzChannel(groupId)
+
   useEffect(() => {
-    const channel = supabase.channel(`wizz-${groupId}`)
-    channel.subscribe()
-    wizzChannelRef.current = channel
     return () => {
       if (user && engineRef.current.playing) {
-        channel.send({ type: 'broadcast', event: 'playing', payload: { action: 'stop', profileId: user.id } })
+        sendOnWizzChannel('playing', { action: 'stop', profileId: user.id })
       }
-      supabase.removeChannel(channel)
-      wizzChannelRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, user])
@@ -211,7 +208,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     try {
       if (!eng.audioCtx) eng.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
       else if (eng.audioCtx.state === 'suspended') eng.audioCtx.resume()
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
   }
 
   const beep = (freq: number, dur: number, type: OscillatorType, vol?: number, delay?: number) => {
@@ -229,7 +226,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
       osc.connect(gain).connect(ctx.destination)
       osc.start(t0)
       osc.stop(t0 + dur + 0.02)
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
   }
   const playDodge = () => beep(880, 0.08, 'triangle', 0.14)
   const playMiss = () => { beep(140, 0.3, 'sawtooth', 0.22); beep(90, 0.36, 'square', 0.15, 0.05) }
@@ -265,17 +262,17 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
       src.connect(filter).connect(gain).connect(ctx.destination)
       src.start(t0)
       src.stop(t0 + dur + 0.05)
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
   }
   const playCrowdRoar = () => noiseBurst(0.9, 0.35, 1100)
   const vibrate = (pattern: number | number[]) => {
-    try { if (navigator.vibrate) navigator.vibrate(pattern) } catch (e) { /* ignore */ }
+    try { if (navigator.vibrate) navigator.vibrate(pattern) } catch { /* ignore */ }
   }
 
   const stopCrowdAmbience = () => {
     const eng = engineRef.current
     if (eng.crowdNodes) {
-      try { eng.crowdNodes.src.stop() } catch (e) { /* ignore */ }
+      try { eng.crowdNodes.src.stop() } catch { /* ignore */ }
       eng.crowdNodes = null
     }
   }
@@ -301,7 +298,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
       src.connect(filter).connect(gain).connect(ctx.destination)
       src.start()
       eng.crowdNodes = { src, gain }
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
   }
   const setCrowdIntensity = (pct: number) => {
     const eng = engineRef.current
@@ -682,11 +679,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     // Préviens les autres membres du groupe (bandeau partagé avec les autres
     // mini-jeux, via App.tsx) que la partie démarre.
     if (user) {
-      wizzChannelRef.current?.send({
-        type: 'broadcast',
-        event: 'playing',
-        payload: { action: 'start', profileId: user.id, pseudo: myPseudo || 'Un coéquipier', game: 'dribble' },
-      })
+      sendOnWizzChannel('playing', { action: 'start', profileId: user.id, pseudo: myPseudo || 'Un coéquipier', game: 'dribble' })
       supabase.rpc('notify_dribble_start', { p_group_id: groupId })
     }
   }
@@ -714,11 +707,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     }, 500)
 
     if (user) {
-      wizzChannelRef.current?.send({
-        type: 'broadcast',
-        event: 'playing',
-        payload: { action: 'stop', profileId: user.id },
-      })
+      sendOnWizzChannel('playing', { action: 'stop', profileId: user.id })
       // Réglage "Pronostics dans toutes mes ligues" actif : la RPC
       // submit_dribble_score_all_leagues enregistre le même score dans
       // toutes les ligues où je suis membre (le jeu de la semaine est

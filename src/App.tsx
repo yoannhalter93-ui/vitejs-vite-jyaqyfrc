@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { useAuth } from './AuthContext';
 import Login from './Login';
@@ -22,6 +22,7 @@ import PredictionsHistory from './PredictionsHistory'
 import Help from './Help'
 import { SketchController } from './Icons'
 import Chat from './Chat'
+import { useWizzChannel } from './wizzChannel'
 
 // Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
 // d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
@@ -256,7 +257,6 @@ function App() {
   // développées (thème, confidentialité...) : au lieu de masquer la ligne,
   // on l'affiche mais elle ouvre juste ce petit message générique.
   const [comingSoon, setComingSoon] = useState<string | null>(null)
-  const [wizzChannel, setWizzChannel] = useState<ReturnType<typeof supabase.channel> | null>(null)
   // mini-jeu hebdomadaire actif (jonglages ou dribble) : change chaque
   // semaine via public.minigame_weeks, même classement/mêmes récompenses
   // des deux côtés, seul le jeu affiché change.
@@ -463,33 +463,34 @@ function App() {
     }
   }
 
-  useEffect(() => {
-    if (!selectedGroup?.id || !session?.user?.id) return
-    const channel = supabase.channel(`wizz-${selectedGroup.id}`)
-    let hideTimer: ReturnType<typeof setTimeout> | null = null
-    channel.on('broadcast', { event: 'playing' }, ({ payload }: any) => {
-      if (!payload || payload.profileId === session.user.id) return
+  // Bandeau "X joue au mini-jeu !" : canal partagé avec les mini-jeux (voir
+  // wizzChannel.ts), qui y diffusent le début/fin de leurs parties.
+  const juggleAlertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sendOnWizzChannel = useWizzChannel(session?.user?.id ? selectedGroup?.id : null, {
+    onPlaying: (payload) => {
+      if (!payload || payload.profileId === session?.user?.id) return
       if (payload.action === 'start') {
         setJuggleAlert({ profileId: payload.profileId, pseudo: payload.pseudo || 'Un coéquipier', game: payload.game || 'jonglage' })
-        if (hideTimer) clearTimeout(hideTimer)
-        hideTimer = setTimeout(() => setJuggleAlert(null), 35000)
+        if (juggleAlertTimerRef.current) clearTimeout(juggleAlertTimerRef.current)
+        juggleAlertTimerRef.current = setTimeout(() => setJuggleAlert(null), 35000)
       } else if (payload.action === 'stop') {
         setJuggleAlert(null)
-        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+        if (juggleAlertTimerRef.current) { clearTimeout(juggleAlertTimerRef.current); juggleAlertTimerRef.current = null }
       }
-    }).subscribe()
-    setWizzChannel(channel)
+    },
+  })
+
+  useEffect(() => {
+    // changement de groupe : le bandeau de l'ancien groupe n'a plus de sens
+    setJuggleAlert(null)
     return () => {
-      if (hideTimer) clearTimeout(hideTimer)
-      supabase.removeChannel(channel)
-      setWizzChannel(null)
+      if (juggleAlertTimerRef.current) { clearTimeout(juggleAlertTimerRef.current); juggleAlertTimerRef.current = null }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedGroup?.id, session?.user?.id])
+  }, [selectedGroup?.id])
 
   const sendWizz = () => {
-    if (!juggleAlert || !wizzChannel) return
-    wizzChannel.send({ type: 'broadcast', event: 'wizz', payload: { targetProfileId: juggleAlert.profileId, fromPseudo: myPseudo || 'Un ami' } })
+    if (!juggleAlert) return
+    sendOnWizzChannel('wizz', { targetProfileId: juggleAlert.profileId, fromPseudo: myPseudo || 'Un ami' })
     // notification persistée + push, au cas où le destinataire ne serait
     // plus sur l'écran Jonglages (ou plus dans l'appli) pour voir l'effet
     // temps réel

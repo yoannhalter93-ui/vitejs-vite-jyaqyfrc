@@ -112,7 +112,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
   const [finishedSoundPlayed, setFinishedSoundPlayed] = useState<string | null>(null)
   const [revancheBusy, setRevancheBusy] = useState(false)
   const [tab, setTab] = useState<'current' | 'history'>('current')
-  const [playFlags, setPlayFlags] = useState<{ duel_id: string; shooter_id: string; keeper_id: string; shooter_zone: string | null; keeper_zone: string | null }[]>([])
+  const [playFlags, setPlayFlags] = useState<{ duel_id: string; shooter_id: string; keeper_id: string; shot_taken: boolean; save_made: boolean }[]>([])
 
   const { playGoal, playPanenka, playSave, playKick, playVictory, playDefeat } = useSynth()
 
@@ -151,10 +151,11 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
       .filter((x) => x.phase === 'in_progress')
       .map((x) => x.id))]
     if (inProgressIds.length > 0) {
-      const { data: flags } = await supabase
-        .from('penalty_duel_attempts')
-        .select('duel_id, shooter_id, keeper_id, shooter_zone, keeper_zone')
-        .in('duel_id', inProgressIds)
+      // RPC plutôt que lecture directe de penalty_duel_attempts : la table
+      // n'est plus lisible côté client (sinon le gardien voyait la zone de
+      // tir de l'adversaire avant de plonger) — on ne récupère que des
+      // booléens "a tiré / a gardé".
+      const { data: flags } = await supabase.rpc('get_penalty_play_flags', { p_duel_ids: inProgressIds })
       setPlayFlags(flags ?? [])
     } else {
       setPlayFlags([])
@@ -170,8 +171,8 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
 
   const hasPlayed = (duelId: string, profileId: string) =>
     playFlags.some((a) => a.duel_id === duelId && (
-      (a.shooter_id === profileId && a.shooter_zone !== null) ||
-      (a.keeper_id === profileId && a.keeper_zone !== null)
+      (a.shooter_id === profileId && a.shot_taken) ||
+      (a.keeper_id === profileId && a.save_made)
     ))
 
   // Statut lisible d'un duel "en cours" pour la liste "Mes duels" : dit qui
@@ -316,7 +317,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
           const scored = !!resolved.scored
           setAnimResult({ scored, points: resolved.points ?? 0, shooterZone })
           setAnimStage('result')
-          if (scored) (shooterZone === 'milieu' ? playPanenka() : playGoal())
+          if (scored) { if (shooterZone === 'milieu') playPanenka(); else playGoal() }
           else playSave()
         }
         setTimeout(async () => {

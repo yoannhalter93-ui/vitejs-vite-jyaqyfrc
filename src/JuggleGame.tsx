@@ -1,6 +1,7 @@
 import { createElement, Fragment, useEffect, useRef, useState, type PointerEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
+import { useWizzChannel } from './wizzChannel'
 
 interface ScoreRow {
     profile_id: string
@@ -112,10 +113,6 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
   // user]), donc son callback aurait sinon une closure figée sur la valeur du
   // premier rendu — même piège que stateRef pour la boucle de physique.
   const wizzCooldownRef = useRef(0)
-    // Canal temps réel partagé avec App.tsx (même nom `wizz-<groupId>`) : sert à
-  // prévenir les autres membres du groupe qu'une partie démarre/s'arrête, et à
-  // recevoir les wizz qu'ils nous envoient pendant qu'on joue.
-  const wizzChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   const loadScores = async () => {
         const { data: s } = await supabase.from('juggle_scores').select('profile_id, score')
@@ -173,24 +170,23 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
   // Jonglages est ouvert (pas seulement pendant qu'on joue) : ça permet de
   // recevoir un wizz même juste avant/après une partie, et surtout de pouvoir
   // diffuser le début/fin de partie dès qu'on appuie sur "Commencer".
-  useEffect(() => {
-        const channel = supabase.channel(`wizz-${groupId}`)
-        channel.on('broadcast', { event: 'wizz' }, ({ payload }) => {
+  const sendOnWizzChannel = useWizzChannel(groupId, {
+        onWizz: (payload) => {
                 if (!user || !payload || payload.targetProfileId !== user.id) return
                 if (!stateRef.current.running) return
                 if (wizzCooldownRef.current > 0) return
                 triggerWizzEffect(payload.fromPseudo || 'Un ami')
-        }).subscribe()
-        wizzChannelRef.current = channel
+        },
+  })
+
+  useEffect(() => {
         return () => {
                 // Si on quitte l'écran en pleine partie (navigation ailleurs), on
                 // prévient quand même que la partie s'arrête, pour ne pas laisser le
                 // bandeau "X joue aux Jonglages" affiché indéfiniment chez les autres.
                 if (user && stateRef.current.running) {
-                          channel.send({ type: 'broadcast', event: 'playing', payload: { action: 'stop', profileId: user.id } })
+                          sendOnWizzChannel('playing', { action: 'stop', profileId: user.id })
                 }
-                supabase.removeChannel(channel)
-                wizzChannelRef.current = null
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, user])
@@ -289,11 +285,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
         // Préviens les autres membres du groupe (bandeau + bouton "Envoyer un
         // wizz" affiché sur tous leurs écrans, via App.tsx) que la partie démarre.
         if (user) {
-                wizzChannelRef.current?.send({
-                          type: 'broadcast',
-                          event: 'playing',
-                          payload: { action: 'start', profileId: user.id, pseudo: myPseudo || 'Un coéquipier', game: 'jonglage' },
-                })
+                sendOnWizzChannel('playing', { action: 'start', profileId: user.id, pseudo: myPseudo || 'Un coéquipier', game: 'jonglage' })
                 // notification persistée + push, pour les membres du groupe qui
                 // n'ont pas l'appli ouverte en ce moment (le broadcast temps réel
                 // ci-dessus ne les atteint pas)
@@ -442,11 +434,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
         setPlaying(false)
         setFinalScore(finalSc)
         if (!user) return
-        wizzChannelRef.current?.send({
-                type: 'broadcast',
-                event: 'playing',
-                payload: { action: 'stop', profileId: user.id },
-        })
+        sendOnWizzChannel('playing', { action: 'stop', profileId: user.id })
         // Réglage "Pronostics dans toutes mes ligues" actif : la RPC
         // submit_juggle_score_all_leagues enregistre le même score dans
         // toutes les ligues où je suis membre (le jeu de la semaine est

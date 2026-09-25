@@ -35,7 +35,7 @@ const CATEGORIES: { key: string; label: string }[] = [
 // Le classement "Duels" fusionne deux catégories de points_ledger.source_type
 // (les quiz et les duels penalty) en un seul total par joueur.
 function mergeCategoryPoints(a?: Record<string, number>, b?: Record<string, number>): Record<string, number> {
-  const merged: Record<string, number> = { ...(a ?? {}) }
+  const merged: Record<string, number> = { ...a }
   for (const [profileId, pts] of Object.entries(b ?? {})) {
     merged[profileId] = (merged[profileId] ?? 0) + pts
   }
