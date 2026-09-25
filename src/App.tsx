@@ -505,6 +505,37 @@ function App() {
     if (screen !== 'jonglages') setMinigamePlaying(false)
   }, [screen])
 
+  // Historique de navigation : l'appli n'a qu'une seule URL, donc sans ça le
+  // bouton "retour" d'Android (et de l'appli Play Store) quittait carrément
+  // l'appli au lieu de revenir à l'écran précédent. Chaque changement
+  // d'écran/groupe/partie en cours ajoute une entrée d'historique ; "retour"
+  // restaure l'entrée précédente.
+  useEffect(() => {
+    const state = { screen, group: selectedGroup, playing: minigamePlaying }
+    const current = window.history.state?.entreNous
+    if (!current) {
+      window.history.replaceState({ ...window.history.state, entreNous: state }, '')
+      return
+    }
+    // déjà l'entrée courante (cas typique : on vient justement d'un "retour")
+    if (current.screen === state.screen && current.group?.id === state.group?.id && current.playing === state.playing) return
+    window.history.pushState({ entreNous: state }, '')
+  }, [screen, selectedGroup, minigamePlaying])
+
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      const s = e.state?.entreNous
+      if (!s) return
+      setShowNotifPanel(false)
+      setShowBonusPanel(false)
+      setSelectedGroup(s.group)
+      setScreen(s.screen)
+      setMinigamePlaying(s.playing)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
   // Résultats de la dernière semaine jouée pour chaque mini-jeu, chargés en
   // entrant sur l'écran du sélecteur (voir lastMinigameResults ci-dessus).
   useEffect(() => {
@@ -543,6 +574,19 @@ function App() {
   useEffect(() => {
     refreshOpenBetsToVoteCount()
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGroup?.id, session?.user?.id, screen])
+
+  // duels (quiz / penalty) de la semaine où c'est à moi de jouer : badge sur
+  // l'onglet "Jeux", même principe que le badge "Paris"
+  const [duelsToPlayCount, setDuelsToPlayCount] = useState(0)
+  useEffect(() => {
+    if (!selectedGroup?.id || !session?.user?.id) { setDuelsToPlayCount(0); return }
+    let cancelled = false
+    supabase.rpc('get_my_week_duels', { p_group_id: selectedGroup.id }).then(({ data, error }: any) => {
+      if (cancelled || error || !data) return
+      setDuelsToPlayCount((data.quiz?.state === 'to_play' ? 1 : 0) + (data.penalty?.state === 'to_play' ? 1 : 0))
+    })
+    return () => { cancelled = true }
   }, [selectedGroup?.id, session?.user?.id, screen])
 
   const BONUS_CODES = ['echange_equipe', 'retirage_force', 'double_ou_rien', 'bonus_inverse', 'revanche_duel']
@@ -814,7 +858,9 @@ function App() {
   // déjà vu (flag posé par mark_team_reveal_seen, ou backfillé à true pour
   // tous les membres existant avant ce correctif) vont directement à l'accueil.
   const handleSelectGroup = async (id: string, name: string) => {
-    setSelectedGroup({ id, name })
+    // groupe et écran changés ensemble (après la requête) : une seule entrée
+    // d'historique, pas d'étape intermédiaire "nouveau groupe, ancien écran"
+    let next: Screen = 'accueil'
     if (session?.user?.id) {
       const { data } = await supabase
         .from('group_members')
@@ -822,12 +868,10 @@ function App() {
         .eq('group_id', id)
         .eq('profile_id', session.user.id)
         .maybeSingle()
-      if (data?.team_reveal_seen === false) {
-        setScreen('team-reveal')
-        return
-      }
+      if (data?.team_reveal_seen === false) next = 'team-reveal'
     }
-    setScreen('accueil')
+    setSelectedGroup({ id, name })
+    setScreen(next)
   }
 
   // Carte profil (photo/emoji + pseudo, éditables) — partagée entre les deux
@@ -1537,6 +1581,7 @@ function App() {
         <BottomNav
           tabs={BOTTOM_TABS.map((t) =>
             t.key === 'paris' ? { ...t, badge: openBetsToVoteCount } :
+            t.key === 'jeux' ? { ...t, badge: duelsToPlayCount } :
             t.key === 'chat' ? { ...t, badge: unreadMessageCount } : t
           )}
           active={bottomTabFor(screen)}

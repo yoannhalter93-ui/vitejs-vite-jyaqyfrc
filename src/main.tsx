@@ -8,6 +8,7 @@ import './home-visual-reference.css'
 import './home-reference-polish.css'
 import './home-reference-exact.css'
 import './home-approved-final.css'
+import './ux.css'
 import { AuthProvider } from './AuthContext'
 
 // Bloque le pincer-zoomer "pour de vrai" : le CSS touch-action seul (voir

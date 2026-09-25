@@ -78,6 +78,44 @@ function inferLigue1Matchday(date: Date | null): number | null {
   return current
 }
 
+interface DuelStatus {
+  state: 'none' | 'waiting_draw' | 'to_play' | 'waiting' | 'won' | 'lost' | 'draw'
+  opponent?: string | null
+}
+
+// Sous-titre des tuiles Duel penalty / Quiz, selon l'état réel du duel de
+// la semaine (voir la RPC get_my_week_duels)
+function duelSubtitle(s: DuelStatus | undefined, fallback: string): string {
+  if (!s) return fallback
+  const opp = s.opponent ?? 'ton adversaire'
+  switch (s.state) {
+    case 'to_play': return `À toi de jouer contre ${opp} !`
+    case 'waiting': return `En attente de ${opp}`
+    case 'waiting_draw': return "En attente d'un adversaire"
+    case 'won': return `Gagné contre ${opp} 🎉`
+    case 'lost': return `Perdu contre ${opp}`
+    case 'draw': return `Égalité avec ${opp}`
+    default: return 'Pas de duel cette semaine'
+  }
+}
+
+// premier jour de journée de Ligue 1 strictement après `date` (sert de date
+// de reprise quand les matchs ne sont pas encore importés)
+function nextLigue1Start(date: Date): Date | null {
+  for (const [iso] of LIGUE1_2627_STARTS) {
+    const [year, month, day] = iso.split('-').map(Number)
+    const start = new Date(year, month - 1, day)
+    if (start.getTime() > date.getTime()) return start
+  }
+  return null
+}
+
+// "2026-27" : une saison de foot court de l'été à l'été suivant
+function seasonLabel(date: Date): string {
+  const start = date.getMonth() >= 6 ? date.getFullYear() : date.getFullYear() - 1
+  return `${start}-${String((start + 1) % 100).padStart(2, '0')}`
+}
+
 function CalendarIcon({ className = '' }: { className?: string }) {
   return (
     <svg className={`dash-v4-calendar ${className}`} viewBox="0 0 24 24" aria-hidden="true">
@@ -98,6 +136,15 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const [ranking, setRanking] = useState<RankRow[]>([])
   // mini-jeu hebdomadaire actif (jonglages ou dribble), même logique que App.tsx
   const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble' | 'jeu-semaine'>('jonglage')
+  const [weekDuels, setWeekDuels] = useState<{ quiz: DuelStatus; penalty: DuelStatus } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    supabase.rpc('get_my_week_duels', { p_group_id: groupId }).then(({ data, error }) => {
+      if (!cancelled && !error && data) setWeekDuels(data as { quiz: DuelStatus; penalty: DuelStatus })
+    })
+    return () => { cancelled = true }
+  }, [groupId])
 
   useEffect(() => {
     const checkActiveMinigame = () => {
@@ -220,10 +267,19 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
   const nextMatch = upcoming[0]
   const nextKickoff = nextMatch ? new Date(nextMatch.kickoff_at) : null
-  const storedMatchday = upcoming.find((match) => match.matchday != null)?.matchday ?? null
-  const currentMatchday = inferLigue1Matchday(new Date()) ?? storedMatchday
   const nextMatchday = nextMatch?.matchday ?? inferLigue1Matchday(nextKickoff)
-  const heroTitle = currentMatchday ? `Journée ${currentMatchday}` : (groupName || 'Journée')
+  // Trêve (internationale ou hivernale) : aucun match dans les 6 prochains
+  // jours. Avant, l'accueil affichait "Journée 5" pendant toute la trêve,
+  // alors que plus rien n'était à pronostiquer.
+  const now = new Date()
+  const resumeDate = nextKickoff ?? nextLigue1Start(now)
+  const isBreak = !nextKickoff || nextKickoff.getTime() - now.getTime() > 6 * 24 * 60 * 60 * 1000
+  const heroTitle = isBreak
+    ? 'Trêve'
+    : nextMatchday ? `Journée ${nextMatchday}` : (groupName || 'Journée')
+  const resumeLabel = resumeDate
+    ? resumeDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+    : null
 
   const nextDateLabel = nextKickoff
     ? nextKickoff.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', '')
@@ -259,7 +315,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
       <section className="dash-v2-hero" aria-labelledby="dashboard-title">
         <div className="dash-v2-hero-top">
           <span className="dash-v2-eyebrow">
-            Saison {new Date().getFullYear()}{periodLabel ? ` • ${periodLabel}` : ''}
+            Saison {seasonLabel(new Date())}{periodLabel ? ` • ${periodLabel}` : ''}
           </span>
         </div>
 
@@ -267,7 +323,9 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
           <div>
             <h2 id="dashboard-title" className="dash-v2-title">{heroTitle}</h2>
             <p className="dash-v2-subtitle">
-              {totalCount > 0
+              {isBreak
+                ? resumeLabel ? `Reprise de la Ligue 1 ${resumeLabel}` : 'Les prochains matchs arrivent bientôt'
+                : totalCount > 0
                 ? `${doneCount}/${totalCount} pronostic${totalCount > 1 ? 's' : ''} fait${doneCount > 1 ? 's' : ''}`
                 : 'Les prochains matchs arrivent bientôt'}
             </p>
@@ -328,15 +386,17 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
             <span className="dash-v3-action-arrow">›</span>
           </button>
           <button className="dash-v2-action dash-v2-action-accent" onClick={() => onNavigate('penalty')}>
+            {weekDuels?.penalty.state === 'to_play' && <span className="dash-action-todo-dot" aria-label="À toi de jouer" />}
             <span className="dash-v2-action-icon" aria-hidden="true">🥅</span>
             <span className="dash-v2-action-title">Duel penalty</span>
-            <span className="dash-v2-action-sub">Un pote t'attend</span>
+            <span className="dash-v2-action-sub">{duelSubtitle(weekDuels?.penalty, 'Défie un pote')}</span>
             <span className="dash-v3-action-arrow">›</span>
           </button>
           <button className="dash-v2-action" onClick={() => onNavigate('quiz')}>
+            {weekDuels?.quiz.state === 'to_play' && <span className="dash-action-todo-dot" aria-label="À toi de jouer" />}
             <span className="dash-v2-action-icon" aria-hidden="true">🧠</span>
             <span className="dash-v2-action-title">Quiz</span>
-            <span className="dash-v2-action-sub">Nouveau duel</span>
+            <span className="dash-v2-action-sub">{duelSubtitle(weekDuels?.quiz, 'Duel de questions foot')}</span>
             <span className="dash-v3-action-arrow">›</span>
           </button>
         </div>
