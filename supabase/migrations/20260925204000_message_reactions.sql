@@ -49,3 +49,6 @@ create policy "retirer sa reaction" on public.message_reactions
 grant select, insert, delete on public.message_reactions to authenticated;
 
 alter publication supabase_realtime add table public.message_reactions;
+
+-- fonction de trigger : pas appelable via /rpc
+revoke execute on function public.set_message_reaction_group() from public, anon, authenticated;
