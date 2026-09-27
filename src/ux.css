@@ -385,3 +385,18 @@
   left: 10px !important;
   right: auto !important;
 }
+
+/* Cartes "Matchs à venir" et "Classement" cliquables en entier */
+.dash-card-link {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease;
+}
+.dash-card-link:active { transform: scale(0.985); }
+/* ancien bouton devenu simple texte (la carte entière est cliquable) */
+span.dash-v2-match-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}

@@ -111,6 +111,19 @@ function DuelSub({ lines }: { lines: [string, string?] }) {
   )
 }
 
+// Carte entière cliquable (Matchs à venir, Classement) : plus pratique au
+// pouce que le petit lien "Voir tout" du titre, qui reste en place.
+function cardLink(onOpen: () => void) {
+  return {
+    role: 'button' as const,
+    tabIndex: 0,
+    onClick: onOpen,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() }
+    },
+  }
+}
+
 // premier jour de journée de Ligue 1 strictement après `date` (sert de date
 // de reprise quand les matchs ne sont pas encore importés)
 function nextLigue1Start(date: Date): Date | null {
@@ -436,7 +449,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
             <button className="dash-v2-section-link" onClick={() => onNavigate('pronostics')}>Voir tout →</button>
           </div>
 
-          <div className="dash-v2-match-card">
+          <div className="dash-v2-match-card dash-card-link" {...cardLink(() => onNavigate('pronostics'))}>
             <div className="dash-v2-match-meta">
               {nextDateLabel && nextTimeLabel && (
                 <span className="dash-v2-match-date"><CalendarIcon className="dash-v4-calendar-small" /> {nextDateLabel} {nextTimeLabel}</span>
@@ -465,9 +478,9 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
               </div>
             </div>
 
-            <button className="dash-v2-match-footer" onClick={() => onNavigate('pronostics')}>
+            <span className="dash-v2-match-footer">
               Voir les pronostics des potes  →
-            </button>
+            </span>
           </div>
         </section>
       )}
@@ -481,7 +494,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
         {ranking.length === 0 ? (
           <p className="groups-empty">Pas encore de points marqués sur cette période.</p>
         ) : (
-          <div className="dash-v2-ranking-card dash-v3-ranking-card">
+          <div className="dash-v2-ranking-card dash-v3-ranking-card dash-card-link" {...cardLink(() => onNavigate('classement'))}>
             <ul className="dash-v2-ranking-list">
               {ranking.map((r, i) => {
                 const isMe = r.profile_id === user?.id
