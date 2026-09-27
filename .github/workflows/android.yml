@@ -13,6 +13,9 @@ name: Build Android app
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -79,3 +82,18 @@ jobs:
           path: |
             android/app-release-bundle.aab
             android/app-release-signed.apk
+
+      # APK téléchargeable en un clic depuis le téléphone (pour tester hors
+      # Play Store) : publié comme « release » GitHub, lien toujours valable
+      # https://github.com/<dépôt>/releases/latest/download/entre-nous.apk
+      - name: Publication de l'APK (lien direct)
+        if: env.SIGNING == 'store'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app-release-signed.apk entre-nous.apk
+          TAG="android-${{ github.run_number }}"
+          gh release create "$TAG" entre-nous.apk \
+            --title "Appli Android (build ${{ github.run_number }})" \
+            --notes "APK à installer pour tester. Pour le Play Store, utiliser app-release-bundle.aab (artefact du workflow)." \
+            --latest
