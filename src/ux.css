@@ -335,3 +335,21 @@ html, body { overscroll-behavior-y: contain; }
    héritaient du gris du modèle Vite de départ (#6b6375), quasi illisible
    sur le fond vert. */
 .predictions-header h2 { color: #F4EFE2; }
+
+/* ===== Coup franc ===== */
+.freekick-stage {
+  padding: 0;
+  overflow: hidden;
+  min-height: 58vh;
+}
+
+.freekick-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: crosshair;
+}

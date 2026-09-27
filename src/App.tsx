@@ -16,6 +16,7 @@ import WeeklyDuel from './WeeklyDuel';
 import FreeBets from './FreeBets';
 import JuggleGame from './JuggleGame';
 import DribbleGame from './DribbleGame';
+import FreeKickGame from './FreeKickGame';
 import WeeklySpecial from './WeeklySpecial';
 import Avatar from './Avatar'
 import PredictionsHistory from './PredictionsHistory'
@@ -108,8 +109,18 @@ const JEUX_HUB: { key: Screen; label: string; icon: string; sub: string; color: 
 // par mini-jeu possible, celle qui correspond à activeMinigame est
 // cliquable (elle lance le jeu en plein écran), les deux autres restent
 // grisées — même traitement visuel que l'ancien "teaser" de But en or.
+// les 4 mini-jeux de la rotation hebdomadaire (voir assign_weekly_minigame)
+type MinigameKey = 'jonglage' | 'dribble' | 'coup-franc' | 'jeu-semaine'
+
+const MINIGAME_INFO: Record<MinigameKey, { icon: string; label: string }> = {
+  jonglage: { icon: '🤹', label: 'Jonglage' },
+  dribble: { icon: '⚽', label: 'Dribble' },
+  'coup-franc': { icon: '🧱', label: 'Coup franc' },
+  'jeu-semaine': { icon: '🎯', label: 'But en or' },
+}
+
 const MINIGAME_TILES: {
-  key: 'jonglage' | 'dribble' | 'jeu-semaine'
+  key: MinigameKey
   icon: string
   label: string
   subActive: string
@@ -117,6 +128,7 @@ const MINIGAME_TILES: {
 }[] = [
   { key: 'jonglage', icon: '🤹', label: 'Jonglages', subActive: 'Ton défi de la semaine', subDisabled: 'Pas cette semaine' },
   { key: 'dribble', icon: '⚽', label: 'Dribble', subActive: 'Ton défi de la semaine', subDisabled: 'Pas cette semaine' },
+  { key: 'coup-franc', icon: '🧱', label: 'Coup franc', subActive: 'Vise la lucarne', subDisabled: 'Pas cette semaine' },
   { key: 'jeu-semaine', icon: '🎯', label: 'But en or', subActive: '2 matchs à deviner', subDisabled: 'Pas cette semaine' },
 ]
 
@@ -271,7 +283,7 @@ function App() {
   // mini-jeu hebdomadaire actif (jonglages ou dribble) : change chaque
   // semaine via public.minigame_weeks, même classement/mêmes récompenses
   // des deux côtés, seul le jeu affiché change.
-  const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble' | 'jeu-semaine'>('jonglage')
+  const [activeMinigame, setActiveMinigame] = useState<MinigameKey>('jonglage')
   // écran "jonglages" : false = on affiche le sélecteur des 3 mini-jeux
   // (celui de la semaine cliquable, les 2 autres grisés) ; true = le jeu
   // choisi est lancé en plein écran. Remis à false dès qu'on quitte l'écran,
@@ -552,7 +564,7 @@ function App() {
   useEffect(() => {
     if (screen !== 'jonglages' || !selectedGroup?.id) return
     const groupId = selectedGroup.id
-    ;(['jonglage', 'dribble', 'jeu-semaine'] as const).forEach((key) => {
+    ;(['jonglage', 'dribble', 'coup-franc', 'jeu-semaine'] as const).forEach((key) => {
       supabase.rpc('get_last_minigame_result', { p_group_id: groupId, p_game_key: key }).then(({ data, error }: any) => {
         if (error) return
         const row = Array.isArray(data) ? data[0] : data
@@ -1151,8 +1163,8 @@ function App() {
       )}
       {juggleAlert && (
         <div className="wizz-alert-banner">
-          <span>{juggleAlert.game === 'dribble' ? '⚽' : '🤹'} {juggleAlert.pseudo} joue au mini-jeu !</span>
-          {juggleAlert.game !== 'dribble' && (
+          <span>{MINIGAME_INFO[juggleAlert.game as MinigameKey]?.icon ?? '🤹'} {juggleAlert.pseudo} joue au mini-jeu !</span>
+          {juggleAlert.game === 'jonglage' && (
             <button className="juggle-wizz-btn" onClick={sendWizz}>🧪 Envoyer un wizz</button>
           )}
           <button className="wizz-alert-close" onClick={() => setJuggleAlert(null)} aria-label="Fermer">✕</button>
@@ -1478,7 +1490,7 @@ function App() {
                     // réellement actif cette semaine (jonglage/dribble/Pari
                     // du 1er but), plutôt que de rester figée sur 🤹.
                     const icon =
-                      j.key !== 'jonglages' ? j.icon : activeMinigame === 'dribble' ? '⚽' : activeMinigame === 'jeu-semaine' ? '🎯' : j.icon
+                      j.key !== 'jonglages' ? j.icon : MINIGAME_INFO[activeMinigame].icon
                     const label = j.key === 'jonglages' && activeMinigame === 'jeu-semaine' ? 'But en or' : j.label
                     const sub = j.key === 'jonglages' && activeMinigame === 'jeu-semaine' ? '2 matchs à deviner' : j.sub
                     return (
@@ -1575,6 +1587,13 @@ function App() {
                   groupName={selectedGroup.name}
                   autoApplyAllLeagues={autoApplyAllLeagues}
                   onGoToBonusMatch={() => setScreen('pronostics')}
+                  onExit={() => setScreen('accueil')}
+                />
+              ) : activeMinigame === 'coup-franc' ? (
+                <FreeKickGame
+                  groupId={selectedGroup.id}
+                  groupName={selectedGroup.name}
+                  autoApplyAllLeagues={autoApplyAllLeagues}
                   onExit={() => setScreen('accueil')}
                 />
               ) : activeMinigame === 'dribble' ? (

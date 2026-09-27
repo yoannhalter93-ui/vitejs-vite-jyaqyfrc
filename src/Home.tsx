@@ -137,7 +137,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const [myNextPred, setMyNextPred] = useState<{ home: number; away: number } | null>(null)
   const [ranking, setRanking] = useState<RankRow[]>([])
   // mini-jeu hebdomadaire actif (jonglages ou dribble), même logique que App.tsx
-  const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble' | 'jeu-semaine'>('jonglage')
+  const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble' | 'coup-franc' | 'jeu-semaine'>('jonglage')
   const [weekDuels, setWeekDuels] = useState<{ quiz: DuelStatus; penalty: DuelStatus } | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [inviteCopied, setInviteCopied] = useState(false)
@@ -394,11 +394,11 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
         <div className="dash-v2-actions">
           <button className="dash-v2-action dash-v2-action-primary" onClick={() => onNavigate('jonglages')}>
             <span className="dash-v2-action-icon" aria-hidden="true">
-              {activeMinigame === 'dribble' ? '⚽' : activeMinigame === 'jeu-semaine' ? '🎯' : '🤹'}
+              {activeMinigame === 'dribble' ? '⚽' : activeMinigame === 'coup-franc' ? '🧱' : activeMinigame === 'jeu-semaine' ? '🎯' : '🤹'}
             </span>
             <span className="dash-v2-action-title">Jeu de la semaine</span>
             <span className="dash-v2-action-sub">
-              {activeMinigame === 'dribble' ? 'Dribble' : activeMinigame === 'jeu-semaine' ? 'But en or' : 'Jonglage'}
+              {activeMinigame === 'dribble' ? 'Dribble' : activeMinigame === 'coup-franc' ? 'Coup franc' : activeMinigame === 'jeu-semaine' ? 'But en or' : 'Jonglage'}
             </span>
             <span className="dash-v3-action-arrow">›</span>
           </button>

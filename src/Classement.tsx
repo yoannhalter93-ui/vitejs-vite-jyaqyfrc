@@ -131,7 +131,13 @@ export default function Classement({ groupId, groupName }: Props) {
     ? generalPoints
     : tab === 'duels'
       ? mergeCategoryPoints(categoryPoints['duel'], categoryPoints['minijeu'])
-      : categoryPoints[tab] ?? {}
+      : tab === 'jonglage_chrono'
+        // onglet "Mini-jeux" : tous les concours hebdomadaires (avant, seuls
+        // les points du jonglage y apparaissaient, pas ceux du dribble)
+        ? mergeCategoryPoints(
+            mergeCategoryPoints(categoryPoints['jonglage_chrono'], categoryPoints['dribble_chrono']),
+            categoryPoints['coup_franc_chrono'])
+        : categoryPoints[tab] ?? {}
   const rows: Row[] = members
     .map((m) => ({ ...m, total_points: pointsForTab[m.profile_id] ?? 0 }))
     .sort((a, b) => b.total_points - a.total_points || a.pseudo.localeCompare(b.pseudo))

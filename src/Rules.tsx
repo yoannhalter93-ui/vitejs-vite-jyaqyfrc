@@ -118,11 +118,12 @@ export default function Rules({ onBack }: Props) {
       <div className="rules-section">
         <h3 className="rules-section-title">🎮 Jeu de la semaine</h3>
         <p className="rules-section-text">
-          Une seule case dans les mini-jeux, mais son contenu change chaque semaine — jonglage, dribble, ou But en or :
+          Une seule case dans les mini-jeux, mais son contenu change chaque semaine — jonglage, dribble, coup franc ou But en or (ce dernier seulement les semaines avec des matchs) :
         </p>
         <ul className="rules-points">
           <li>🤹 Jonglage — garde les ballons en l'air en tapant dessus au bon moment. Pas de chrono : un 2e ballon entre en jeu au bout de 30 secondes, un 3e au bout d'une minute, et la partie s'arrête dès qu'un seul ballon touche le sol.</li>
           <li>⚽ Dribble — des défenseurs descendent sur le terrain, ◀ / ▶ pour changer de couloir et les éviter. Certains sont plus rapides ou plongent au dernier moment, et quand les 3 couloirs se bloquent d'un coup, il faut déclencher le dribble 🌀 au bon moment pour passer en force.</li>
+          <li>🥅 Coup franc — glisse du ballon vers l'endroit du but visé, en arc pour donner de l'effet et contourner le mur, ou sous la ligne de but pour une frappe à ras de terre (qui passe sous le mur quand il saute). But = 1 point, lucarne = 2 points, la série s'arrête au premier raté. Plus tu marques, plus c'est loin et plus le gardien est vif.</li>
           <li>🎯 But en or — 2 vrais matchs de Ligue 1, devine qui marque en premier et à quelle minute (barème détaillé plus haut).</li>
         </ul>
         <p className="rules-section-text">
