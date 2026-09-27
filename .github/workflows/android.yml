@@ -1,0 +1,81 @@
+# Construit l'appli Android (Trusted Web Activity) qui affiche le site
+# publié : même code que le web, les mises à jour du site arrivent donc dans
+# l'appli sans republier sur le Play Store. À relancer (onglet Actions →
+# "Build Android app" → Run workflow) seulement si on change le nom, l'icône,
+# les couleurs ou la version de l'appli (android/twa-manifest.json).
+#
+# Signature : la clé d'envoi Play Store vient des secrets du dépôt
+# ANDROID_KEYSTORE_BASE64 + ANDROID_KEYSTORE_PASSWORD. Sans eux, une clé
+# jetable est générée : l'APK s'installe pour tester mais ne doit pas être
+# envoyé sur le Play Store.
+name: Build Android app
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Clé de signature
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > upload-key.jks
+            echo "KEY_PASS=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "SIGNING=store" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Pas de secrets de signature : clé jetable (test uniquement, pas pour le Play Store)"
+            PASS=$(openssl rand -hex 16)
+            keytool -genkeypair -v -keystore upload-key.jks -alias upload -keyalg RSA -keysize 2048 \
+              -validity 10000 -storepass "$PASS" -keypass "$PASS" -dname "CN=Entre Nous test"
+            echo "KEY_PASS=$PASS" >> "$GITHUB_ENV"
+            echo "SIGNING=test" >> "$GITHUB_ENV"
+          fi
+
+      - name: Configuration Bubblewrap
+        run: |
+          mkdir -p ~/.bubblewrap
+          echo "{\"jdkPath\":\"$JAVA_HOME\",\"androidSdkPath\":\"$ANDROID_HOME\"}" > ~/.bubblewrap/config.json
+          # Bubblewrap cherche encore sdkmanager dans l'ancien dossier tools/
+          if [ ! -e "$ANDROID_HOME/tools/bin/sdkmanager" ]; then
+            sudo mkdir -p "$ANDROID_HOME/tools"
+            sudo ln -sf "$ANDROID_HOME/cmdline-tools/latest/bin" "$ANDROID_HOME/tools/bin"
+            sudo ln -sf "$ANDROID_HOME/cmdline-tools/latest/lib" "$ANDROID_HOME/tools/lib"
+          fi
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Génération du projet Android
+        run: yes n | npx --yes @bubblewrap/cli@1.25.0 update --skipVersionUpgrade
+
+      - name: Compilation
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ env.KEY_PASS }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ env.KEY_PASS }}
+        run: npx --yes @bubblewrap/cli@1.25.0 build --skipPwaValidation
+
+      - name: Empreinte de la clé (pour assetlinks.json)
+        run: keytool -list -v -keystore upload-key.jks -alias upload -storepass "$KEY_PASS" | grep SHA256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: entre-nous-android-${{ env.SIGNING }}
+          path: |
+            android/app-release-bundle.aab
+            android/app-release-signed.apk

@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Appli Android : seul twa-manifest.json est versionné, le projet est
+# régénéré par le workflow android.yml. Jamais de clé de signature ici.
+android/*
+!android/twa-manifest.json
+*.jks
+*.keystore
