@@ -74,7 +74,7 @@ textarea,
   padding: 24px;
   background:
     linear-gradient(180deg, rgba(10, 42, 33, 0.45) 0%, rgba(10, 42, 33, 0.65) 55%, rgba(8, 32, 25, 0.88) 100%),
-    url('/vitejs-vite-jyaqyfrc/login-bg.jpg') center 25% / cover no-repeat;
+    url('/login-bg.jpg') center 25% / cover no-repeat;
 }
 
 .login-card {
@@ -2471,7 +2471,7 @@ textarea,
      "contain" pour ne jamais la rogner, la couleur de secours reprend le ton
      crème du papier pour que d'éventuelles bandes vides se fondent dedans */
   background-color: #efe6d0;
-  background-image: url('/vitejs-vite-jyaqyfrc/chat-bg.jpg');
+  background-image: url('/chat-bg.jpg');
   background-repeat: no-repeat;
   background-position: top center;
   background-size: contain;

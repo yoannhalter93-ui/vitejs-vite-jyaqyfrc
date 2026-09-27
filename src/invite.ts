@@ -1,4 +1,4 @@
-// Invitation par lien : ".../vitejs-vite-jyaqyfrc/?join=CODE". Ouvrir ce
+// Invitation par lien : "https://entrenous-foot.fr/?join=CODE". Ouvrir ce
 // lien mémorise le code (localStorage, pour survivre à l'inscription et à la
 // confirmation d'email) ; App.tsx rejoint ensuite le groupe automatiquement
 // dès qu'une session existe (voir consumePendingJoin).

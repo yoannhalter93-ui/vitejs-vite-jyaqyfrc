@@ -8,12 +8,12 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Entre Nous'
   const options = {
     body: data.body || '',
-    icon: '/vitejs-vite-jyaqyfrc/icon-192.png',
-    badge: '/vitejs-vite-jyaqyfrc/favicon-48.png',
+    icon: '/icon-192.png',
+    badge: '/favicon-48.png',
     // une notif par évènement : sans tag distinct, Android en remplace
     // certaines au lieu de les empiler
     tag: data.notificationId || undefined,
-    data: { url: data.url || '/vitejs-vite-jyaqyfrc/', notificationId: data.notificationId || null },
+    data: { url: data.url || '/', notificationId: data.notificationId || null },
   }
   event.waitUntil(self.registration.showNotification(title, options))
 })
@@ -24,7 +24,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const data = event.notification.data || {}
-  const url = data.url || '/vitejs-vite-jyaqyfrc/'
+  const url = data.url || '/'
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {

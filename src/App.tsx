@@ -141,6 +141,8 @@ function bottomTabFor(screen: Screen): Screen {
   return screen
 }
 
+const DOMAIN_SWITCH_AT = '2026-09-27T19:40:00Z'
+
 const VAPID_PUBLIC_KEY = 'BODqLXOAm-EvaSnvqqQCmRdfvSPk-QEZ1SAc8BDd8x-Fn3r-AteEiUDqCcciJ5ZxG5XR1z-zd8jgca1kjKfYiVg'
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -248,6 +250,13 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
       console.error('Abonnement push créé côté navigateur mais refusé à l\'enregistrement', error)
       return { status: 'error', detail: `Enregistrement refusé : ${error.message}` }
     }
+    // Passage à entrenous-foot.fr (27/09/2026) : les abonnements créés sur
+    // l'ancienne adresse github.io restent valides côté navigateur, donc
+    // sans ce ménage les notifs arriveraient en double une fois réabonné ici.
+    await supabase.from('push_subscriptions').delete()
+      .eq('profile_id', profileId)
+      .lt('created_at', DOMAIN_SWITCH_AT)
+      .neq('endpoint', json.endpoint)
     return { status: 'ok' }
   } catch (e) {
     console.error('Abonnement aux notifications push impossible', e)

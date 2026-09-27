@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entre Nous</title>
+<script>
+  // Ancienne adresse (avant le 27/09/2026) : yoannhalter93-ui.github.io/vitejs-vite-jyaqyfrc/…
+  // GitHub la redirige vers entrenous-foot.fr/vitejs-vite-jyaqyfrc/…, qui
+  // n'existe plus : on renvoie vers la même page à la racine, en gardant
+  // ?join=, ?notif= et le #type=recovery des mails de mot de passe.
+  var p = location.pathname
+  var old = '/vitejs-vite-jyaqyfrc'
+  var target = p.indexOf(old) === 0 ? (p.slice(old.length) || '/') : '/'
+  location.replace(target + location.search + location.hash)
+</script>
+</head>
+<body style="background:#0F3B2E;color:#F4EFE2;font-family:sans-serif;text-align:center;padding-top:30vh">
+<a href="/" style="color:#D4A22C">Entre Nous</a>
+</body>
+</html>

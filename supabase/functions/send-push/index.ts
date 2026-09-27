@@ -44,12 +44,13 @@ Deno.serve(async (req: Request) => {
 
     webpush.setVapidDetails(vapid_subject, vapid_public_key, vapid_private_key);
 
-    // Le site est publié sous /vitejs-vite-jyaqyfrc/ (GitHub Pages, site de
-    // projet) : il faut inclure le sous-chemin. ?notif=<id> permet à l'appli
-    // d'ouvrir directement le bon écran (voir public/sw.js et App.tsx).
+    // Adresse absolue : les appareils abonnés avant le passage au domaine
+    // entrenous-foot.fr (27/09/2026) ont un service worker sur l'ancienne
+    // adresse github.io ; un lien relatif les y renverrait. ?notif=<id> permet
+    // à l'appli d'ouvrir directement le bon écran (voir public/sw.js et App.tsx).
     const url = notificationId
-      ? `/vitejs-vite-jyaqyfrc/?notif=${notificationId}`
-      : "/vitejs-vite-jyaqyfrc/";
+      ? `https://entrenous-foot.fr/?notif=${notificationId}`
+      : "https://entrenous-foot.fr/";
     const payload = JSON.stringify({ title: "Entre Nous", body: text, url, notificationId });
 
     let sent = 0;

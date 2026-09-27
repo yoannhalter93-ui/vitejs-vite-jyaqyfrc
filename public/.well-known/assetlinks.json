@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "fr.entrenous.app",
+    "sha256_cert_fingerprints": [
+      "E3:2A:7A:4A:BE:DA:7E:AA:FD:71:ED:13:58:28:FD:42:30:3B:8A:33:26:5D:AD:22:6F:3B:81:4B:BC:2A:F1:71"
+    ]
+  }
+}]
