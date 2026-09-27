@@ -400,3 +400,39 @@ span.dash-v2-match-footer {
   justify-content: center;
   box-sizing: border-box;
 }
+
+/* ===== Tchat plein écran ===== */
+/* Plus d'en-tête ni de barre du groupe (voir isFullChat dans App.tsx) : le
+   tchat prend toute la hauteur, moins la barre du bas (96px réservés par
+   .home-main, comme sur les autres écrans). */
+.home-main-chat {
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 10px 96px !important;
+}
+
+.home-main-chat .chat-background {
+  height: calc(100dvh - 106px - env(safe-area-inset-top, 0px)) !important;
+  min-height: 360px;
+}
+
+/* L'affiche de fond est calée sur la largeur (et non "contain") pour que la
+   position du logo soit toujours proportionnelle à la largeur ; le bas de
+   l'affiche est de toute façon du papier uni. */
+.chat-background { background-size: 100% auto !important; }
+
+/* Les messages commencent sous le logo « ENTRE NOUS » de l'affiche (qui
+   s'arrête vers 30 % de sa largeur ; un padding en % se calcule sur la
+   largeur) : ils défilent sous le titre au lieu de le recouvrir. */
+.chat-screen { padding-top: 31% !important; }
+
+.chat-title {
+  font-size: 13px !important;
+  margin: 0 0 6px !important;
+  opacity: 0.75;
+}
+
+/* fondu en haut de la liste : les messages s'effacent sous le titre au
+   lieu d'être coupés net */
+.chat-messages {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+}

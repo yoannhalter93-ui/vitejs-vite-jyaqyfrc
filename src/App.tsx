@@ -1102,11 +1102,14 @@ function App() {
   // qui leur laissait de la place. Le selecteur lui-meme (minigamePlaying
   // === false) reste affiche normalement, avec l'en-tete et la nav.
   const isActionMinigame = screen === 'jonglages' && minigamePlaying
+  // Tchat en plein écran : sans l'en-tête ni la barre du groupe (seule la
+  // barre du bas reste), comme une vraie messagerie
+  const isFullChat = screen === 'chat' && !!selectedGroup
 
   // Tirer pour rafraîchir : désactivé sur les écrans où un remontage ferait
   // perdre quelque chose (pronos en cours de saisie, duel en pleine partie,
   // mini-jeu, tirage d'équipe, formulaires des paramètres).
-  const pullToRefreshEnabled = !['pronostics', 'quiz', 'penalty', 'jonglages', 'roulette', 'team-reveal', 'parametres'].includes(screen)
+  const pullToRefreshEnabled = !['pronostics', 'quiz', 'penalty', 'jonglages', 'roulette', 'team-reveal', 'parametres', 'chat'].includes(screen)
   const handlePullRefresh = () => {
     setRefreshKey((k) => k + 1)
     loadNotifications()
@@ -1116,7 +1119,7 @@ function App() {
 
   return (
     <div className="home-screen">
-      {!isActionMinigame && (
+      {!isActionMinigame && !isFullChat && (
       <header className="home-header">
         <button type="button" className="brand-block brand-block-btn" onClick={() => setScreen('accueil')}>
           <span className="brand-logo">Entre Nous</span>
@@ -1331,7 +1334,7 @@ function App() {
         </div>
       )}
       <PullToRefresh enabled={pullToRefreshEnabled} onRefresh={handlePullRefresh} />
-      <main key={refreshKey} className={isActionMinigame ? 'home-main home-main-fullscreen' : 'home-main'}>
+      <main key={refreshKey} className={isActionMinigame ? 'home-main home-main-fullscreen' : isFullChat ? 'home-main home-main-chat' : 'home-main'}>
         {screen === 'parametres' ? (
           <div className="parametres-screen">
             <div className="predictions-header">
@@ -1468,7 +1471,7 @@ function App() {
           <Help onBack={() => setScreen('profil')} />
         ) : selectedGroup ? (
           <>
-            {screen !== 'team-reveal' && !isActionMinigame && (
+            {screen !== 'team-reveal' && !isActionMinigame && !isFullChat && (
             <div className="group-nav">
               <button className="group-selector-pill" onClick={() => setSelectedGroup(null)}>
                 🏆 {selectedGroup.name} <span className="group-selector-chevron">⌄</span>
