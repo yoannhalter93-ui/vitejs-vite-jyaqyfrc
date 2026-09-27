@@ -414,15 +414,19 @@ span.dash-v2-match-footer {
   min-height: 360px;
 }
 
-/* L'affiche de fond est calée sur la largeur (et non "contain") pour que la
-   position du logo soit toujours proportionnelle à la largeur ; le bas de
-   l'affiche est de toute façon du papier uni. */
-.chat-background { background-size: 100% auto !important; }
-
-/* Les messages commencent sous le logo « ENTRE NOUS » de l'affiche (qui
-   s'arrête vers 30 % de sa largeur ; un padding en % se calcule sur la
-   largeur) : ils défilent sous le titre au lieu de le recouvrir. */
-.chat-screen { padding-top: 31% !important; }
+/* L'affiche couvre toute la carte ("cover", calée en haut) : sur les
+   téléphones très hauts, calée sur la largeur, elle s'arrêtait avant le bas
+   (bande beige unie). En "cover", l'échelle dépend soit de la largeur soit
+   de la hauteur : le logo « ENTRE NOUS » finit à 30,3 % de la largeur de
+   l'affiche ou à 17 % de sa hauteur (941x1672). Les unités cqw/cqh (taille
+   de .chat-background, déclarée conteneur) couvrent les deux cas : les
+   messages commencent sous le logo au lieu de le recouvrir. */
+.chat-background {
+  container-type: size;
+  background-size: cover !important;
+  background-position: top center !important;
+}
+.chat-screen { padding-top: max(31cqw, 17.5cqh) !important; }
 
 .chat-title {
   font-size: 13px !important;
@@ -449,4 +453,12 @@ span.dash-v2-match-footer {
 .juggle-page .juggle-canvas-wrap {
   flex: 1 0 auto;
   min-height: calc((100vw - 32px) * 340 / 300);
+}
+/* la barre de saisie est maintenant posée sur la photo du stade (bas de
+   l'affiche) : bandeau crème pour qu'elle reste lisible */
+.chat-input-bar {
+  margin: 0 -4px -4px;
+  padding: 10px 8px 8px !important;
+  background: rgba(239, 230, 208, 0.94);
+  border-top: 1px solid rgba(27, 27, 31, 0.12) !important;
 }
