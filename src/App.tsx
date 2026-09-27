@@ -871,6 +871,34 @@ function App() {
     }
   }
 
+  // Tap sur une notification push (voir public/sw.js) : l'appli s'ouvre avec
+  // ?notif=<id>, ou reçoit un message du service worker si elle était déjà
+  // ouverte ; dans les deux cas, même navigation que depuis la cloche.
+  const goToNotificationRef = useRef(goToNotification)
+  goToNotificationRef.current = goToNotification
+  const openNotificationById = async (id: string) => {
+    const { data } = await supabase.from('notifications').select('*').eq('id', id).maybeSingle()
+    if (data) goToNotificationRef.current(data)
+  }
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const params = new URLSearchParams(window.location.search)
+    const fromUrl = params.get('notif')
+    if (fromUrl) {
+      params.delete('notif')
+      const qs = params.toString()
+      window.history.replaceState(window.history.state, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash)
+      openNotificationById(fromUrl)
+    }
+    if (!('serviceWorker' in navigator)) return
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'open-notification' && e.data.id) openNotificationById(e.data.id)
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id])
+
   const handleUseBonus = (code: string) => {
     if (code === 'double_ou_rien') {
       setShowBonusPanel(false)
