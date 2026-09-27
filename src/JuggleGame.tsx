@@ -108,6 +108,13 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
         nextSpawnAt: BALL_SPAWN_INTERVAL,
   })
     const lastTimeRef = useRef<number | null>(null)
+  // "Ciel" ajouté AU-DESSUS de la zone de jeu 300x340 pour que le terrain
+  // remplisse l'écran en plein écran. La physique ne change pas (même sol à
+  // y=320, pas de plafond) : les scores restent comparables d'un téléphone
+  // à l'autre, on voit juste le ballon plus longtemps quand il monte haut.
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const skyRef = useRef(0)
+  const [sky, setSky] = useState(0)
     // Miroir de wizzCooldown en ref : l'abonnement temps réel ci-dessous ne se
   // ré-exécute pas à chaque changement de cooldown (dépendances [groupId,
   // user]), donc son callback aurait sinon une closure figée sur la valeur du
@@ -195,7 +202,10 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
         ctx.clearRect(0, 0, canvas.width, canvas.height)
         ctx.fillStyle = '#171b24'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.save()
+        ctx.translate(0, skyRef.current)
         for (const b of balls) drawBallGraphic(ctx, b.x, b.y, b.missed)
+        ctx.restore()
   }
     const drawBallGraphic = (ctx: CanvasRenderingContext2D, x: number, y: number, miss: boolean) => {
           const r = BALL_RADIUS
@@ -234,6 +244,33 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
         if (!ctx) return
         paint(ctx, canvas, [{ x: 150, y: 200, vx: 0, vy: 0, missed: false }])
   }
+
+  // hauteur du ciel = ce qu'il faut pour que le canvas (300 de large en
+  // unités logiques) ait les proportions de la place disponible à l'écran
+  useEffect(() => {
+        const wrap = wrapRef.current
+        if (!wrap || typeof ResizeObserver === 'undefined') return
+        const measure = () => {
+                const r = wrap.getBoundingClientRect()
+                if (r.width <= 0) return
+                const next = Math.max(0, Math.round((CANVAS_W * r.height) / r.width - CANVAS_H))
+                if (next !== skyRef.current) {
+                          skyRef.current = next
+                          setSky(next)
+                }
+        }
+        const ro = new ResizeObserver(measure)
+        ro.observe(wrap)
+        measure()
+        return () => ro.disconnect()
+  }, [])
+
+  // changer la hauteur du canvas l'efface : on redessine l'état de repos
+  // (en cours de partie, la boucle redessine à chaque image)
+  useEffect(() => {
+        if (!stateRef.current.running) drawIdle()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sky])
 
   useEffect(() => {
         if (!playing) drawIdle()
@@ -420,7 +457,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
           // désynchronisée au moment exact où le doigt touche l'écran.
           const rect = canvas.getBoundingClientRect()
                 clickX = ((e.clientX - rect.left) / rect.width) * CANVAS_W
-                clickY = ((e.clientY - rect.top) / rect.height) * CANVAS_H
+                clickY = ((e.clientY - rect.top) / rect.height) * (CANVAS_H + skyRef.current) - skyRef.current
         }
         if (playing) {
                 hit(clickX, clickY)
@@ -454,7 +491,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
   // partie visuelle est identique, seule la façon de l'écrire change.
   return createElement(
         'div',
-    { className: `predictions-screen${wizzShake ? ' juggle-wizz-shake' : ''}${playing ? ' juggle-locked' : ''}` },
+    { className: `predictions-screen juggle-page${wizzShake ? ' juggle-wizz-shake' : ''}${playing ? ' juggle-locked' : ''}` },
         createElement(
                 'div',
           { className: 'predictions-header' },
@@ -469,13 +506,13 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
               ),
         createElement(
                 'div',
-          { className: 'juggle-canvas-wrap' },
+          { className: 'juggle-canvas-wrap', ref: wrapRef },
                 createElement('canvas', {
                           ref: canvasRef,
                           width: CANVAS_W,
-                          height: CANVAS_H,
+                          height: CANVAS_H + sky,
                           onPointerDown: handleCanvasTap,
-                          style: { background: '#171b24', borderRadius: 12, border: '1px solid #2a2f3a', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', width: '100%', maxWidth: '100%', height: 'auto' },
+                          style: { background: '#171b24', borderRadius: 12, border: '1px solid #2a2f3a', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', width: '100%', maxWidth: '100%', height: '100%', position: 'absolute', inset: 0, boxSizing: 'border-box' },
                 }),
                 wizzShake &&
                   createElement(

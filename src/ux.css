@@ -436,3 +436,17 @@ span.dash-v2-match-footer {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
   mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
 }
+
+/* ===== Jonglage plein écran ===== */
+/* Le terrain prend toute la hauteur restante ; au minimum ses proportions
+   d'origine (300x340). Le surplus devient du "ciel" au-dessus du jeu (voir
+   JuggleGame.tsx : physique inchangée). */
+.juggle-page {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100svh - 32px);
+}
+.juggle-page .juggle-canvas-wrap {
+  flex: 1 0 auto;
+  min-height: calc((100vw - 32px) * 340 / 300);
+}
