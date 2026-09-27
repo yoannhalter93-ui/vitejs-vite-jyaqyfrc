@@ -176,6 +176,7 @@ type PushStatus = 'ok' | 'unsupported' | 'ios-needs-install' | 'needs-permission
 // empêcher le useEffect de mount de se ré-abonner automatiquement tant que
 // la permission navigateur reste "granted".
 const PUSH_DISABLED_KEY = 'entrenous_push_disabled'
+const PUSH_TIP_DISMISSED_KEY = 'entrenous_push_tip_dismissed_until'
 
 // promptIfDefault ne doit être `true` que lors d'un appel déclenché par un
 // vrai clic utilisateur (bouton "Activer les notifications") : demander la
@@ -757,7 +758,21 @@ function App() {
 
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
   const [pushErrorDetail, setPushErrorDetail] = useState<string | null>(null)
-  const [pushTipDismissed, setPushTipDismissed] = useState(false)
+  // La croix de la bannière "Active les notifications" est mémorisée sur
+  // l'appareil (7 jours) : avant, elle revenait à chaque ouverture de l'appli.
+  const [pushTipDismissed, setPushTipDismissedState] = useState(() => {
+    try {
+      const until = Number(window.localStorage.getItem(PUSH_TIP_DISMISSED_KEY) || 0)
+      return until > Date.now()
+    } catch { return false }
+  })
+  const setPushTipDismissed = (v: boolean) => {
+    setPushTipDismissedState(v)
+    try {
+      if (v) window.localStorage.setItem(PUSH_TIP_DISMISSED_KEY, String(Date.now() + 7 * 86400000))
+      else window.localStorage.removeItem(PUSH_TIP_DISMISSED_KEY)
+    } catch { /* stockage indisponible : la bannière reviendra, sans gravité */ }
+  }
   const [pushEnabling, setPushEnabling] = useState(false)
 
   useEffect(() => {
