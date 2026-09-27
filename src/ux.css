@@ -217,9 +217,10 @@
 .skeleton-tile { height: 104px; }
 
 /* ===== Tirer pour rafraîchir ===== */
-/* évite le rafraîchissement natif de Chrome (rechargement complet) en plus
-   du nôtre quand l'appli tourne dans un onglet */
-html, body { overscroll-behavior-y: contain; }
+/* Surtout PAS d'overscroll-behavior sur html/body : sur certains Android ça
+   bloque tout le défilement (bug du 20/09, revenu le 27/09 — voir App.css).
+   Dans un onglet Chrome, le rafraîchissement natif peut donc se déclencher
+   en plus du nôtre : c'est sans conséquence. */
 
 .ptr-indicator {
   position: fixed;
