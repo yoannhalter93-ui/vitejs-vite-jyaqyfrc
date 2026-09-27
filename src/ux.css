@@ -358,3 +358,30 @@
 /* Onglet Jeux : la tuile du duel à jouer porte la même pastille rouge que
    le badge de l'onglet, pour savoir où aller */
 .jeux-hub-card { position: relative; }
+
+/* Tuiles "À toi de jouer" : la flèche (en bas de la tuile) recouvrait la
+   2e ligne du sous-titre. On lui réserve sa place sous le texte, et le
+   sous-titre des duels tient sur 2 lignes courtes (état / adversaire),
+   chacune coupée proprement si le pseudo est trop long. */
+.dash-v2-action { padding-bottom: 38px !important; }
+.dash-v2-action-sub { padding-right: 0 !important; }
+.dash-v2-action-sub-lines {
+  display: flex !important;
+  flex-direction: column;
+  -webkit-line-clamp: unset;
+}
+.dash-v2-action-sub-lines > span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.dash-v2-action .dash-v3-action-arrow {
+  /* ".dash-v2-action > *" (home.css) la remettait en position relative */
+  position: absolute !important;
+  top: auto !important;
+  bottom: 9px !important;
+  left: 10px !important;
+  right: auto !important;
+}

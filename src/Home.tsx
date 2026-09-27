@@ -86,19 +86,29 @@ interface DuelStatus {
 }
 
 // Sous-titre des tuiles Duel penalty / Quiz, selon l'état réel du duel de
-// la semaine (voir la RPC get_my_week_duels)
-function duelSubtitle(s: DuelStatus | undefined, fallback: string): string {
-  if (!s) return fallback
+// la semaine (voir la RPC get_my_week_duels). Deux lignes courtes (état,
+// puis adversaire) : les tuiles sont étroites et un pseudo long était coupé.
+function duelSubtitle(s: DuelStatus | undefined, fallback: string): [string, string?] {
+  if (!s) return [fallback]
   const opp = s.opponent ?? 'ton adversaire'
   switch (s.state) {
-    case 'to_play': return 'À toi de jouer !'
-    case 'waiting': return `En attente de ${opp}`
-    case 'waiting_draw': return "En attente d'un adversaire"
-    case 'won': return `Gagné vs ${opp} 🎉`
-    case 'lost': return `Perdu vs ${opp}`
-    case 'draw': return `Nul vs ${opp}`
-    default: return 'Pas de duel cette semaine'
+    case 'to_play': return ['À toi de jouer !', s.opponent ? `vs ${s.opponent}` : undefined]
+    case 'waiting': return ['En attente', `de ${opp}`]
+    case 'waiting_draw': return ['En attente', "d'un adversaire"]
+    case 'won': return ['Gagné 🎉', `vs ${opp}`]
+    case 'lost': return ['Perdu', `vs ${opp}`]
+    case 'draw': return ['Match nul', `vs ${opp}`]
+    default: return ['Pas de duel', 'cette semaine']
   }
+}
+
+function DuelSub({ lines }: { lines: [string, string?] }) {
+  return (
+    <span className="dash-v2-action-sub dash-v2-action-sub-lines">
+      <span>{lines[0]}</span>
+      {lines[1] && <span>{lines[1]}</span>}
+    </span>
+  )
 }
 
 // premier jour de journée de Ligue 1 strictement après `date` (sert de date
@@ -406,14 +416,14 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
             {weekDuels?.penalty.state === 'to_play' && <span className="dash-action-todo-dot" aria-label="À toi de jouer" />}
             <span className="dash-v2-action-icon" aria-hidden="true">🥅</span>
             <span className="dash-v2-action-title">Duel penalty</span>
-            <span className="dash-v2-action-sub">{duelSubtitle(weekDuels?.penalty, 'Défie un pote')}</span>
+            <DuelSub lines={duelSubtitle(weekDuels?.penalty, 'Défie un pote')} />
             <span className="dash-v3-action-arrow">›</span>
           </button>
           <button className="dash-v2-action" onClick={() => onNavigate('quiz')}>
             {weekDuels?.quiz.state === 'to_play' && <span className="dash-action-todo-dot" aria-label="À toi de jouer" />}
             <span className="dash-v2-action-icon" aria-hidden="true">🧠</span>
             <span className="dash-v2-action-title">Quiz</span>
-            <span className="dash-v2-action-sub">{duelSubtitle(weekDuels?.quiz, 'Duel de questions foot')}</span>
+            <DuelSub lines={duelSubtitle(weekDuels?.quiz, 'Duel de questions foot')} />
             <span className="dash-v3-action-arrow">›</span>
           </button>
         </div>
