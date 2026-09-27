@@ -67,6 +67,13 @@ jobs:
       - name: Génération du projet Android
         run: yes n | npx --yes @bubblewrap/cli@1.25.0 update --skipVersionUpgrade
 
+      - name: Diagnostic (manifeste Android)
+        run: |
+          grep -n "permission\|DelegationService\|NotificationPermission\|<activity\|<service" app/src/main/AndroidManifest.xml || true
+          grep -n "androidbrowserhelper\|targetSdk\|compileSdk\|minSdk" app/build.gradle || true
+          find app/src -name "*.java" | head
+          cat $(find app/src -name "LauncherActivity.java" | head -1) | head -80 || true
+
       - name: Compilation
         env:
           BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ env.KEY_PASS }}
