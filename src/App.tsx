@@ -601,16 +601,20 @@ function App() {
 
   // duels (quiz / penalty) de la semaine où c'est à moi de jouer : badge sur
   // l'onglet "Jeux", même principe que le badge "Paris"
-  const [duelsToPlayCount, setDuelsToPlayCount] = useState(0)
+  // adversaire du duel à jouer (null = rien à jouer) : sert au badge et à
+  // signaler la bonne tuile dans l'écran Jeux
+  const [duelsToPlay, setDuelsToPlay] = useState<{ penalty: string | null; quiz: string | null }>({ penalty: null, quiz: null })
+  const duelsToPlayCount = (duelsToPlay.penalty !== null ? 1 : 0) + (duelsToPlay.quiz !== null ? 1 : 0)
   // incrémenté par "tirer pour rafraîchir" : sert de key à <main>, ce qui
   // remonte l'écran courant et recharge donc ses données
   const [refreshKey, setRefreshKey] = useState(0)
   useEffect(() => {
-    if (!selectedGroup?.id || !session?.user?.id) { setDuelsToPlayCount(0); return }
+    if (!selectedGroup?.id || !session?.user?.id) { setDuelsToPlay({ penalty: null, quiz: null }); return }
     let cancelled = false
     supabase.rpc('get_my_week_duels', { p_group_id: selectedGroup.id }).then(({ data, error }: any) => {
       if (cancelled || error || !data) return
-      setDuelsToPlayCount((data.quiz?.state === 'to_play' ? 1 : 0) + (data.penalty?.state === 'to_play' ? 1 : 0))
+      const opp = (d: any) => (d?.state === 'to_play' ? d.opponent ?? '' : null)
+      setDuelsToPlay({ penalty: opp(data.penalty), quiz: opp(data.quiz) })
     })
     return () => { cancelled = true }
   }, [selectedGroup?.id, session?.user?.id, screen, refreshKey])
@@ -1492,9 +1496,13 @@ function App() {
                     const icon =
                       j.key !== 'jonglages' ? j.icon : MINIGAME_INFO[activeMinigame].icon
                     const label = j.key === 'jonglages' && activeMinigame === 'jeu-semaine' ? 'But en or' : j.label
-                    const sub = j.key === 'jonglages' && activeMinigame === 'jeu-semaine' ? '2 matchs à deviner' : j.sub
+                    const toPlayVs = j.key === 'penalty' ? duelsToPlay.penalty : j.key === 'quiz' ? duelsToPlay.quiz : null
+                    const sub = toPlayVs !== null
+                      ? (toPlayVs ? `À toi de jouer contre ${toPlayVs} !` : 'À toi de jouer !')
+                      : j.key === 'jonglages' && activeMinigame === 'jeu-semaine' ? '2 matchs à deviner' : j.sub
                     return (
                       <button key={j.key} className={`jeux-hub-card jeux-hub-card-${j.color}`} onClick={() => setScreen(j.key)}>
+                        {toPlayVs !== null && <span className="dash-action-todo-dot" aria-label="À toi de jouer" />}
                         <span className="jeux-hub-card-icon">{icon}</span>
                         <span className="jeux-hub-card-text">
                           <span className="jeux-hub-card-label">{label}</span>
