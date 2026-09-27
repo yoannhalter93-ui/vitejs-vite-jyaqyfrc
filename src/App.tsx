@@ -1554,7 +1554,10 @@ function App() {
               // écran (voir isActionMinigame).
               !minigamePlaying ? (
                 <div className="minigame-tiles">
-                  {MINIGAME_TILES.map((tile) => {
+                  {MINIGAME_TILES
+                    // Coup franc en test : sa tuile n'apparaît que la semaine où il est actif
+                    .filter((tile) => tile.key !== 'coup-franc' || activeMinigame === 'coup-franc')
+                    .map((tile) => {
                     const isActive = activeMinigame === tile.key
                     const lastResult = lastMinigameResults[tile.key]
                     return (

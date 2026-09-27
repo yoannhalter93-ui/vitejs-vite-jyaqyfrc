@@ -1,0 +1,5 @@
+-- Coup franc mis de côté (en test) : retiré de la rotation automatique.
+-- Pour le réactiver : remettre 'coup-franc' dans le tableau de
+-- assign_weekly_minigame (voir 20260925220000_coup_franc_minigame.sql).
+-- (même fonction que dans cette migration, avec
+--  array['jonglage', 'dribble', 'jeu-semaine'])
