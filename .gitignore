@@ -27,5 +27,6 @@ dist-ssr
 # régénéré par le workflow android.yml. Jamais de clé de signature ici.
 android/*
 !android/twa-manifest.json
+!android/LauncherActivity.java
 *.jks
 *.keystore
