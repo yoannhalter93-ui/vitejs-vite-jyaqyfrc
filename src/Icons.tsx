@@ -154,3 +154,36 @@ export function EyeOffIcon({ size = 20, className }: { size?: number; className?
     </svg>
   )
 }
+
+// Sifflet d'arbitre : bouton des notifications (à la place de la cloche,
+// plus dans le thème foot). Doré comme l'ancienne cloche emoji.
+export function WhistleIcon({ size = 26, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" className={className} aria-hidden="true" style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id="whistle-gold" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#F3CF63" />
+          <stop offset="1" stopColor="#C8961F" />
+        </linearGradient>
+      </defs>
+      {/* cordon */}
+      <circle cx="6.5" cy="8.5" r="3" fill="none" stroke="#C8961F" strokeWidth="1.8" />
+      <path d="M8.6 10.6 L10.8 13" stroke="#C8961F" strokeWidth="1.8" strokeLinecap="round" />
+      {/* corps : chambre ronde + embouchure */}
+      <path
+        d="M12.5 11.5 H27.5 a1.8 1.8 0 0 1 1.8 1.8 V16.2 a1.8 1.8 0 0 1 -1.8 1.8 H21.2
+           A8.4 8.4 0 1 1 12.5 11.5 Z"
+        fill="url(#whistle-gold)"
+        stroke="#7A5A12"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+      {/* fente d'air */}
+      <rect x="15.2" y="11.5" width="3.4" height="2.4" rx="0.6" fill="#7A5A12" />
+      {/* bille */}
+      <circle cx="12.5" cy="19.9" r="3.1" fill="#7A5A12" opacity="0.55" />
+      {/* reflet */}
+      <path d="M7.6 16.4 a5.6 5.6 0 0 1 3.2 -2.8" stroke="#FFF3C4" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+    </svg>
+  )
+}

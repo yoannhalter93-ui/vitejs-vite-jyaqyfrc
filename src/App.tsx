@@ -24,7 +24,7 @@ import MyStats from './MyStats'
 import Recap from './Recap'
 import PullToRefresh from './PullToRefresh'
 import Help from './Help'
-import { SketchController } from './Icons'
+import { SketchController, WhistleIcon } from './Icons'
 import Chat from './Chat'
 import { useWizzChannel } from './wizzChannel'
 import { readPendingJoin, clearPendingJoin } from './invite'
@@ -1147,8 +1147,8 @@ function App() {
         </button>
         <div className="header-actions">
           <div className="notif-bell-wrap">
-            <button className="notif-bell-btn" onClick={() => setShowNotifPanel((v) => !v)}>
-              🔔{unreadNotifCount > 0 && <span className="notif-badge">{unreadNotifCount}</span>}
+            <button className="notif-bell-btn" aria-label="Notifications" onClick={() => setShowNotifPanel((v) => !v)}>
+              <WhistleIcon size={32} />{unreadNotifCount > 0 && <span className="notif-badge">{unreadNotifCount}</span>}
             </button>
             {showNotifPanel && (
               <div className="notif-panel">
@@ -1188,7 +1188,7 @@ function App() {
       )}
       {!pushTipDismissed && pushStatus === 'needs-permission' && (
         <div className="push-tip">
-          <span>🔔 Active les notifications pour ne rien rater (wizz, résultats, nouveaux duels).</span>
+          <span>📣 Active les notifications pour ne rien rater (wizz, résultats, nouveaux duels).</span>
           <button className="groups-action-btn groups-action-btn-secondary" disabled={pushEnabling} onClick={enablePushNow}>
             {pushEnabling ? '...' : 'Activer'}
           </button>
