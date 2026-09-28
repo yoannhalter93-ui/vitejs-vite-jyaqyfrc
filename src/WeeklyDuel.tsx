@@ -196,9 +196,14 @@ export default function WeeklyDuel({ groupId, groupName }: Props) {
     if (!selected || revancheBusy) return
     setRevancheBusy(true)
     setError(null)
-    const { error: err } = await supabase.rpc('use_bonus_revanche_quiz', { p_duel_id: selected })
+    const { data: outcome, error: err } = await supabase.rpc('use_bonus_revanche_quiz', { p_duel_id: selected })
     setRevancheBusy(false)
     if (err) { setError(err.message); return }
+    // Bouclier de l'adversaire : jetons perdus, le duel reste tel quel
+    if (outcome === 'bloque') {
+      setError("🛡️ Ton adversaire avait un bouclier : ta Revanche n'a eu aucun effet et tes 5 jetons sont perdus !")
+      return
+    }
     setReview(null)
     await openDuel(selected)
     await loadList()

@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import Avatar from './Avatar'
 import LoadingSkeleton from './LoadingSkeleton'
+import { useRedCards } from './redCards'
 
 interface Row {
   profile_id: string
@@ -50,6 +51,7 @@ export default function Classement({ groupId, groupName }: Props) {
   const [generalPoints, setGeneralPoints] = useState<Record<string, number>>({})
   const [categoryPoints, setCategoryPoints] = useState<Record<string, Record<string, number>>>({})
   const [loading, setLoading] = useState(true)
+  const redCards = useRedCards(groupId)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -192,7 +194,7 @@ export default function Classement({ groupId, groupName }: Props) {
                     size={38}
                     className="classement-board-avatar"
                   />
-                  <span className="classement-board-name">{r.pseudo}</span>
+                  <span className="classement-board-name">{r.pseudo}{redCards[r.profile_id] && <span className="red-card-badge" title="Carton rouge (24 h)">🟥</span>}</span>
                   <span className={"classement-board-points" + (rank <= 3 ? " classement-board-points-top" : "")}>
                     {r.total_points} pts
                   </span>

@@ -35,6 +35,7 @@ interface Props {
   groupId: string
   groupName: string
   autoApplyAllLeagues: boolean
+  onTokensChanged?: () => void
   onBack: () => void
 }
 
@@ -56,7 +57,7 @@ function groupByDay(matches: MatchRow[]): { key: string; label: string; matches:
   return groups
 }
 
-export default function Predictions({ groupId, groupName, autoApplyAllLeagues, onBack }: Props) {
+export default function Predictions({ groupId, groupName, autoApplyAllLeagues, onTokensChanged, onBack }: Props) {
   const { user } = useAuth()
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
   const [matches, setMatches] = useState<MatchRow[]>([])
@@ -90,6 +91,11 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
   const [reveals, setReveals] = useState<Record<string, RevealRow[]>>({})
   const [revealLoading, setRevealLoading] = useState<string | null>(null)
   const [revealError, setRevealError] = useState<string | null>(null)
+
+  // Bonus Joker ×2 (3 jetons) : matchs sur lesquels j'ai posé un joker —
+  // les points de ce prono sont doublés au calcul (resolve_match).
+  const [jokers, setJokers] = useState<Set<string>>(new Set())
+  const [jokerBusy, setJokerBusy] = useState<string | null>(null)
 
   const load = async () => {
     if (!user) return
@@ -178,6 +184,13 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
       }
       setPredictions(map)
       setDrafts(draftMap)
+
+      const { data: jokerRows } = await supabase
+        .from('match_jokers')
+        .select('match_id')
+        .eq('profile_id', user.id)
+        .in('match_id', matchIds)
+      setJokers(new Set((jokerRows ?? []).map((j: any) => j.match_id)))
     }
 
     setLoading(false)
@@ -289,6 +302,18 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
     setSavingId(null)
   }
 
+  const applyJoker = async (matchId: string) => {
+    if (jokerBusy) return
+    if (!window.confirm('Poser ton Joker ×2 sur ce match pour 3 🪙 ? Les points de ce prono seront doublés.')) return
+    setJokerBusy(matchId)
+    setError(null)
+    const { error: err } = await supabase.rpc('use_bonus_joker', { p_match_id: matchId })
+    setJokerBusy(null)
+    if (err) { setError(err.message); return }
+    setJokers((prev) => new Set(prev).add(matchId))
+    onTokensChanged?.()
+  }
+
   const toggleReveal = async (matchId: string) => {
     if (reveals[matchId]) {
       setReveals((prev) => {
@@ -354,6 +379,7 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
                         {bonusFixtureId != null && m.api_fixture_id === bonusFixtureId && (
                           <div className="match-bonus-badge">🎯 But en or : points x2</div>
                         )}
+                        {jokers.has(m.id) && <div className="match-bonus-badge match-joker-badge">🃏 Joker : points ×2</div>}
                       </div>
 
                       <div className="match-row-v2 match-row-teams">
@@ -456,6 +482,15 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
                                 : '✓ Pronostic enregistré'
                               : 'Entre un score, il est enregistré automatiquement'}
                           </span>
+                          {hasPrediction && !jokers.has(m.id) && (
+                            <button
+                              className="match-joker-btn"
+                              disabled={jokerBusy === m.id}
+                              onClick={() => applyJoker(m.id)}
+                            >
+                              {jokerBusy === m.id ? '...' : '🃏 Joker ×2 — 3🪙'}
+                            </button>
+                          )}
                         </div>
                       ) : m.status === 'cancelled' ? (
                         <div className="match-row-v2 match-row-footer">

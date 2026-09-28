@@ -141,6 +141,10 @@ export default function Rules({ onBack }: Props) {
           <li>Retirage forcé (2🪙) — force un adversaire à retirer une nouvelle équipe au hasard</li>
           <li>Bonus inversé (3🪙) — inverse les points d'une équipe attitrée pour le reste de la période, victoire = points en moins et défaite = points en plus ; sur toi-même ou sur un adversaire</li>
           <li>Double ou rien (2🪙) — double les points d'un pari libre si tu gagnes</li>
+          <li>Joker ×2 (3🪙) — double les points d'un de tes pronos de match ; à poser avant le coup d'envoi, avec le bouton « Joker ×2 » sous le match dans Pronos</li>
+          <li>Carton rouge (2🪙) — un adversaire affiche 🟥 à côté de son pseudo pendant 24 h et ne peut pas jouer au jeu de la semaine pendant ces 24 h</li>
+          <li>Revanche (5🪙) — rejoue entièrement un duel (penalty ou quiz) perdu ou nul, une fois par semaine</li>
+          <li>Bouclier (2🪙) — invisible pour les autres, il bloque le prochain bonus lancé contre toi (échange, retirage, inversé, carton rouge, revanche) : l'attaquant perd ses jetons pour rien. Un seul bouclier actif à la fois.</li>
         </ul>
       </div>
     </div>

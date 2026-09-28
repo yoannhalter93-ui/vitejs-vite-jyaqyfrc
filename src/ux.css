@@ -601,3 +601,73 @@ span.dash-v2-match-footer {
 .pr-goal { color: #2f8f4e; }
 .pr-save { color: #c43d3d; }
 .pr-none { color: rgba(27, 27, 31, 0.5); }
+
+/* ---- Bonus Joker ×2 / Bouclier / Carton rouge ---- */
+.red-card-badge {
+  margin-left: 5px;
+  font-size: 0.85em;
+}
+.match-joker-badge {
+  background: #5B3FA8;
+}
+.match-joker-btn {
+  margin-left: auto;
+  background: #5B3FA8;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.match-joker-btn:disabled {
+  opacity: 0.6;
+}
+.bonus-row-active {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2E7D4F;
+}
+.bonus-panel {
+  /* 8 bonus : la liste défile au lieu de passer sous la barre du bas */
+  max-height: calc(100dvh - 230px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.bonus-notice-text {
+  color: #1B1B1F;
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.4;
+  text-align: center;
+}
+.bonus-notice-modal .bonus-target-member {
+  text-align: center;
+  font-weight: 700;
+  background: #D4A22C;
+  color: #fff;
+}
+.red-card-block {
+  color: #1B1B1F;
+  margin: 24px auto;
+  max-width: 360px;
+  padding: 24px 20px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  text-align: center;
+}
+.red-card-block-icon {
+  font-size: 56px;
+  line-height: 1;
+}
+.red-card-block h3 {
+  margin: 10px 0 6px;
+  color: #B3261E;
+}
+.red-card-block p {
+  margin: 0 0 16px;
+  line-height: 1.4;
+}

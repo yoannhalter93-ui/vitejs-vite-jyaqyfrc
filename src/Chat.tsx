@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { useRedCards } from './redCards'
 import { useAuth } from './AuthContext'
 import Avatar from './Avatar'
 import ChatBackground from './ChatBackground'
@@ -77,6 +78,7 @@ export default function Chat({ groupId, groupName }: Props) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
+  const redCards = useRedCards(groupId)
   const bottomRef = useRef<HTMLDivElement>(null)
   const [reactions, setReactions] = useState<Reaction[]>([])
   // message dont le sélecteur de réactions est ouvert (un tap sur la bulle)
@@ -235,7 +237,7 @@ export default function Chat({ groupId, groupName }: Props) {
                       className={'chat-bubble' + (isMe ? ' chat-bubble-me' : '')}
                       onClick={() => setPickerFor((cur) => (cur === m.id ? null : m.id))}
                     >
-                      {!isMe && <span className="chat-bubble-author">{prof?.pseudo ?? '???'}</span>}
+                      {!isMe && <span className="chat-bubble-author">{prof?.pseudo ?? '???'}{redCards[m.profile_id] && <span className="red-card-badge" title="Carton rouge (24 h)">🟥</span>}</span>}
                       <span className="chat-bubble-text">{m.content}</span>
                       <span className="chat-bubble-time">
                         {new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}

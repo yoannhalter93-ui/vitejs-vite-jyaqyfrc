@@ -28,6 +28,7 @@ import { SketchController, WhistleIcon } from './Icons'
 import Chat from './Chat'
 import { useWizzChannel } from './wizzChannel'
 import { readPendingJoin, clearPendingJoin } from './invite'
+import { useRedCards, redCardUntilLabel } from './redCards'
 
 // Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
 // d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
@@ -662,7 +663,8 @@ function App() {
     return () => { cancelled = true }
   }, [selectedGroup?.id, session?.user?.id, screen, refreshKey])
 
-  const BONUS_CODES = ['echange_equipe', 'retirage_force', 'double_ou_rien', 'bonus_inverse', 'revanche_duel']
+  // ordre d'affichage dans le panneau des jetons
+  const BONUS_CODES = ['joker_x2', 'double_ou_rien', 'bouclier', 'carton_rouge', 'retirage_force', 'echange_equipe', 'bonus_inverse', 'revanche_duel']
   const [tokenBalance, setTokenBalance] = useState<number | null>(null)
   const [bonusCatalog, setBonusCatalog] = useState<any[]>([])
   const [showBonusPanel, setShowBonusPanel] = useState(false)
@@ -670,6 +672,13 @@ function App() {
   const [groupMembersForBonus, setGroupMembersForBonus] = useState<{ id: string; pseudo: string }[]>([])
   const [bonusBusy, setBonusBusy] = useState(false)
   const [bonusError, setBonusError] = useState<string | null>(null)
+  // message après un bonus (bouclier activé, bonus bloqué par un bouclier…)
+  const [bonusNotice, setBonusNotice] = useState<string | null>(null)
+  // mon bouclier actif dans ce groupe (je suis le seul à le voir)
+  const [hasShield, setHasShield] = useState(false)
+  const [redCardsKey, setRedCardsKey] = useState(0)
+  const redCards = useRedCards(selectedGroup?.id, `${redCardsKey}-${refreshKey}`)
+  const myRedCardUntil = session?.user?.id ? redCards[session.user.id] : undefined
 
   // Ouverture de l'appli (et retour au premier plan) : enregistre le "vu
   // pour la dernière fois" et le nombre d'ouvertures du jour (RPC
@@ -696,7 +705,7 @@ function App() {
   useEffect(() => {
     if (!session?.user?.id) return
     supabase.from('bonus_catalog').select('*').in('code', BONUS_CODES).then(({ data }: any) => {
-      if (data) setBonusCatalog(data)
+      if (data) setBonusCatalog([...data].sort((a: any, b: any) => BONUS_CODES.indexOf(a.code) - BONUS_CODES.indexOf(b.code)))
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id])
@@ -708,10 +717,26 @@ function App() {
     })
   }
 
+  const refreshShield = () => {
+    if (!selectedGroup?.id || !session?.user?.id) { setHasShield(false); return }
+    supabase
+      .from('bonus_shields')
+      .select('id')
+      .eq('group_id', selectedGroup.id)
+      .eq('profile_id', session.user.id)
+      .is('consumed_at', null)
+      .then(({ data }: any) => setHasShield((data ?? []).length > 0))
+  }
+
   useEffect(() => {
     if (!selectedGroup?.id) { setTokenBalance(null); return }
     refreshTokenBalance()
   }, [selectedGroup?.id])
+
+  useEffect(() => {
+    if (showBonusPanel) { refreshTokenBalance(); refreshShield() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showBonusPanel, selectedGroup?.id])
 
   const openBonusTargetPicker = async (code: string) => {
     if (!selectedGroup?.id || !session?.user?.id) return
@@ -724,6 +749,7 @@ function App() {
       .map((m: any) => ({ id: m.profile_id, pseudo: m.profiles?.pseudo ?? '?' }))
       .filter((m: any) => m.id !== session.user.id)
     setGroupMembersForBonus(members)
+    if (code === 'carton_rouge') setRedCardsKey((k) => k + 1)
     setBonusTargetPicker(code)
   }
 
@@ -732,18 +758,28 @@ function App() {
     setBonusBusy(true)
     setBonusError(null)
     try {
-      if (code === 'echange_equipe') {
-        const { error } = await supabase.rpc('use_bonus_echange_equipe', { p_group_id: selectedGroup.id, p_target_id: targetId })
-        if (error) throw error
-      } else if (code === 'retirage_force') {
-        const { error } = await supabase.rpc('use_bonus_retirage_force', { p_group_id: selectedGroup.id, p_target_id: targetId })
-        if (error) throw error
-      } else if (code === 'bonus_inverse') {
-        const { error } = await supabase.rpc('use_bonus_inverse', { p_group_id: selectedGroup.id, p_target_id: targetId })
-        if (error) throw error
+      const RPC: Record<string, string> = {
+        echange_equipe: 'use_bonus_echange_equipe',
+        retirage_force: 'use_bonus_retirage_force',
+        bonus_inverse: 'use_bonus_inverse',
+        carton_rouge: 'use_bonus_carton_rouge',
       }
+      if (!RPC[code]) return
+      const { data: outcome, error } = await supabase.rpc(RPC[code], { p_group_id: selectedGroup.id, p_target_id: targetId })
+      if (error) throw error
       setBonusTargetPicker(null)
+      setShowBonusPanel(false)
       refreshTokenBalance()
+      const label = bonusCatalog.find((b) => b.code === code)?.label ?? 'bonus'
+      const target = groupMembersForBonus.find((m) => m.id === targetId)?.pseudo ?? 'Ta cible'
+      if (outcome === 'bloque') {
+        setBonusNotice(`🛡️ ${target} avait un bouclier ! Ton bonus « ${label} » n'a eu aucun effet et tes jetons sont perdus.`)
+      } else if (code === 'carton_rouge') {
+        setRedCardsKey((k) => k + 1)
+        setBonusNotice(`🟥 Carton rouge pour ${target} ! Privé du jeu de la semaine pendant 24 h.`)
+      } else {
+        setBonusNotice(`✅ « ${label} » utilisé !`)
+      }
     } catch (e: any) {
       setBonusError(e.message || 'Erreur')
     } finally {
@@ -982,7 +1018,32 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id])
 
+  const activateShield = async () => {
+    if (!selectedGroup?.id || bonusBusy) return
+    if (!window.confirm('Activer un bouclier pour 2 🪙 ? Personne ne le saura, et il bloquera le prochain bonus lancé contre toi.')) return
+    setBonusBusy(true)
+    const { error } = await supabase.rpc('use_bonus_bouclier', { p_group_id: selectedGroup.id })
+    setBonusBusy(false)
+    if (error) { setBonusNotice(error.message); return }
+    setHasShield(true)
+    setShowBonusPanel(false)
+    refreshTokenBalance()
+    setBonusNotice("🛡️ Bouclier activé ! Personne ne le sait : il bloquera le prochain bonus lancé contre toi.")
+  }
+
   const handleUseBonus = (code: string) => {
+    if (code === 'bouclier') {
+      activateShield()
+      return
+    }
+    // Le joker se pose sur un prono précis : bouton "🃏 Joker ×2" sous
+    // chaque match à venir dans l'écran Pronos.
+    if (code === 'joker_x2') {
+      setShowBonusPanel(false)
+      setScreen('pronostics')
+      setBonusNotice('🃏 Choisis ton match : appuie sur « Joker ×2 » sous un prono déjà rempli (avant le coup d\'envoi).')
+      return
+    }
     if (code === 'double_ou_rien') {
       setShowBonusPanel(false)
       setScreen('paris')
@@ -1288,10 +1349,18 @@ function App() {
           <button className="wizz-alert-close" onClick={() => setJuggleAlert(null)} aria-label="Fermer">✕</button>
         </div>
       )}
+      {bonusNotice && (
+        <div className="bonus-target-overlay" onClick={() => setBonusNotice(null)}>
+          <div className="bonus-target-modal bonus-notice-modal" onClick={(e) => e.stopPropagation()}>
+            <p className="bonus-notice-text">{bonusNotice}</p>
+            <button className="bonus-target-member" onClick={() => setBonusNotice(null)}>OK</button>
+          </div>
+        </div>
+      )}
       {bonusTargetPicker && (
         <div className="bonus-target-overlay" onClick={() => setBonusTargetPicker(null)}>
           <div className="bonus-target-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Choisis une cible</h3>
+            <h3>{bonusTargetPicker === 'carton_rouge' ? '🟥 Qui reçoit le carton rouge ?' : 'Choisis une cible'}</h3>
             {bonusError && <p className="bonus-error">{bonusError}</p>}
             {bonusTargetPicker === 'bonus_inverse' && (
               <button className="bonus-target-member" onClick={() => applyBonus('bonus_inverse', session!.user.id)} disabled={bonusBusy}>
@@ -1303,9 +1372,10 @@ function App() {
                 key={m.id}
                 className="bonus-target-member"
                 onClick={() => applyBonus(bonusTargetPicker, m.id)}
-                disabled={bonusBusy}
+                disabled={bonusBusy || (bonusTargetPicker === 'carton_rouge' && !!redCards[m.id])}
               >
                 {m.pseudo}
+                {bonusTargetPicker === 'carton_rouge' && redCards[m.id] && ' — 🟥 déjà exclu'}
               </button>
            ))}
             <button className="bonus-target-cancel" onClick={() => setBonusTargetPicker(null)}>Annuler</button>
@@ -1562,13 +1632,17 @@ function App() {
                   <div className="bonus-row" key={b.code}>
                     <div className="bonus-row-label">{b.label} — {b.cost_jetons}🪙</div>
                     <div className="bonus-row-desc">{b.description}</div>
-                    <button
-                      className="bonus-use-btn"
-                      disabled={(tokenBalance ?? 0) < b.cost_jetons}
-                      onClick={() => handleUseBonus(b.code)}
-                    >
-                      Utiliser
-                    </button>
+                    {b.code === 'bouclier' && hasShield ? (
+                      <div className="bonus-row-active">🛡️ Bouclier actif (toi seul le vois)</div>
+                    ) : (
+                      <button
+                        className="bonus-use-btn"
+                        disabled={(tokenBalance ?? 0) < b.cost_jetons || bonusBusy}
+                        onClick={() => handleUseBonus(b.code)}
+                      >
+                        Utiliser
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1599,6 +1673,7 @@ function App() {
                 groupId={selectedGroup.id}
                 groupName={selectedGroup.name}
                 autoApplyAllLeagues={autoApplyAllLeagues}
+                onTokensChanged={refreshTokenBalance}
                 onBack={() => setScreen('accueil')}
               />
             )}
@@ -1683,7 +1758,19 @@ function App() {
               // cliquable, les 2 autres restent grisées comme l'ancien
               // "teaser" de But en or. Cliquer dessus lance ce jeu en plein
               // écran (voir isActionMinigame).
-              !minigamePlaying ? (
+              myRedCardUntil ? (
+                <div className="red-card-block">
+                  <div className="red-card-block-icon">🟥</div>
+                  <h3>Carton rouge !</h3>
+                  <p>
+                    Un adversaire t'a exclu : tu ne peux pas jouer au jeu de la semaine
+                    jusqu'à {redCardUntilLabel(myRedCardUntil)}.
+                  </p>
+                  <button className="groups-action-btn groups-action-btn-secondary" onClick={() => setScreen('jeux')}>
+                    Retour aux jeux
+                  </button>
+                </div>
+              ) : !minigamePlaying ? (
                 <div className="minigame-tiles">
                   {MINIGAME_TILES.map((tile) => {
                     const isActive = activeMinigame === tile.key
