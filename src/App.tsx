@@ -671,6 +671,25 @@ function App() {
   const [bonusBusy, setBonusBusy] = useState(false)
   const [bonusError, setBonusError] = useState<string | null>(null)
 
+  // Ouverture de l'appli (et retour au premier plan) : enregistre le "vu
+  // pour la dernière fois" et le nombre d'ouvertures du jour (RPC
+  // touch_app_open), au plus une fois toutes les 5 min par appareil.
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const KEY = 'entrenous_last_open_ping'
+    const ping = () => {
+      if (document.visibilityState !== 'visible') return
+      let last = 0
+      try { last = Number(window.localStorage.getItem(KEY) || 0) } catch { /* stockage indisponible */ }
+      if (Date.now() - last < 5 * 60 * 1000) return
+      try { window.localStorage.setItem(KEY, String(Date.now())) } catch { /* idem */ }
+      supabase.rpc('touch_app_open').then(() => {})
+    }
+    ping()
+    document.addEventListener('visibilitychange', ping)
+    return () => document.removeEventListener('visibilitychange', ping)
+  }, [session?.user?.id])
+
   // Chargé une fois connecté : le catalogue n'est lisible que par un
   // utilisateur authentifié. Chargé au démarrage (session pas encore
   // restaurée), la requête partait en anonyme et la liste restait vide.
