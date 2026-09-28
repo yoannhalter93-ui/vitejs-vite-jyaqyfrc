@@ -6,6 +6,7 @@ import { SketchBall } from './Icons'
 import Avatar from './Avatar'
 import { shareInvite } from './invite'
 import LoadingSkeleton from './LoadingSkeleton'
+import type { WeekRecap } from './Recap'
 
 interface MatchRow {
   id: string
@@ -27,7 +28,7 @@ interface RankRow {
 interface Props {
   groupId: string
   groupName: string
-  onNavigate: (screen: 'pronostics' | 'classement' | 'penalty' | 'quiz' | 'jonglages') => void
+  onNavigate: (screen: 'pronostics' | 'classement' | 'penalty' | 'quiz' | 'jonglages' | 'recap') => void
 }
 
 const LIGUE1_2627_STARTS: Array<[string, number]> = [
@@ -102,6 +103,13 @@ function duelSubtitle(s: DuelStatus | undefined, fallback: string): [string, str
   }
 }
 
+function recapSubtitle(r: WeekRecap | null): [string, string?] {
+  if (!r) return ['La semaine passée']
+  const leader = r.podium[0]
+  const mine = r.me && r.me.points > 0 ? `Toi : +${r.me.points} pts` : 'Toi : 0 pt'
+  return leader ? [`🥇 ${leader.pseudo}`, mine] : ['Semaine calme', mine]
+}
+
 function DuelSub({ lines }: { lines: [string, string?] }) {
   return (
     <span className="dash-v2-action-sub dash-v2-action-sub-lines">
@@ -163,6 +171,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const [activeMinigame, setActiveMinigame] = useState<'jonglage' | 'dribble' | 'coup-franc' | 'jeu-semaine'>('jonglage')
   const [weekDuels, setWeekDuels] = useState<{ quiz: DuelStatus; penalty: DuelStatus } | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const [weekRecap, setWeekRecap] = useState<WeekRecap | null>(null)
   const [inviteCopied, setInviteCopied] = useState(false)
 
   useEffect(() => {
@@ -177,6 +186,14 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
       window.setTimeout(() => setInviteCopied(false), 2000)
     }
   }
+
+  useEffect(() => {
+    let cancelled = false
+    supabase.rpc('get_week_recap', { p_group_id: groupId }).then(({ data, error }) => {
+      if (!cancelled && !error && data) setWeekRecap(data as WeekRecap)
+    })
+    return () => { cancelled = true }
+  }, [groupId])
 
   useEffect(() => {
     let cancelled = false
@@ -437,6 +454,13 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
             <span className="dash-v2-action-icon" aria-hidden="true">🧠</span>
             <span className="dash-v2-action-title">Quiz</span>
             <DuelSub lines={duelSubtitle(weekDuels?.quiz, 'Duel de questions foot')} />
+            <span className="dash-v3-action-arrow">›</span>
+          </button>
+          {/* 4e case, qui dépasse du bord droit : la rangée se fait défiler */}
+          <button className="dash-v2-action dash-v2-action-recap" onClick={() => onNavigate('recap')}>
+            <span className="dash-v2-action-icon" aria-hidden="true">📊</span>
+            <span className="dash-v2-action-title">Récap semaine</span>
+            <DuelSub lines={recapSubtitle(weekRecap)} />
             <span className="dash-v3-action-arrow">›</span>
           </button>
         </div>

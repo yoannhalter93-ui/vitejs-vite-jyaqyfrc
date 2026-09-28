@@ -21,6 +21,7 @@ import WeeklySpecial from './WeeklySpecial';
 import Avatar from './Avatar'
 import PredictionsHistory from './PredictionsHistory'
 import MyStats from './MyStats'
+import Recap from './Recap'
 import PullToRefresh from './PullToRefresh'
 import Help from './Help'
 import { SketchController } from './Icons'
@@ -77,6 +78,8 @@ type Screen =
   | 'historique-pronos'
   | 'stats'
   | 'aide'
+  // récap de la semaine écoulée d'un groupe (case de l'accueil, notif du lundi)
+  | 'recap'
   // écran d'accueil de groupe (une seule fois, à la première entrée dans
   // un groupe) : explique + révèle l'équipe tirée au sort, voir TeamReveal
   | 'team-reveal';
@@ -135,7 +138,7 @@ const MINIGAME_TILES: {
 // à quel onglet du bas rattacher chaque écran interne (ex. "pronostics",
 // atteint depuis le tableau de bord, reste sous l'onglet "Pronos")
 function bottomTabFor(screen: Screen): Screen {
-  if (screen === 'pronostics') return 'accueil'
+  if (screen === 'pronostics' || screen === 'recap') return 'accueil'
   if (screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') return 'jeux'
   if (screen === 'parametres' || screen === 'historique-pronos' || screen === 'stats' || screen === 'aide') return 'profil'
   return screen
@@ -872,7 +875,7 @@ function App() {
       // même ref_table 'groups') emmènent directement sur le Tchat du groupe
       if (n.type === 'message') setScreen('chat')
       // récap du lundi (send_weekly_recaps) : direction le classement du groupe
-      else if (typeof n.text === 'string' && n.text.startsWith('📊 Récap')) setScreen('classement')
+      else if (typeof n.text === 'string' && n.text.startsWith('📊 Récap')) setScreen('recap')
       setShowNotifPanel(false)
     } else if (n.ref_table === 'matches' && n.ref_id) {
       // rappel "coup d'envoi bientôt, il te manque des pronos"
@@ -1526,6 +1529,14 @@ function App() {
                 groupId={selectedGroup.id}
                 groupName={selectedGroup.name}
                 onNavigate={(s) => setScreen(s)}
+              />
+            )}
+            {screen === 'recap' && (
+              <Recap
+                groupId={selectedGroup.id}
+                groupName={selectedGroup.name}
+                onBack={() => setScreen('accueil')}
+                onOpenRanking={() => setScreen('classement')}
               />
             )}
             {screen === 'pronostics' && (

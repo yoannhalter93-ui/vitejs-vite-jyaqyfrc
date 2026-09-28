@@ -462,3 +462,65 @@ span.dash-v2-match-footer {
   background: rgba(239, 230, 208, 0.94);
   border-top: 1px solid rgba(27, 27, 31, 0.12) !important;
 }
+
+/* ===== Accueil : rangée "À toi de jouer" qui défile ===== */
+/* 3 cases visibles + le début de la 4e (Récap) qui dépasse du bord droit,
+   pour montrer qu'on peut faire glisser. La rangée déborde jusqu'au bord de
+   l'écran (marge négative = padding de la page). */
+.dash-v2-actions {
+  grid-template-columns: none !important;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 16px - 34px) / 3);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  margin-right: -16px;
+  padding-right: 16px;
+  scroll-padding-left: 0;
+}
+.dash-v2-actions::-webkit-scrollbar { display: none; }
+.dash-v2-actions > .dash-v2-action { scroll-snap-align: start; }
+
+.dash-v2-actions .dash-v2-action.dash-v2-action-recap {
+  background: linear-gradient(160deg, #E0B23E, #C8961F) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  color: #1B1B1F !important;
+}
+.dash-v2-action-recap .dash-v2-action-sub { opacity: 0.85; }
+.dash-v2-action-recap .dash-v3-action-arrow { background: rgba(27, 27, 31, 0.12) !important; }
+
+/* ===== Écran Récap de la semaine ===== */
+.recap-podium,
+.recap-duels {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.recap-podium li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(27, 27, 31, 0.05);
+}
+.recap-podium li.is-me { background: rgba(212, 162, 44, 0.22); }
+.recap-medal { font-size: 20px; width: 24px; text-align: center; }
+.recap-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.recap-podium b { font-family: 'Oswald', sans-serif; }
+.recap-duels li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(27, 27, 31, 0.05);
+  font-size: 14px;
+}
+.recap-duel-won b { color: #2f8f4e; }
+.recap-duel-lost b { color: #c43d3d; }
+.recap-duel-draw b { color: #8a7a50; }
+.recap-ranking-btn { width: 100%; margin-top: 4px; }
