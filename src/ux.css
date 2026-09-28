@@ -524,3 +524,19 @@ span.dash-v2-match-footer {
 .recap-duel-lost b { color: #c43d3d; }
 .recap-duel-draw b { color: #8a7a50; }
 .recap-ranking-btn { width: 100%; margin-top: 4px; }
+
+/* ===== En-tête toujours sur une ligne ===== */
+/* Avec un texte agrandi (réglage du navigateur Samsung, accessibilité) ou un
+   petit écran, le logo poussait le sifflet et l'avatar sur une 2e ligne :
+   le logo rétrécit à la place. */
+.home-header {
+  flex-wrap: nowrap !important;
+  gap: 10px;
+}
+.home-header .brand-block { min-width: 0; flex: 0 1 auto; }
+.home-header .header-actions { flex-shrink: 0; flex-wrap: nowrap !important; }
+.home-screen .home-header .brand-logo {
+  font-size: min(43px, 10vw) !important;
+  white-space: nowrap;
+}
+.home-header .brand-tagline { white-space: nowrap; }
