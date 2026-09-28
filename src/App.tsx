@@ -671,11 +671,16 @@ function App() {
   const [bonusBusy, setBonusBusy] = useState(false)
   const [bonusError, setBonusError] = useState<string | null>(null)
 
+  // Chargé une fois connecté : le catalogue n'est lisible que par un
+  // utilisateur authentifié. Chargé au démarrage (session pas encore
+  // restaurée), la requête partait en anonyme et la liste restait vide.
   useEffect(() => {
+    if (!session?.user?.id) return
     supabase.from('bonus_catalog').select('*').in('code', BONUS_CODES).then(({ data }: any) => {
       if (data) setBonusCatalog(data)
     })
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id])
 
   const refreshTokenBalance = () => {
     if (!selectedGroup?.id) return
@@ -1533,6 +1538,7 @@ function App() {
             {showBonusPanel && (
               <div className="bonus-panel">
                 <div className="bonus-panel-title">Tes jetons : {tokenBalance ?? 0} 🪙</div>
+                {bonusCatalog.length === 0 && <div className="bonus-row-desc">Chargement des bonus…</div>}
                 {bonusCatalog.map((b) => (
                   <div className="bonus-row" key={b.code}>
                     <div className="bonus-row-label">{b.label} — {b.cost_jetons}🪙</div>
