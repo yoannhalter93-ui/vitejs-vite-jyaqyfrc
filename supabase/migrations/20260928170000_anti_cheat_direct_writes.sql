@@ -1,4 +1,3 @@
--- ⚠️ PAS ENCORE APPLIQUÉE en base (en attente de l'accord de Yoann, 28/09/2026).
 -- Anti-triche : écritures directes dans les tables (sans passer par l'appli).
 -- L'appli utilise des fonctions sécurisées (security definer) pour ces
 -- actions ; les tables, elles, acceptaient encore des écritures directes via
