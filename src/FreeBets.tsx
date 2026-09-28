@@ -404,7 +404,9 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
           </div>
         )}
 
-        {myVotes[b.id] && (b.status === 'open' || b.status === 'closed') && !myBoosts[b.id] && (
+        {/* Doubler : seulement tant qu'on peut encore voter (même échéance),
+            jamais une fois les paris fermés — vérifié aussi côté serveur */}
+        {myVotes[b.id] && canVote && !myBoosts[b.id] && (
           <button className="bet-boost-btn" onClick={() => boostBet(b.id)}>🪙 Doubler (2 jetons)</button>
         )}
         {myBoosts[b.id] && <div className="bet-boosted-tag">Boosté : double ou rien 🪙</div>}
