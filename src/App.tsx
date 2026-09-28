@@ -181,6 +181,22 @@ type PushStatus = 'ok' | 'unsupported' | 'ios-needs-install' | 'needs-permission
 // la permission navigateur reste "granted".
 const PUSH_DISABLED_KEY = 'entrenous_push_disabled'
 const PUSH_TIP_DISMISSED_KEY = 'entrenous_push_tip_dismissed_until'
+// Bandeau "Installe l'appli" (joueur arrivé par un lien d'invitation, qui
+// joue dans son navigateur) : croix mémorisée 7 jours sur l'appareil.
+const INSTALL_TIP_DISMISSED_KEY = 'entrenous_install_tip_dismissed_until'
+// Toujours la dernière version publiée par le workflow Android. Le jour où
+// l'appli est sur le Play Store, remplacer par le lien du Play Store.
+const ANDROID_APK_URL = 'https://github.com/yoannhalter93-ui/vitejs-vite-jyaqyfrc/releases/latest/download/entre-nous.apk'
+
+// Où proposer l'installation : jamais dans l'appli installée (ni sur
+// ordinateur), sinon selon le téléphone.
+function installTarget(): 'android' | 'ios' | 'ios-other-browser' | null {
+  if (pushClientKind() === 'app') return null
+  const ua = navigator.userAgent
+  if (/Android/i.test(ua)) return 'android'
+  if (/iP(hone|od|ad)/.test(ua)) return /CriOS|FxiOS|EdgiOS/.test(ua) ? 'ios-other-browser' : 'ios'
+  return null
+}
 
 // promptIfDefault ne doit être `true` que lors d'un appel déclenché par un
 // vrai clic utilisateur (bouton "Activer les notifications") : demander la
@@ -868,6 +884,18 @@ function App() {
   }
   const [pushEnabling, setPushEnabling] = useState(false)
 
+  const [installTipDismissed, setInstallTipDismissedState] = useState(() => {
+    try {
+      return Number(window.localStorage.getItem(INSTALL_TIP_DISMISSED_KEY) || 0) > Date.now()
+    } catch { return false }
+  })
+  const dismissInstallTip = () => {
+    setInstallTipDismissedState(true)
+    try { window.localStorage.setItem(INSTALL_TIP_DISMISSED_KEY, String(Date.now() + 7 * 86400000)) } catch { /* sans gravité */ }
+  }
+  const [installKind] = useState(installTarget)
+  const showInstallTip = !!session?.user?.id && !!installKind && !installTipDismissed
+
   useEffect(() => {
     if (!session?.user?.id) return
     if (typeof window !== 'undefined' && window.localStorage.getItem(PUSH_DISABLED_KEY) === '1') {
@@ -1295,13 +1323,47 @@ function App() {
         </div>
       </header>
       )}
-      {!pushTipDismissed && pushStatus === 'ios-needs-install' && (
+      {showInstallTip && (
+        <div className="push-tip install-tip">
+          <div className="install-tip-body">
+            <strong>📲 Installe l'appli Entre Nous</strong>
+            {installKind === 'android' ? (
+              <>
+                <span>Plus pratique qu'un onglet, et tu reçois les notifications (duels, wizz, résultats).</span>
+                <a className="install-tip-btn" href={ANDROID_APK_URL}>Télécharger l'appli</a>
+                <small>Puis ouvre le fichier téléchargé. Si ton téléphone demande, autorise « installer des applis inconnues ».</small>
+              </>
+            ) : installKind === 'ios' ? (
+              <>
+                <span>Ajoute-la sur ton écran d'accueil, c'est gratuit et ça prend 5 secondes :</span>
+                <ol className="install-tip-steps">
+                  <li>
+                    Appuie sur
+                    <svg className="install-tip-icon" viewBox="0 0 24 24" aria-label="Partager"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M6 11H5v10h14V11h-1" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    <b>Partager</b> en bas de Safari
+                  </li>
+                  <li>
+                    Choisis
+                    <svg className="install-tip-icon" viewBox="0 0 24 24" aria-label="Ajouter"><rect x="4" y="4" width="16" height="16" rx="4" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M12 8v8M8 12h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                    <b>Sur l'écran d'accueil</b>
+                  </li>
+                  <li>Ouvre Entre Nous depuis la nouvelle icône</li>
+                </ol>
+              </>
+            ) : (
+              <span>Sur iPhone, ouvre <b>entrenous-foot.fr</b> dans <b>Safari</b>, puis Partager → « Sur l'écran d'accueil ».</span>
+            )}
+          </div>
+          <button className="wizz-alert-close" onClick={dismissInstallTip} aria-label="Fermer">✕</button>
+        </div>
+      )}
+      {!showInstallTip && !pushTipDismissed && pushStatus === 'ios-needs-install' && (
         <div className="push-tip">
           <span>📲 Pour recevoir les notifications sur iPhone : appuie sur Partager, puis « Sur l'écran d'accueil », et rouvre l'appli depuis cette icône.</span>
           <button className="wizz-alert-close" onClick={() => setPushTipDismissed(true)} aria-label="Fermer">✕</button>
         </div>
       )}
-      {!pushTipDismissed && pushStatus === 'needs-permission' && (
+      {!showInstallTip && !pushTipDismissed && pushStatus === 'needs-permission' && (
         <div className="push-tip">
           <span>📣 Active les notifications pour ne rien rater (wizz, résultats, nouveaux duels).</span>
           <button className="groups-action-btn groups-action-btn-secondary" disabled={pushEnabling} onClick={enablePushNow}>
@@ -1310,19 +1372,19 @@ function App() {
           <button className="wizz-alert-close" onClick={() => setPushTipDismissed(true)} aria-label="Fermer">✕</button>
         </div>
       )}
-      {!pushTipDismissed && pushStatus === 'denied' && (
+      {!showInstallTip && !pushTipDismissed && pushStatus === 'denied' && (
         <div className="push-tip">
           <span>🔕 Notifications désactivées pour ce site — active-les dans les réglages de ton navigateur si tu veux recevoir les alertes.</span>
           <button className="wizz-alert-close" onClick={() => setPushTipDismissed(true)} aria-label="Fermer">✕</button>
         </div>
       )}
-      {!pushTipDismissed && pushStatus === 'unsupported' && (
+      {!showInstallTip && !pushTipDismissed && pushStatus === 'unsupported' && (
         <div className="push-tip">
           <span>🔕 Ce navigateur ne permet pas les notifications sur ce site.</span>
           <button className="wizz-alert-close" onClick={() => setPushTipDismissed(true)} aria-label="Fermer">✕</button>
         </div>
       )}
-      {!pushTipDismissed && pushStatus === 'error' && (
+      {!showInstallTip && !pushTipDismissed && pushStatus === 'error' && (
         <div className="push-tip">
           <span>
             ⚠️ Impossible d'activer les notifications pour l'instant.
