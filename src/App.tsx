@@ -871,6 +871,8 @@ function App() {
       // les notifs de nouveau message (contrairement au wizz, qui partage le
       // même ref_table 'groups') emmènent directement sur le Tchat du groupe
       if (n.type === 'message') setScreen('chat')
+      // récap du lundi (send_weekly_recaps) : direction le classement du groupe
+      else if (typeof n.text === 'string' && n.text.startsWith('📊 Récap')) setScreen('classement')
       setShowNotifPanel(false)
     } else if (n.ref_table === 'matches' && n.ref_id) {
       // rappel "coup d'envoi bientôt, il te manque des pronos"
