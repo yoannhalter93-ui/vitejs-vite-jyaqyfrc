@@ -94,6 +94,62 @@ function mondayUtcISO(): string {
   return monday.toISOString().slice(0, 10)
 }
 
+const zoneLabel = (z: string | null) => ZONES.find((x) => x.value === z)?.label ?? '—'
+
+// Déroulé d'un duel terminé : pour chacun des 6 tirs, une mini-cage avec le
+// ballon (zone visée) et le gant (plongeon), et le résultat.
+function PenaltyReview({ duel, attempts, pseudos, meId }: {
+  duel: Duel
+  attempts: Attempt[]
+  pseudos: Record<string, string>
+  meId: string | undefined
+}) {
+  const name = (id: string | null) => (id === meId ? 'Toi' : id ? pseudos[id] ?? '???' : '???')
+  const phases = [1, 2].map((phase) => {
+    const list = attempts.filter((a) => a.phase_number === phase).sort((x, y) => x.attempt_number - y.attempt_number)
+    const shooter = phase === 1 ? duel.player_a_id : duel.player_b_id
+    const keeper = phase === 1 ? duel.player_b_id : duel.player_a_id
+    return { phase, list, shooter, keeper }
+  })
+  if (attempts.length === 0) return null
+  return (
+    <div className="pr-review">
+      {phases.map(({ phase, list, shooter, keeper }) => (
+        <div className="pr-phase" key={phase}>
+          <h3 className="pr-phase-title">
+            ⚽ {name(shooter)} tire · 🧤 {name(keeper)} {keeper === meId ? 'es' : 'est'} dans les buts
+          </h3>
+          {list.map((a) => {
+            const result = !a.shooter_zone
+              ? { cls: 'pr-none', text: 'Pas tiré' }
+              : a.scored
+              ? a.shooter_zone === 'milieu'
+                ? { cls: 'pr-goal', text: `🎩 Panenka ! +${a.points ?? 2}` }
+                : { cls: 'pr-goal', text: `⚽ But +${a.points ?? 1}` }
+              : { cls: 'pr-save', text: '🧤 Arrêté !' }
+            const ball = a.shooter_zone ? ZONE_POS[a.shooter_zone] : null
+            const glove = a.keeper_zone ? ZONE_POS[a.keeper_zone] : null
+            return (
+              <div className="pr-row" key={a.attempt_number}>
+                <div className="pr-cage" aria-hidden="true">
+                  {glove && <span className="pr-glove" style={{ left: glove.left, top: glove.top }}>🧤</span>}
+                  {ball && <span className="pr-ball" style={{ left: ball.left, top: ball.top }}>⚽</span>}
+                </div>
+                <div className="pr-text">
+                  <span className="pr-attempt">Tir {a.attempt_number}</span>
+                  <span className="pr-detail">Visé : {zoneLabel(a.shooter_zone)}</span>
+                  <span className="pr-detail">Plongeon : {zoneLabel(a.keeper_zone)}</span>
+                </div>
+                <span className={`pr-result ${result.cls}`}>{result.text}</span>
+              </div>
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function PenaltyDuel({ groupId, groupName }: Props) {
   const { user } = useAuth()
   const [duels, setDuels] = useState<Duel[]>([])
@@ -101,6 +157,10 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
   const [pseudos, setPseudos] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<string | null>(null)
   const [attempts, setAttempts] = useState<Attempt[]>([])
+  // duel terminé d'autres joueurs du groupe, ouvert depuis "Tous les duels
+  // de la semaine" (lecture seule)
+  const [reviewDuel, setReviewDuel] = useState<Duel | null>(null)
+  const [reviewAttempts, setReviewAttempts] = useState<Attempt[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -212,6 +272,15 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
     const { data, error: err } = await supabase.rpc('get_penalty_duel_attempts', { p_duel_id: id })
     if (err) setError(err.message)
     setAttempts((data ?? []) as Attempt[])
+  }
+
+  const openReview = async (d: Duel) => {
+    setReviewDuel(d)
+    setReviewAttempts([])
+    setError(null)
+    const { data, error: err } = await supabase.rpc('get_penalty_duel_attempts', { p_duel_id: d.id })
+    if (err) setError(err.message)
+    setReviewAttempts((data ?? []) as Attempt[])
   }
 
   const duel = duels.find((d) => d.id === selected)
@@ -401,6 +470,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
                 {revancheBusy ? 'Revanche...' : '🔁 Revanche (5 🪙) — rejouer ce duel'}
               </button>
             )}
+            <PenaltyReview duel={duel} attempts={attempts} pseudos={pseudos} meId={user?.id} />
           </div>
         ) : myTurnToShoot || myTurnToSave ? (
           <div className="roulette-result">
@@ -468,6 +538,28 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
               : "En attente de l'adversaire..."}
           </p>
         )}
+      </div>
+    )
+  }
+
+  if (reviewDuel) {
+    const a = pseudos[reviewDuel.player_a_id] ?? '???'
+    const b = reviewDuel.player_b_id ? pseudos[reviewDuel.player_b_id] ?? '???' : '???'
+    const winner = reviewDuel.winner_id ? pseudos[reviewDuel.winner_id] ?? '???' : null
+    return (
+      <div className="predictions-screen">
+        <div className="predictions-header">
+          <button className="predictions-back" onClick={() => setReviewDuel(null)}>← Duels</button>
+          <h2>{a} vs {b}</h2>
+        </div>
+        {error && <p className="groups-error">{error}</p>}
+        <div className="roulette-result">
+          <p className="match-result">
+            Score final : {reviewDuel.score_a} - {reviewDuel.score_b}
+            {winner ? ` — Victoire de ${winner}` : ' — Match nul'}
+          </p>
+          <PenaltyReview duel={reviewDuel} attempts={reviewAttempts} pseudos={pseudos} meId={user?.id} />
+        </div>
       </div>
     )
   }
@@ -547,12 +639,16 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
           <h3 className="rules-section-title">Tous les duels de la semaine</h3>
           <ul className="matches-list">
             {allDuels.map((d) => (
-              <li className="match-card" key={d.id}>
+              <li
+                className={'match-card' + (d.phase === 'done' ? ' groups-card-clickable' : '')}
+                key={d.id}
+                onClick={d.phase === 'done' ? () => (d.player_a_id === user?.id || d.player_b_id === user?.id ? openDuel(d.id) : openReview(d)) : undefined}
+              >
                 <div className="match-teams">
                   <span>{pseudos[d.player_a_id] ?? '???'} vs {d.player_b_id ? (pseudos[d.player_b_id] ?? '???') : 'en attente…'}</span>
                 </div>
                 {d.phase === 'done' ? (
-                  <div className="match-result">{d.score_a} - {d.score_b}</div>
+                  <div className="match-result">{d.score_a} - {d.score_b} <span className="match-kickoff">· voir le déroulé ›</span></div>
                 ) : (
                   <div className="match-kickoff">{weekDuelStatusLabel(d)}</div>
                 )}
