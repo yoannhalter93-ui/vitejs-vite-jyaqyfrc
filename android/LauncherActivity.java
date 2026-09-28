@@ -8,6 +8,11 @@
  * l'appli restait refusée, et Chrome remettait celle du site à zéro à
  * chaque ouverture (la bannière "Active les notifications" revenait
  * toujours). Une seule demande : si la personne refuse, on n'insiste pas.
+ *
+ * Et : l'appli s'ouvre toujours dans Chrome quand il est installé. Sinon
+ * elle prenait le navigateur par défaut (Samsung Internet sur beaucoup de
+ * Galaxy), qui ne "prête" pas ses notifications à l'appli : les notifs
+ * appartenaient au navigateur et un tap ouvrait le navigateur, pas l'appli.
  */
 package fr.entrenous.app;
 
@@ -18,6 +23,9 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+
+import com.google.androidbrowserhelper.trusted.SharedPreferencesTokenStore;
+import com.google.androidbrowserhelper.trusted.TwaLauncher;
 
 public class LauncherActivity
         extends com.google.androidbrowserhelper.trusted.LauncherActivity {
@@ -61,6 +69,22 @@ public class LauncherActivity
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == NOTIF_REQUEST) launchTwa();
+    }
+
+    private boolean isEnabledPackage(String pkg) {
+        try {
+            return getPackageManager().getApplicationInfo(pkg, 0).enabled;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    @Override
+    protected TwaLauncher createTwaLauncher() {
+        String provider = isEnabledPackage("com.android.chrome") ? "com.android.chrome" : null;
+        return new TwaLauncher(this, provider,
+                com.google.androidbrowserhelper.trusted.SessionStore.makeSessionId(getTaskId()),
+                new SharedPreferencesTokenStore(this));
     }
 
     @Override

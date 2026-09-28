@@ -195,6 +195,18 @@ interface PushResult {
   detail?: string
 }
 
+// L'appli Android (Trusted Web Activity) et l'icône d'écran d'accueil
+// s'affichent en mode "standalone" ; un onglet de navigateur, non.
+function pushClientKind(): 'app' | 'web-android' | 'web' {
+  const standalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    (navigator as any).standalone === true ||
+    document.referrer.startsWith('android-app://')
+  if (standalone) return 'app'
+  return /Android/i.test(navigator.userAgent) ? 'web-android' : 'web'
+}
+
 async function subscribeToPush(profileId: string, promptIfDefault = false): Promise<PushResult> {
   try {
     // Sur iPhone/iPad, Safari ne supporte les notifications push QUE si le
@@ -246,8 +258,18 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
     // RLS) n'était jamais vérifiée — la fonction renvoyait 'ok' même si rien
     // n'avait été réellement enregistré en base, ce qui rendait ce genre de
     // panne totalement invisible.
+    // Appli (Android installée, écran d'accueil) ou simple onglet ? Sur
+    // Android, si l'appli est abonnée, on n'enregistre pas en plus l'onglet
+    // du navigateur : ses notifs arriveraient en double et ouvriraient le
+    // navigateur au lieu de l'appli.
+    const client = pushClientKind()
+    if (client === 'web-android') {
+      const { data: appSubs } = await supabase.from('push_subscriptions')
+        .select('id').eq('profile_id', profileId).eq('client', 'app').limit(1)
+      if (appSubs && appSubs.length > 0) return { status: 'ok' }
+    }
     const { error } = await supabase.from('push_subscriptions').upsert(
-      { profile_id: profileId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
+      { profile_id: profileId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth, client },
       { onConflict: 'endpoint' }
     )
     if (error) {
@@ -261,6 +283,14 @@ async function subscribeToPush(profileId: string, promptIfDefault = false): Prom
       .eq('profile_id', profileId)
       .lt('created_at', DOMAIN_SWITCH_AT)
       .neq('endpoint', json.endpoint)
+    // l'appli est abonnée : on retire les abonnements "navigateur Android"
+    // (ou d'origine inconnue, créés avant cette distinction) du même compte
+    if (client === 'app') {
+      await supabase.from('push_subscriptions').delete()
+        .eq('profile_id', profileId)
+        .or('client.is.null,client.eq.web-android')
+        .neq('endpoint', json.endpoint)
+    }
     return { status: 'ok' }
   } catch (e) {
     console.error('Abonnement aux notifications push impossible', e)
