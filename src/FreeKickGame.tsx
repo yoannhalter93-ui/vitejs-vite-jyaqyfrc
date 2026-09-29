@@ -105,12 +105,12 @@ function wallSize(ballX: number, dist: number, n: number): number {
 }
 
 // Difficulté progressive selon le nombre de coups francs déjà réussis.
-// Courbe adoucie à partir de la semaine du 5 octobre 2026 (avant : au-delà
+// Courbe adoucie depuis la semaine du 28 septembre 2026 (avant : au-delà
 // du 9e but, moins d'1 % des tirs possibles marquaient, et le 13e était
 // quasi impossible). Simulation de tous les tirs (cible x hauteur x effet)
 // sur 6 semaines : ~25 % au 1er, puis jamais moins de ~2,5 % ensuite. La
-// semaine en cours garde l'ancienne courbe pour ne pas fausser son classement.
-const SOFT_CURVE_FROM = '2026-10-05'
+// ancienne courbe reste pour les semaines passées.
+const SOFT_CURVE_FROM = '2026-09-28'
 
 function shotConfig(weekSeed: number, n: number): ShotConfig {
   const soft = monday() >= SOFT_CURVE_FROM
