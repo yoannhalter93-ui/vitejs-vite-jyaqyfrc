@@ -116,6 +116,18 @@ export default function Rules({ onBack }: Props) {
       </div>
 
       <div className="rules-section">
+        <h3 className="rules-section-title">🎉 Événements de journée</h3>
+        <p className="rules-section-text">
+          Certaines journées de Ligue 1, un événement est lancé en plus du reste (une bannière apparaît sur l'accueil et tout le monde reçoit une notification) :
+        </p>
+        <ul className="rules-points">
+          <li>🔥 Journée x2 — tous les pronos de la journée comptent double. Le Joker n'est pas utilisable sur ces matchs.</li>
+          <li>⚽ Total de buts — devine combien de buts seront marqués sur toute la journée, avant le premier coup d'envoi. Le plus proche du groupe gagne 3 points + 2 🪙.</li>
+          <li>🤝 Duo du week-end — des binômes sont tirés au sort dans le groupe (un trio si le groupe est impair). Chaque équipe marque la moyenne des points de pronos de ses joueurs sur la journée ; la meilleure équipe gagne 3 points + 2 🪙 par joueur.</li>
+        </ul>
+      </div>
+
+      <div className="rules-section">
         <h3 className="rules-section-title">🎮 Jeu de la semaine</h3>
         <p className="rules-section-text">
           Une seule case dans les mini-jeux, mais son contenu change chaque semaine — jonglage, dribble ou coup franc :

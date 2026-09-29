@@ -31,7 +31,7 @@ const CATEGORIES: { key: string; label: string }[] = [
   { key: 'duels', label: 'Duels' },
   { key: 'jonglage_chrono', label: 'Mini-jeux' },
   { key: 'free_bet', label: 'Paris libres' },
-  { key: 'jeu_semaine', label: 'But en or' },
+  { key: 'jeu_semaine', label: 'Événements' },
 ]
 
 // Le classement "Duels" fusionne deux catégories de points_ledger.source_type
@@ -139,7 +139,10 @@ export default function Classement({ groupId, groupName }: Props) {
         ? mergeCategoryPoints(
             mergeCategoryPoints(categoryPoints['jonglage_chrono'], categoryPoints['dribble_chrono']),
             categoryPoints['coup_franc_chrono'])
-        : categoryPoints[tab] ?? {}
+        : tab === 'jeu_semaine'
+          // onglet "Événements" : But en or + événements de journée
+          ? mergeCategoryPoints(categoryPoints['jeu_semaine'], categoryPoints['evenement'])
+          : categoryPoints[tab] ?? {}
   const rows: Row[] = members
     .map((m) => ({ ...m, total_points: pointsForTab[m.profile_id] ?? 0 }))
     .sort((a, b) => b.total_points - a.total_points || a.pseudo.localeCompare(b.pseudo))

@@ -879,3 +879,178 @@ span.dash-v2-match-footer {
 .admin-ev-launch .groups-action-btn {
   width: 100%;
 }
+
+/* ---- Événements de journée ---- */
+.match-bonus-badge-fire {
+  background: #C2410C;
+}
+.app-event {
+  padding: 0 16px 24px;
+  color: #F4EFE2;
+}
+.app-event-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 12px;
+}
+.app-event-hero h2 {
+  margin: 0;
+}
+.app-event-hero p {
+  margin: 2px 0 0;
+  opacity: 0.8;
+  font-size: 13px;
+}
+.app-event-icon {
+  font-size: 40px;
+}
+.app-event-winner {
+  background: #D4A22C;
+  color: #1B1B1F;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.app-event-card {
+  background: #F4EFE2;
+  color: #1B1B1F;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.app-event-card p {
+  margin: 0;
+  line-height: 1.4;
+}
+.app-event-card small {
+  opacity: 0.65;
+}
+.app-event-guess {
+  display: flex;
+  gap: 8px;
+}
+.app-event-guess input {
+  width: 110px;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+.app-event-saved {
+  color: #2E7D4F;
+  font-weight: 700;
+}
+.app-event-live {
+  font-size: 15px;
+}
+.app-event-list,
+.app-event-teams,
+.app-event-fixtures {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.app-event-list li,
+.app-event-teams li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 4px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+.app-event-list li span,
+.app-event-members {
+  flex: 1;
+  min-width: 0;
+}
+.app-event-list li.me,
+.app-event-teams li.mine {
+  background: rgba(212, 162, 44, 0.2);
+  border-radius: 8px;
+}
+.app-event-rank {
+  width: 22px;
+  font-weight: 800;
+  text-align: center;
+}
+.app-event-members em {
+  font-style: normal;
+  color: #8a6a14;
+  font-weight: 700;
+}
+.app-event-sub {
+  margin: 8px 0;
+}
+.app-event-fixtures li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(244, 239, 226, 0.08);
+  border-radius: 10px;
+  padding: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.app-event-team {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-event-team-away {
+  text-align: right;
+}
+.app-event-fixtures b {
+  flex: none;
+  font-size: 12px;
+}
+.admin-ev-kinds {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.admin-ev-kinds button {
+  flex: 1;
+  min-width: 90px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 4px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.admin-ev-kinds button:disabled {
+  opacity: 0.35;
+}
+.admin-ev-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.admin-ev-bigtitle {
+  margin: 22px 0 4px;
+}
+.admin-ev-week-title small {
+  font-weight: 400;
+  opacity: 0.7;
+}
+.admin-ev-kinds button {
+  color: #1B1B1F;
+}
+.dash-events {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dash-events .dash-event-card {
+  margin: 0;
+}

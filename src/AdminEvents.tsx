@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import LoadingSkeleton from './LoadingSkeleton'
-import { eventKickoffLabel } from './events'
+import { eventKickoffLabel, APP_EVENT_INFO, type AppEventKind } from './events'
 
 interface Fixture {
   api_fixture_id: number
@@ -28,6 +28,23 @@ interface EventMatchRow {
   real_first_scorer_team: 'domicile' | 'exterieur' | 'aucun_but' | null
   real_first_goal_minute: number | null
 }
+
+interface MatchdayRow {
+  matchday: number
+  fixtures: number
+  first_kickoff: string
+  last_kickoff: string
+}
+
+interface AppEventRow {
+  id: string
+  kind: AppEventKind
+  matchday: number
+  first_kickoff: string
+  resolved_at: string | null
+}
+
+const KINDS: AppEventKind[] = ['journee_x2', 'total_buts', 'duo']
 
 interface BonusRow {
   week_start: string
@@ -111,11 +128,13 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
   const [bonus, setBonus] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [matchdays, setMatchdays] = useState<MatchdayRow[]>([])
+  const [appEvents, setAppEvents] = useState<AppEventRow[]>([])
 
   const load = async () => {
     setLoading(true)
     setError(null)
-    const [fx, ev, bn] = await Promise.all([
+    const [fx, ev, bn, md, ae] = await Promise.all([
       supabase.rpc('admin_upcoming_fixtures'),
       supabase
         .from('weekly_special_matches')
@@ -124,7 +143,11 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
         .order('match_number', { ascending: true })
         .limit(12),
       supabase.from('weekly_bonus_matches').select('week_start, home_team, away_team, kickoff_at').order('week_start', { ascending: false }).limit(6),
+      supabase.rpc('admin_upcoming_matchdays'),
+      supabase.from('app_events').select('id, kind, matchday, first_kickoff, resolved_at').order('first_kickoff', { ascending: false }).limit(12),
     ])
+    setMatchdays((md.data ?? []) as MatchdayRow[])
+    setAppEvents((ae.data ?? []) as AppEventRow[])
     if (fx.error) setError(fx.error.message)
     setFixtures(((fx.data ?? []) as Fixture[]).sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at)))
     setEvents((ev.data ?? []) as EventMatchRow[])
@@ -182,6 +205,27 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
     load()
   }
 
+  const launchDayEvent = async (kind: AppEventKind, matchday: number) => {
+    const info = APP_EVENT_INFO[kind]
+    if (!window.confirm(`Lancer « ${info.icon} ${info.label} » sur la journée ${matchday} ?\n\nTous les joueurs recevront une notification.`)) return
+    setBusy(true)
+    setError(null)
+    const { error: err } = await supabase.rpc('admin_create_app_event', { p_kind: kind, p_matchday: matchday })
+    setBusy(false)
+    if (err) { setError(err.message); return }
+    setNotice(`${info.icon} ${info.label} lancé sur la journée ${matchday} !`)
+    load()
+  }
+
+  const cancelDayEvent = async (ev: AppEventRow) => {
+    const info = APP_EVENT_INFO[ev.kind]
+    if (!window.confirm(`Annuler « ${info.label} » (journée ${ev.matchday}) ?`)) return
+    const { error: err } = await supabase.rpc('admin_cancel_app_event', { p_event_id: ev.id })
+    if (err) { setError(err.message); return }
+    setNotice('Événement annulé.')
+    load()
+  }
+
   // matchs à venir regroupés par semaine
   const byWeek: { week: string; list: Fixture[] }[] = []
   for (const f of fixtures) {
@@ -194,11 +238,7 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
   return (
     <div className="admin-ev">
       <button className="jeux-back-btn" onClick={onBack}>← Profil</button>
-      <h2 className="admin-ev-title">🎯 Événements But en or</h2>
-      <p className="admin-ev-help">
-        Choisis <b>2 matchs</b> dont les joueurs devineront l'équipe et la minute du 1er but, et si tu veux
-        <b> 1 match ×2</b> (ses pronos comptent double). Tous dans la même semaine. Réservé à toi.
-      </p>
+      <h2 className="admin-ev-title">🎉 Événements</h2>
 
       {error && <p className="groups-error">{error}</p>}
       {notice && <p className="admin-ev-notice">{notice}</p>}
@@ -207,6 +247,50 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
         <LoadingSkeleton />
       ) : (
         <>
+          <section className="admin-ev-section">
+            <h3>Événements de journée</h3>
+            <p className="admin-ev-help">🔥 Journée x2 · ⚽ Total de buts · 🤝 Duo du week-end — sur toute une journée de Ligue 1. Résultats et récompenses automatiques.</p>
+            {appEvents.map((ev) => {
+              const info = APP_EVENT_INFO[ev.kind]
+              const started = new Date(ev.first_kickoff).getTime() <= Date.now()
+              return (
+                <div className="admin-ev-card admin-ev-card-row" key={ev.id}>
+                  <span>{info.icon} {info.label} · J{ev.matchday}</span>
+                  {ev.resolved_at ? (
+                    <small>✅ terminé</small>
+                  ) : started ? (
+                    <small>en cours</small>
+                  ) : (
+                    <button className="admin-ev-cancel" onClick={() => cancelDayEvent(ev)}>Annuler</button>
+                  )}
+                </div>
+              )
+            })}
+            {matchdays.length === 0 && <p className="groups-empty">Aucune journée à venir pour l'instant.</p>}
+            {matchdays.map((md) => {
+              const taken = new Set(appEvents.filter((e) => e.matchday === md.matchday && !e.resolved_at).map((e) => e.kind))
+              return (
+                <div className="admin-ev-week" key={md.matchday}>
+                  <div className="admin-ev-week-title">
+                    Journée {md.matchday} <small>· {md.fixtures} matchs · {eventKickoffLabel(md.first_kickoff)} → {eventKickoffLabel(md.last_kickoff)}</small>
+                  </div>
+                  <div className="admin-ev-kinds">
+                    {KINDS.map((k) => (
+                      <button key={k} disabled={busy || taken.has(k)} onClick={() => launchDayEvent(k, md.matchday)}>
+                        {APP_EVENT_INFO[k].icon} {APP_EVENT_INFO[k].label}{taken.has(k) ? ' ✓' : ''}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </section>
+
+          <h3 className="admin-ev-bigtitle">🎯 But en or</h3>
+          <p className="admin-ev-help">
+        But en or : choisis <b>2 matchs</b> dont les joueurs devineront l'équipe et la minute du 1er but, et si tu veux
+        <b> 1 match ×2</b> (ses pronos comptent double). Tous dans la même semaine. Réservé à toi.
+      </p>
           {eventWeeks.length > 0 && (
             <section className="admin-ev-section">
               <h3>Événements</h3>

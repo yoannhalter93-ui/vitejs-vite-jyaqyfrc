@@ -7,7 +7,7 @@ import Avatar from './Avatar'
 import { shareInvite } from './invite'
 import LoadingSkeleton from './LoadingSkeleton'
 import type { WeekRecap } from './Recap'
-import { useCurrentEvent, shortTeam, eventKickoffLabel } from './events'
+import { useCurrentEvent, useAppEvents, APP_EVENT_INFO, shortTeam, eventKickoffLabel } from './events'
 
 interface MatchRow {
   id: string
@@ -29,6 +29,7 @@ interface RankRow {
 interface Props {
   groupId: string
   groupName: string
+  onOpenEvent: (eventId: string) => void
   onNavigate: (screen: 'pronostics' | 'classement' | 'penalty' | 'quiz' | 'jonglages' | 'recap' | 'evenement') => void
 }
 
@@ -160,7 +161,7 @@ function CalendarIcon({ className = '' }: { className?: string }) {
   )
 }
 
-export default function Home({ groupId, groupName, onNavigate }: Props) {
+export default function Home({ groupId, groupName, onNavigate, onOpenEvent }: Props) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
@@ -175,6 +176,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const [weekRecap, setWeekRecap] = useState<WeekRecap | null>(null)
   const [inviteCopied, setInviteCopied] = useState(false)
   const currentEvent = useCurrentEvent(groupId, user?.id)
+  const appEvents = useAppEvents(groupId)
 
   useEffect(() => {
     supabase.from('groups').select('invite_code').eq('id', groupId).maybeSingle()
@@ -451,6 +453,26 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
           </button>
         )
       })()}
+
+      {appEvents.length > 0 && <div className="dash-events">{appEvents.map((ev) => {
+        const info = APP_EVENT_INFO[ev.kind]
+        const started = new Date(ev.first_kickoff).getTime() <= Date.now()
+        const sub = ev.resolved
+          ? 'Résultats disponibles →'
+          : ev.kind === 'total_buts' && !started
+          ? ev.todo ? `Devine le total de buts avant ${eventKickoffLabel(ev.first_kickoff)} →` : 'Prono fait ✓ — modifiable jusqu\'au coup d\'envoi →'
+          : ev.kind === 'duo'
+          ? started ? 'Voir le classement des équipes →' : 'Découvre ton coéquipier →'
+          : started ? 'Journée en cours →' : 'Tous tes pronos de la journée comptent double →'
+        return (
+          <button key={ev.id} className="dash-event-card" onClick={() => onOpenEvent(ev.id)}>
+            {ev.todo && <span className="dash-action-todo-dot" aria-label="À toi de jouer" />}
+            <span className="dash-event-kicker">{info.icon} Événement · Journée {ev.matchday}</span>
+            <span className="dash-event-matches">{info.label}</span>
+            <span className="dash-event-sub">{sub}</span>
+          </button>
+        )
+      })}</div>}
 
       <section className="dash-v2-section" aria-labelledby="play-title">
         <div className="dash-v2-section-heading">

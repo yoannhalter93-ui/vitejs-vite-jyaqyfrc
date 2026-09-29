@@ -64,7 +64,8 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
   // "But en or" (WeeklySpecial.tsx) peut désigner un 3e match dont les
   // points comptent x2 au classement — identifié par api_fixture_id (partagé
   // entre les copies par groupe d'un même match, voir seed_matches_for_new_period)
-  const [bonusFixtureId, setBonusFixtureId] = useState<number | null>(null)
+  // matchs qui comptent x2 (match bonus d'un But en or, ou Journée x2)
+  const [x2Fixtures, setX2Fixtures] = useState<Record<number, string>>({})
   const [predictions, setPredictions] = useState<Record<string, PredictionRow>>({})
   // Nombre de ligues où le dernier pronostic a été appliqué — uniquement
   // rempli/affiché quand le réglage "Pronostics dans toutes mes ligues" est
@@ -103,13 +104,8 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
     setError(null)
     hasScrolledRef.current = false
 
-    const { data: bonus } = await supabase
-      .from('weekly_bonus_matches')
-      .select('api_fixture_id')
-      .order('week_start', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    setBonusFixtureId(bonus?.api_fixture_id ?? null)
+    const { data: x2 } = await supabase.rpc('get_x2_fixtures')
+    setX2Fixtures(Object.fromEntries(((x2 ?? []) as { api_fixture_id: number; kind: string }[]).map((r) => [r.api_fixture_id, r.kind])))
 
     const { data: period, error: periodError } = await supabase
       .from('group_periods')
@@ -376,8 +372,11 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
                     <li className="match-card-v2" key={m.id} ref={(el) => { matchRefs.current[m.id] = el }}>
                       <div className="match-row-v2">
                         <div className="match-meta-badge">⏱ {kickoffTime}</div>
-                        {bonusFixtureId != null && m.api_fixture_id === bonusFixtureId && (
+                        {x2Fixtures[m.api_fixture_id] === 'but_en_or' && (
                           <div className="match-bonus-badge">🎯 But en or : points x2</div>
+                        )}
+                        {x2Fixtures[m.api_fixture_id] === 'journee_x2' && (
+                          <div className="match-bonus-badge match-bonus-badge-fire">🔥 Journée x2</div>
                         )}
                         {jokers.has(m.id) && <div className="match-bonus-badge match-joker-badge">🃏 Joker : points ×2</div>}
                       </div>
@@ -483,7 +482,7 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
                               : 'Entre un score, il est enregistré automatiquement'}
                           </span>
                           {/* pas de Joker sur le match x2 d'un événement : il compte déjà double */}
-                          {hasPrediction && !jokers.has(m.id) && !(bonusFixtureId != null && m.api_fixture_id === bonusFixtureId) && (
+                          {hasPrediction && !jokers.has(m.id) && !x2Fixtures[m.api_fixture_id] && (
                             <button
                               className="match-joker-btn"
                               disabled={jokerBusy === m.id}

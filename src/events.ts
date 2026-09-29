@@ -80,3 +80,35 @@ export function shortTeam(name: string) {
 export function eventKickoffLabel(iso: string) {
   return new Date(iso).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
+
+// Événements de journée (Journée x2, Total de buts, Duo du week-end)
+export type AppEventKind = 'journee_x2' | 'total_buts' | 'duo'
+
+export interface AppEventSummary {
+  id: string
+  kind: AppEventKind
+  matchday: number
+  first_kickoff: string
+  last_kickoff: string
+  resolved: boolean
+  todo: boolean
+}
+
+export const APP_EVENT_INFO: Record<AppEventKind, { icon: string; label: string }> = {
+  journee_x2: { icon: '🔥', label: 'Journée x2' },
+  total_buts: { icon: '⚽', label: 'Total de buts' },
+  duo: { icon: '🤝', label: 'Duo du week-end' },
+}
+
+export function useAppEvents(groupId: string | null | undefined) {
+  const [events, setEvents] = useState<AppEventSummary[]>([])
+  useEffect(() => {
+    if (!groupId) { setEvents([]); return }
+    let cancelled = false
+    supabase.rpc('get_active_app_events', { p_group_id: groupId }).then(({ data, error }: any) => {
+      if (!cancelled && !error) setEvents((data ?? []) as AppEventSummary[])
+    })
+    return () => { cancelled = true }
+  }, [groupId])
+  return events
+}

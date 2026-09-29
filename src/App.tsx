@@ -25,6 +25,7 @@ import Recap from './Recap'
 import PullToRefresh from './PullToRefresh'
 import Help from './Help'
 import AdminEvents from './AdminEvents'
+import AppEventScreen from './AppEventScreen'
 import { SketchController, WhistleIcon } from './Icons'
 import Chat from './Chat'
 import { useWizzChannel } from './wizzChannel'
@@ -84,6 +85,8 @@ type Screen =
   | 'recap'
   // événement But en or en cours (bannière de l'accueil, notif de lancement)
   | 'evenement'
+  // événement de journée (Journée x2, Total de buts, Duo) : voir openEventId
+  | 'evenement-journee'
   // gestion des événements, réservée à l'administrateur (Profil)
   | 'admin-events'
   // écran d'accueil de groupe (une seule fois, à la première entrée dans
@@ -145,7 +148,7 @@ const MINIGAME_TILES: {
 // à quel onglet du bas rattacher chaque écran interne (ex. "pronostics",
 // atteint depuis le tableau de bord, reste sous l'onglet "Pronos")
 function bottomTabFor(screen: Screen): Screen {
-  if (screen === 'pronostics' || screen === 'recap' || screen === 'evenement') return 'accueil'
+  if (screen === 'pronostics' || screen === 'recap' || screen === 'evenement' || screen === 'evenement-journee') return 'accueil'
   if (screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') return 'jeux'
   if (screen === 'parametres' || screen === 'historique-pronos' || screen === 'stats' || screen === 'aide' || screen === 'admin-events') return 'profil'
   return screen
@@ -699,6 +702,7 @@ function App() {
   // administrateur de l'appli (gestion des événements) — vérifié côté
   // serveur à chaque action, ceci ne sert qu'à afficher le menu
   const [isAdmin, setIsAdmin] = useState(false)
+  const [openEventId, setOpenEventId] = useState<string | null>(null)
   useEffect(() => {
     if (!session?.user?.id) { setIsAdmin(false); return }
     supabase.rpc('is_app_admin').then(({ data }: any) => setIsAdmin(data === true))
@@ -1026,6 +1030,18 @@ function App() {
         await handleSelectGroup(gm.group_id, (gm as any).groups?.name ?? '')
       }
       setScreen('evenement')
+      setShowNotifPanel(false)
+    } else if (n.ref_table === 'app_events' && n.ref_id) {
+      // événement de journée (lancement, équipe du duo, victoire)
+      if (!selectedGroup) {
+        const { data: gm } = await supabase
+          .from('group_members').select('group_id, groups(name)')
+          .eq('profile_id', session?.user?.id ?? '').limit(1).maybeSingle()
+        if (!gm?.group_id) return
+        await handleSelectGroup(gm.group_id, (gm as any).groups?.name ?? '')
+      }
+      setOpenEventId(n.ref_id)
+      setScreen('evenement-journee')
       setShowNotifPanel(false)
     } else if (n.ref_table === 'free_bets' && n.ref_id) {
       // notif de nouveau pari libre (type 'free_bet') ou de résultat (type
@@ -1753,6 +1769,7 @@ function App() {
                 groupId={selectedGroup.id}
                 groupName={selectedGroup.name}
                 onNavigate={(s) => setScreen(s)}
+                onOpenEvent={(id) => { setOpenEventId(id); setScreen('evenement-journee') }}
               />
             )}
             {screen === 'evenement' && (
@@ -1762,6 +1779,14 @@ function App() {
                 autoApplyAllLeagues={autoApplyAllLeagues}
                 onGoToBonusMatch={() => setScreen('pronostics')}
                 onExit={() => setScreen('accueil')}
+              />
+            )}
+            {screen === 'evenement-journee' && openEventId && (
+              <AppEventScreen
+                eventId={openEventId}
+                groupId={selectedGroup.id}
+                onBack={() => setScreen('accueil')}
+                onGoToPronos={() => setScreen('pronostics')}
               />
             )}
             {screen === 'recap' && (
