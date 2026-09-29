@@ -93,9 +93,22 @@ export default function Rules({ onBack }: Props) {
       </div>
 
       <div className="rules-section">
-        <h3 className="rules-section-title">🎯 But en or</h3>
+        <h3 className="rules-section-title">🎉 Événements de journée</h3>
         <p className="rules-section-text">
-          C'est un événement de journée, lancé certaines journées (les grosses affiches) en plus du jeu de la semaine : une bannière « Événement » apparaît alors sur l'accueil et tout le monde reçoit une notification. Deux vrais matchs de Ligue 1 sont mis en avant, les mêmes pour tout le monde. Sur chacun, avant le coup d'envoi, tu fais 2 pronostics indépendants : quelle équipe (domicile ou extérieur) va marquer le premier but, et à quelle minute exacte — glisse le ⚽ sur la barre, de 0 à 95 (le +5 couvre le temps additionnel) — ou tu choisis Aucun but si tu penses à un 0-0. Chaque match se verrouille séparément à son coup d'envoi : rater le premier n'empêche pas de jouer le second.
+          Certaines journées de Ligue 1, un événement est lancé en plus du reste (une bannière apparaît sur l'accueil et tout le monde reçoit une notification) :
+        </p>
+        <ul className="rules-points">
+          <li>🔥 Journée x2 — tous les pronos de la journée comptent double. Le Joker n'est pas utilisable sur ces matchs.</li>
+          <li>⚽ Total de buts — devine combien de buts seront marqués sur toute la journée, avant le premier coup d'envoi. Le plus proche du groupe gagne 3 points + 2 🪙.</li>
+          <li>🤝 Duo du week-end — des binômes sont tirés au sort dans le groupe (un trio si le groupe est impair). Chaque équipe marque la moyenne des points de pronos de ses joueurs sur la journée ; la meilleure équipe gagne 3 points + 2 🪙 par joueur.</li>
+          <li>🎯 But en or — devine l'équipe et la minute du 1er but sur 2 grosses affiches de la journée (règles détaillées juste en dessous).</li>
+        </ul>
+      </div>
+
+      <div className="rules-section">
+        <h3 className="rules-section-title">🎯 But en or (événement de journée)</h3>
+        <p className="rules-section-text">
+          Le 4e événement de journée, pour les grosses affiches : deux vrais matchs de la journée sont mis en avant, les mêmes pour tout le monde. Sur chacun, avant le coup d'envoi, tu fais 2 pronostics indépendants : quelle équipe (domicile ou extérieur) va marquer le premier but, et à quelle minute exacte — glisse le ⚽ sur la barre, de 0 à 95 (le +5 couvre le temps additionnel) — ou tu choisis Aucun but si tu penses à un 0-0. Chaque match se verrouille séparément à son coup d'envoi : rater le premier n'empêche pas de jouer le second.
         </p>
         <ul className="rules-points">
           <li>Bonne équipe — 5 points</li>
@@ -105,26 +118,14 @@ export default function Rules({ onBack }: Props) {
           <li>Écart de plus de 45 minutes — 0 point</li>
         </ul>
         <p className="rules-section-text">
-          L'écart se calcule directement entre la minute choisie sur la barre et la vraie minute du but. Les deux se cumulent et comptent indépendamment : même en te trompant d'équipe, tu marques quand même les points de la minute. 15 points max par match, 30 sur les 2 matchs de la semaine. Aucun but deviné juste sur un vrai 0-0 rapporte 15 points d'un coup ; s'il y a eu un but, Aucun but ne rapporte rien.
+          L'écart se calcule directement entre la minute choisie sur la barre et la vraie minute du but. Les deux se cumulent et comptent indépendamment : même en te trompant d'équipe, tu marques quand même les points de la minute. 15 points max par match, 30 sur les 2 matchs. Aucun but deviné juste sur un vrai 0-0 rapporte 15 points d'un coup ; s'il y a eu un but, Aucun but ne rapporte rien.
         </p>
         <p className="rules-section-text">
-          Comme pour le jeu de la semaine, seul le meilleur total du groupe sur les 2 matchs remporte la récompense du classement général : 3 points et 2 🪙 jetons. En cas d'égalité, c'est le plus petit écart cumulé sur les minutes pronostiquées qui départage ; à égalité parfaite, la victoire est partagée entre tous les joueurs encore à égalité.
+          Seul le meilleur total du groupe sur les 2 matchs remporte la récompense du classement général : 3 points et 2 🪙 jetons. En cas d'égalité, c'est le plus petit écart cumulé sur les minutes pronostiquées qui départage ; à égalité parfaite, la victoire est partagée entre tous les joueurs encore à égalité.
         </p>
         <p className="rules-section-text">
-          Un 3e match peut s'y ajouter : celui-là se parie normalement dans Pronostics (score exact, bon écart, bon résultat), rien ne change — sauf que les points qu'il rapporte comptent double au classement général. Il est repéré par un badge « x2 » dans Pronostics, et une bannière cliquable ici t'y emmène directement.
+          Un 3e match peut s'y ajouter : celui-là se parie normalement dans Pronostics (score exact, bon écart, bon résultat), rien ne change — sauf que les points qu'il rapporte comptent double au classement général. Il est repéré par un badge « x2 » dans Pronostics (pas de Joker possible dessus).
         </p>
-      </div>
-
-      <div className="rules-section">
-        <h3 className="rules-section-title">🎉 Événements de journée</h3>
-        <p className="rules-section-text">
-          Certaines journées de Ligue 1, un événement est lancé en plus du reste (une bannière apparaît sur l'accueil et tout le monde reçoit une notification) :
-        </p>
-        <ul className="rules-points">
-          <li>🔥 Journée x2 — tous les pronos de la journée comptent double. Le Joker n'est pas utilisable sur ces matchs.</li>
-          <li>⚽ Total de buts — devine combien de buts seront marqués sur toute la journée, avant le premier coup d'envoi. Le plus proche du groupe gagne 3 points + 2 🪙.</li>
-          <li>🤝 Duo du week-end — des binômes sont tirés au sort dans le groupe (un trio si le groupe est impair). Chaque équipe marque la moyenne des points de pronos de ses joueurs sur la journée ; la meilleure équipe gagne 3 points + 2 🪙 par joueur.</li>
-        </ul>
       </div>
 
       <div className="rules-section">
