@@ -482,7 +482,8 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
                                 : '✓ Pronostic enregistré'
                               : 'Entre un score, il est enregistré automatiquement'}
                           </span>
-                          {hasPrediction && !jokers.has(m.id) && (
+                          {/* pas de Joker sur le match x2 d'un événement : il compte déjà double */}
+                          {hasPrediction && !jokers.has(m.id) && !(bonusFixtureId != null && m.api_fixture_id === bonusFixtureId) && (
                             <button
                               className="match-joker-btn"
                               disabled={jokerBusy === m.id}
