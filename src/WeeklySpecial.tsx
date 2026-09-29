@@ -200,14 +200,6 @@ export default function WeeklySpecial({ groupId, groupName, autoApplyAllLeagues,
     // match bonus x2 de la semaine (3e match, parié normalement dans
     // Pronostics) — indépendant des 2 matchs équipe+minute ci-dessous, donc
     // chargé séparément et sans bloquer le reste si absent
-    const { data: bonus } = await supabase
-      .from('weekly_bonus_matches')
-      .select('week_start, api_fixture_id, home_team, away_team, kickoff_at')
-      .order('week_start', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    setBonusMatch(bonus ?? null)
-
     // la semaine en cours = le week_start le plus récent présent en base
     // (une seule semaine à la fois est activée manuellement)
     const { data: latest, error: latestError } = await supabase
@@ -224,9 +216,18 @@ export default function WeeklySpecial({ groupId, groupName, autoApplyAllLeagues,
     }
     if (!latest) {
       setMatches([])
+      setBonusMatch(null)
       setLoading(false)
       return
     }
+
+    // le match x2 (optionnel) du MÊME événement
+    const { data: bonus } = await supabase
+      .from('weekly_bonus_matches')
+      .select('week_start, api_fixture_id, home_team, away_team, kickoff_at')
+      .eq('week_start', latest.week_start)
+      .maybeSingle()
+    setBonusMatch(bonus ?? null)
 
     const { data: matchesData, error: matchesError } = await supabase
       .from('weekly_special_matches')
@@ -363,7 +364,7 @@ export default function WeeklySpecial({ groupId, groupName, autoApplyAllLeagues,
     <div className="predictions-screen">
       <div className="predictions-header">
         <button className="predictions-back" onClick={onExit}>← Accueil</button>
-        <h2>But en or — {groupName}</h2>
+        <h2>🎯 Événement But en or — {groupName}</h2>
       </div>
 
       <p className="predictions-period">

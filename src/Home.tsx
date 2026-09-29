@@ -7,6 +7,7 @@ import Avatar from './Avatar'
 import { shareInvite } from './invite'
 import LoadingSkeleton from './LoadingSkeleton'
 import type { WeekRecap } from './Recap'
+import { useCurrentEvent, shortTeam, eventKickoffLabel } from './events'
 
 interface MatchRow {
   id: string
@@ -28,7 +29,7 @@ interface RankRow {
 interface Props {
   groupId: string
   groupName: string
-  onNavigate: (screen: 'pronostics' | 'classement' | 'penalty' | 'quiz' | 'jonglages' | 'recap') => void
+  onNavigate: (screen: 'pronostics' | 'classement' | 'penalty' | 'quiz' | 'jonglages' | 'recap' | 'evenement') => void
 }
 
 const LIGUE1_2627_STARTS: Array<[string, number]> = [
@@ -173,6 +174,7 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [weekRecap, setWeekRecap] = useState<WeekRecap | null>(null)
   const [inviteCopied, setInviteCopied] = useState(false)
+  const currentEvent = useCurrentEvent(groupId, user?.id)
 
   useEffect(() => {
     supabase.from('groups').select('invite_code').eq('id', groupId).maybeSingle()
@@ -426,6 +428,29 @@ export default function Home({ groupId, groupName, onNavigate }: Props) {
           </button>
         )}
       </section>
+
+      {currentEvent && (() => {
+        const nextOpen = currentEvent.matches.find((m) => new Date(m.kickoff_at).getTime() > Date.now())
+        const allDone = currentEvent.matches.every((m) => m.resolved)
+        return (
+          <button className="dash-event-card" onClick={() => onNavigate('evenement')}>
+            {currentEvent.todo > 0 && <span className="dash-action-todo-dot" aria-label="À toi de jouer" />}
+            <span className="dash-event-kicker">🎯 Événement · But en or</span>
+            <span className="dash-event-matches">
+              {currentEvent.matches.map((m) => `${shortTeam(m.home_team)} - ${shortTeam(m.away_team)}`).join('  ·  ')}
+            </span>
+            <span className="dash-event-sub">
+              {allDone
+                ? 'Résultats disponibles →'
+                : nextOpen
+                ? currentEvent.todo > 0
+                  ? `Devine le 1er but avant ${eventKickoffLabel(nextOpen.kickoff_at)} →`
+                  : 'Pronos faits ✓ — tu peux encore les modifier →'
+                : 'Matchs en cours, résultats bientôt →'}
+            </span>
+          </button>
+        )
+      })()}
 
       <section className="dash-v2-section" aria-labelledby="play-title">
         <div className="dash-v2-section-heading">

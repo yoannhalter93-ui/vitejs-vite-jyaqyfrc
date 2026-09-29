@@ -1,0 +1,300 @@
+// Écran réservé à l'administrateur (Profil → Événements) : lancer un
+// événement "But en or" certaines semaines, en plus du jeu de la semaine
+// (2 matchs dont on devine l'équipe et la minute du 1er but + un match
+// optionnel dont les pronos comptent x2), l'annuler tant qu'il n'a pas
+// commencé, et saisir le 1er but à la main si l'API ne le fournit pas.
+// Tout est vérifié côté serveur (admin_* : réservées aux app_admins).
+
+import { useEffect, useState } from 'react'
+import { supabase } from './supabaseClient'
+import LoadingSkeleton from './LoadingSkeleton'
+import { eventKickoffLabel } from './events'
+
+interface Fixture {
+  api_fixture_id: number
+  home_team: string
+  away_team: string
+  kickoff_at: string
+}
+
+interface EventMatchRow {
+  id: string
+  week_start: string
+  match_number: number
+  home_team: string
+  away_team: string
+  kickoff_at: string
+  resolved: boolean
+  real_first_scorer_team: 'domicile' | 'exterieur' | 'aucun_but' | null
+  real_first_goal_minute: number | null
+}
+
+interface BonusRow {
+  week_start: string
+  home_team: string
+  away_team: string
+  kickoff_at: string
+}
+
+// lundi (heure de Paris) de la semaine d'un coup d'envoi, "2026-10-05"
+function weekOf(iso: string) {
+  const d = new Date(new Date(iso).toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function weekLabel(weekStart: string) {
+  const d = new Date(`${weekStart}T12:00:00`)
+  return `Semaine du ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+}
+
+function ResolveForm({ match, onDone }: { match: EventMatchRow; onDone: () => void }) {
+  const [team, setTeam] = useState<'domicile' | 'exterieur' | 'aucun_but'>('domicile')
+  const [minute, setMinute] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const submit = async () => {
+    const label = team === 'aucun_but' ? 'aucun but (0-0)' : `${team === 'domicile' ? match.home_team : match.away_team}, ${minute}e minute`
+    if (!window.confirm(`Confirmer le 1er but : ${label} ? (définitif)`)) return
+    setBusy(true)
+    setError(null)
+    const { error: err } = await supabase.rpc('admin_resolve_golden_goal_match', {
+      p_match_id: match.id,
+      p_team: team,
+      p_minute: team === 'aucun_but' ? null : Number(minute),
+    })
+    setBusy(false)
+    if (err) { setError(err.message); return }
+    onDone()
+  }
+
+  return (
+    <div className="admin-ev-resolve">
+      <div className="admin-ev-resolve-row">
+        <select value={team} onChange={(e) => setTeam(e.target.value as typeof team)}>
+          <option value="domicile">1er but : {match.home_team}</option>
+          <option value="exterieur">1er but : {match.away_team}</option>
+          <option value="aucun_but">Aucun but (0-0)</option>
+        </select>
+        {team !== 'aucun_but' && (
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={130}
+            placeholder="Minute"
+            value={minute}
+            onChange={(e) => setMinute(e.target.value)}
+          />
+        )}
+      </div>
+      <button
+        className="groups-action-btn"
+        disabled={busy || (team !== 'aucun_but' && minute === '')}
+        onClick={submit}
+      >
+        {busy ? '...' : 'Valider le résultat'}
+      </button>
+      {error && <p className="groups-error">{error}</p>}
+    </div>
+  )
+}
+
+export default function AdminEvents({ onBack }: { onBack: () => void }) {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [fixtures, setFixtures] = useState<Fixture[]>([])
+  const [events, setEvents] = useState<EventMatchRow[]>([])
+  const [bonuses, setBonuses] = useState<BonusRow[]>([])
+  const [golden, setGolden] = useState<number[]>([])
+  const [bonus, setBonus] = useState<number | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  const load = async () => {
+    setLoading(true)
+    setError(null)
+    const [fx, ev, bn] = await Promise.all([
+      supabase.rpc('admin_upcoming_fixtures'),
+      supabase
+        .from('weekly_special_matches')
+        .select('id, week_start, match_number, home_team, away_team, kickoff_at, resolved, real_first_scorer_team, real_first_goal_minute')
+        .order('week_start', { ascending: false })
+        .order('match_number', { ascending: true })
+        .limit(12),
+      supabase.from('weekly_bonus_matches').select('week_start, home_team, away_team, kickoff_at').order('week_start', { ascending: false }).limit(6),
+    ])
+    if (fx.error) setError(fx.error.message)
+    setFixtures(((fx.data ?? []) as Fixture[]).sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at)))
+    setEvents((ev.data ?? []) as EventMatchRow[])
+    setBonuses((bn.data ?? []) as BonusRow[])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  const eventWeeks = [...new Set(events.map((e) => e.week_start))]
+  const busyWeeks = new Set([...eventWeeks, ...bonuses.map((b) => b.week_start)])
+
+  const toggleGolden = (id: number) => {
+    setNotice(null)
+    if (bonus === id) setBonus(null)
+    setGolden((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 2 ? [prev[1], id] : [...prev, id]))
+  }
+  const toggleBonus = (id: number) => {
+    setNotice(null)
+    setGolden((prev) => prev.filter((x) => x !== id))
+    setBonus((prev) => (prev === id ? null : id))
+  }
+
+  const selected = fixtures.filter((f) => golden.includes(f.api_fixture_id) || f.api_fixture_id === bonus)
+  const sameWeek = new Set(selected.map((f) => weekOf(f.kickoff_at))).size <= 1
+  const canLaunch = golden.length === 2 && sameWeek && !busy
+
+  const launch = async () => {
+    const [a, b] = golden.map((id) => fixtures.find((f) => f.api_fixture_id === id)!)
+    const x2 = bonus != null ? fixtures.find((f) => f.api_fixture_id === bonus) : null
+    const msg = `Lancer l'événement But en or ?\n\n🎯 ${a.home_team} - ${a.away_team}\n🎯 ${b.home_team} - ${b.away_team}`
+      + (x2 ? `\n✖️2 ${x2.home_team} - ${x2.away_team}` : '')
+      + '\n\nTous les joueurs recevront une notification.'
+    if (!window.confirm(msg)) return
+    setBusy(true)
+    setError(null)
+    const { error: err } = await supabase.rpc('admin_create_golden_goal_event', {
+      p_fixture_1: golden[0],
+      p_fixture_2: golden[1],
+      p_bonus_fixture: bonus,
+    })
+    setBusy(false)
+    if (err) { setError(err.message); return }
+    setGolden([])
+    setBonus(null)
+    setNotice('🎯 Événement lancé ! Tout le monde a été prévenu.')
+    load()
+  }
+
+  const cancel = async (weekStart: string) => {
+    if (!window.confirm(`Annuler l'événement de la ${weekLabel(weekStart).toLowerCase()} ? Les pronos déjà faits seront effacés.`)) return
+    const { error: err } = await supabase.rpc('admin_cancel_golden_goal_event', { p_week_start: weekStart })
+    if (err) { setError(err.message); return }
+    setNotice('Événement annulé.')
+    load()
+  }
+
+  // matchs à venir regroupés par semaine
+  const byWeek: { week: string; list: Fixture[] }[] = []
+  for (const f of fixtures) {
+    const w = weekOf(f.kickoff_at)
+    const last = byWeek[byWeek.length - 1]
+    if (last && last.week === w) last.list.push(f)
+    else byWeek.push({ week: w, list: [f] })
+  }
+
+  return (
+    <div className="admin-ev">
+      <button className="jeux-back-btn" onClick={onBack}>← Profil</button>
+      <h2 className="admin-ev-title">🎯 Événements But en or</h2>
+      <p className="admin-ev-help">
+        Choisis <b>2 matchs</b> dont les joueurs devineront l'équipe et la minute du 1er but, et si tu veux
+        <b> 1 match ×2</b> (ses pronos comptent double). Tous dans la même semaine. Réservé à toi.
+      </p>
+
+      {error && <p className="groups-error">{error}</p>}
+      {notice && <p className="admin-ev-notice">{notice}</p>}
+
+      {loading ? (
+        <LoadingSkeleton />
+      ) : (
+        <>
+          {eventWeeks.length > 0 && (
+            <section className="admin-ev-section">
+              <h3>Événements</h3>
+              {eventWeeks.map((w) => {
+                const list = events.filter((e) => e.week_start === w)
+                const x2 = bonuses.find((b) => b.week_start === w)
+                const started = list.some((m) => new Date(m.kickoff_at).getTime() <= Date.now())
+                  || (x2 && new Date(x2.kickoff_at).getTime() <= Date.now())
+                return (
+                  <div className="admin-ev-card" key={w}>
+                    <div className="admin-ev-card-head">
+                      <strong>{weekLabel(w)}</strong>
+                      {!started && (
+                        <button className="admin-ev-cancel" onClick={() => cancel(w)}>Annuler</button>
+                      )}
+                    </div>
+                    {list.map((m) => {
+                      const played = new Date(m.kickoff_at).getTime() <= Date.now()
+                      return (
+                        <div className="admin-ev-match" key={m.id}>
+                          <div>🎯 {m.home_team} - {m.away_team}</div>
+                          <small>{eventKickoffLabel(m.kickoff_at)}</small>
+                          {m.resolved ? (
+                            <div className="admin-ev-result">
+                              ✅ {m.real_first_scorer_team === 'aucun_but'
+                                ? 'Aucun but'
+                                : `1er but : ${m.real_first_scorer_team === 'domicile' ? m.home_team : m.away_team}, ${m.real_first_goal_minute}e`}
+                            </div>
+                          ) : played ? (
+                            <ResolveForm match={m} onDone={load} />
+                          ) : (
+                            <div className="admin-ev-pending">À venir</div>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {x2 && (
+                      <div className="admin-ev-match">
+                        <div>✖️2 {x2.home_team} - {x2.away_team}</div>
+                        <small>{eventKickoffLabel(x2.kickoff_at)}</small>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              <p className="admin-ev-help">
+                Le résultat du 1er but se remplit tout seul si l'API foot le fournit. Sinon, entre-le ici après le
+                match : quand les 2 matchs sont renseignés, les points et jetons sont attribués.
+              </p>
+            </section>
+          )}
+
+          <section className="admin-ev-section">
+            <h3>Lancer un événement</h3>
+            {byWeek.length === 0 && <p className="groups-empty">Aucun match à venir pour l'instant.</p>}
+            {byWeek.map(({ week, list }) => (
+              <div key={week} className="admin-ev-week">
+                <div className="admin-ev-week-title">
+                  {weekLabel(week)}
+                  {busyWeeks.has(week) && <span className="admin-ev-taken"> · déjà un événement</span>}
+                </div>
+                {list.map((f) => {
+                  const isGolden = golden.includes(f.api_fixture_id)
+                  const isBonus = bonus === f.api_fixture_id
+                  const disabled = busyWeeks.has(week)
+                  return (
+                    <div className={'admin-ev-fixture' + (isGolden || isBonus ? ' admin-ev-fixture-on' : '')} key={f.api_fixture_id}>
+                      <div className="admin-ev-fixture-text">
+                        <span>{f.home_team} - {f.away_team}</span>
+                        <small>{eventKickoffLabel(f.kickoff_at)}</small>
+                      </div>
+                      <button className={'admin-ev-pick' + (isGolden ? ' on' : '')} disabled={disabled} onClick={() => toggleGolden(f.api_fixture_id)}>🎯</button>
+                      <button className={'admin-ev-pick' + (isBonus ? ' on' : '')} disabled={disabled} onClick={() => toggleBonus(f.api_fixture_id)}>×2</button>
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </section>
+
+          <div className="admin-ev-launch">
+            {!sameWeek && <p className="groups-error">Les matchs choisis doivent être dans la même semaine.</p>}
+            <button className="groups-action-btn" disabled={!canLaunch} onClick={launch}>
+              {busy ? '...' : `Lancer l'événement (${golden.length}/2 🎯${bonus != null ? ' + ×2' : ''})`}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
