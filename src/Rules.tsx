@@ -101,14 +101,11 @@ export default function Rules({ onBack }: Props) {
           <li>🔥 Journée x2 — tous les pronos de la journée comptent double. Le Joker n'est pas utilisable sur ces matchs.</li>
           <li>⚽ Total de buts — devine combien de buts seront marqués sur toute la journée, avant le premier coup d'envoi. Le plus proche du groupe gagne 3 points + 2 🪙.</li>
           <li>🤝 Duo du week-end — des binômes sont tirés au sort dans le groupe (un trio si le groupe est impair). Chaque équipe marque la moyenne des points de pronos de ses joueurs sur la journée ; la meilleure équipe gagne 3 points + 2 🪙 par joueur.</li>
-          <li>🎯 But en or — devine l'équipe et la minute du 1er but sur 2 grosses affiches de la journée (règles détaillées juste en dessous).</li>
+          <li>🎯 But en or — devine l'équipe et la minute du 1er but sur 2 grosses affiches de la journée (détail juste en dessous).</li>
         </ul>
-      </details>
-
-      <details className="rules-section" name="regles">
-        <summary className="rules-section-title">🎯 But en or (événement de journée)</summary>
+        <h4 className="rules-subtitle">🎯 But en or : le détail</h4>
         <p className="rules-section-text">
-          Le 4e événement de journée, pour les grosses affiches : deux vrais matchs de la journée sont mis en avant, les mêmes pour tout le monde. Sur chacun, avant le coup d'envoi, tu fais 2 pronostics indépendants : quelle équipe (domicile ou extérieur) va marquer le premier but, et à quelle minute exacte — glisse le ⚽ sur la barre, de 0 à 95 (le +5 couvre le temps additionnel) — ou tu choisis Aucun but si tu penses à un 0-0. Chaque match se verrouille séparément à son coup d'envoi : rater le premier n'empêche pas de jouer le second.
+          Deux grosses affiches de la journée sont mises en avant, les mêmes pour tout le monde. Sur chacun des 2 matchs, avant le coup d'envoi, tu fais 2 pronostics indépendants : quelle équipe (domicile ou extérieur) va marquer le premier but, et à quelle minute exacte — glisse le ⚽ sur la barre, de 0 à 95 (le +5 couvre le temps additionnel) — ou tu choisis Aucun but si tu penses à un 0-0. Chaque match se verrouille séparément à son coup d'envoi : rater le premier n'empêche pas de jouer le second.
         </p>
         <ul className="rules-points">
           <li>Bonne équipe — 5 points</li>
@@ -127,6 +124,7 @@ export default function Rules({ onBack }: Props) {
           Un 3e match peut s'y ajouter : celui-là se parie normalement dans Pronostics (score exact, bon écart, bon résultat), rien ne change — sauf que les points qu'il rapporte comptent double au classement général. Il est repéré par un badge « x2 » dans Pronostics (pas de Joker possible dessus).
         </p>
       </details>
+
 
       <details className="rules-section" name="regles">
         <summary className="rules-section-title">🎮 Jeu de la semaine</summary>
