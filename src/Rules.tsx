@@ -95,7 +95,7 @@ export default function Rules({ onBack }: Props) {
       <div className="rules-section">
         <h3 className="rules-section-title">🎯 But en or</h3>
         <p className="rules-section-text">
-          C'est un événement spécial, lancé certaines semaines (les grosses affiches) en plus du jeu de la semaine : une bannière « Événement » apparaît alors sur l'accueil et tout le monde reçoit une notification. Deux vrais matchs de Ligue 1 sont mis en avant, les mêmes pour tout le monde. Sur chacun, avant le coup d'envoi, tu fais 2 pronostics indépendants : quelle équipe (domicile ou extérieur) va marquer le premier but, et à quelle minute exacte — glisse le ⚽ sur la barre, de 0 à 95 (le +5 couvre le temps additionnel) — ou tu choisis Aucun but si tu penses à un 0-0. Chaque match se verrouille séparément à son coup d'envoi : rater le premier n'empêche pas de jouer le second.
+          C'est un événement de journée, lancé certaines journées (les grosses affiches) en plus du jeu de la semaine : une bannière « Événement » apparaît alors sur l'accueil et tout le monde reçoit une notification. Deux vrais matchs de Ligue 1 sont mis en avant, les mêmes pour tout le monde. Sur chacun, avant le coup d'envoi, tu fais 2 pronostics indépendants : quelle équipe (domicile ou extérieur) va marquer le premier but, et à quelle minute exacte — glisse le ⚽ sur la barre, de 0 à 95 (le +5 couvre le temps additionnel) — ou tu choisis Aucun but si tu penses à un 0-0. Chaque match se verrouille séparément à son coup d'envoi : rater le premier n'empêche pas de jouer le second.
         </p>
         <ul className="rules-points">
           <li>Bonne équipe — 5 points</li>

@@ -130,6 +130,7 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
   const [notice, setNotice] = useState<string | null>(null)
   const [matchdays, setMatchdays] = useState<MatchdayRow[]>([])
   const [appEvents, setAppEvents] = useState<AppEventRow[]>([])
+  const [goldenDay, setGoldenDay] = useState<number | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -193,7 +194,8 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
     if (err) { setError(err.message); return }
     setGolden([])
     setBonus(null)
-    setNotice('🎯 Événement lancé ! Tout le monde a été prévenu.')
+    setGoldenDay(null)
+    setNotice('🎯 But en or lancé ! Tout le monde a été prévenu.')
     load()
   }
 
@@ -226,19 +228,22 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
     load()
   }
 
-  // matchs à venir regroupés par semaine
-  const byWeek: { week: string; list: Fixture[] }[] = []
-  for (const f of fixtures) {
-    const w = weekOf(f.kickoff_at)
-    const last = byWeek[byWeek.length - 1]
-    if (last && last.week === w) last.list.push(f)
-    else byWeek.push({ week: w, list: [f] })
+  // But en or ouvert sur quelle journée (choix des matchs dans sa carte)
+  const openGolden = (matchday: number) => {
+    setNotice(null)
+    setGolden([])
+    setBonus(null)
+    setGoldenDay((d) => (d === matchday ? null : matchday))
   }
 
   return (
     <div className="admin-ev">
       <button className="jeux-back-btn" onClick={onBack}>← Profil</button>
       <h2 className="admin-ev-title">🎉 Événements</h2>
+      <p className="admin-ev-help">
+        Sur une journée de Ligue 1 : 🔥 Journée x2 · ⚽ Total de buts · 🤝 Duo du week-end · 🎯 But en or.
+        Tous les joueurs sont prévenus au lancement. Réservé à toi.
+      </p>
 
       {error && <p className="groups-error">{error}</p>}
       {notice && <p className="admin-ev-notice">{notice}</p>}
@@ -247,53 +252,25 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
         <LoadingSkeleton />
       ) : (
         <>
-          <section className="admin-ev-section">
-            <h3>Événements de journée</h3>
-            <p className="admin-ev-help">🔥 Journée x2 · ⚽ Total de buts · 🤝 Duo du week-end — sur toute une journée de Ligue 1. Résultats et récompenses automatiques.</p>
-            {appEvents.map((ev) => {
-              const info = APP_EVENT_INFO[ev.kind]
-              const started = new Date(ev.first_kickoff).getTime() <= Date.now()
-              return (
-                <div className="admin-ev-card admin-ev-card-row" key={ev.id}>
-                  <span>{info.icon} {info.label} · J{ev.matchday}</span>
-                  {ev.resolved_at ? (
-                    <small>✅ terminé</small>
-                  ) : started ? (
-                    <small>en cours</small>
-                  ) : (
-                    <button className="admin-ev-cancel" onClick={() => cancelDayEvent(ev)}>Annuler</button>
-                  )}
-                </div>
-              )
-            })}
-            {matchdays.length === 0 && <p className="groups-empty">Aucune journée à venir pour l'instant.</p>}
-            {matchdays.map((md) => {
-              const taken = new Set(appEvents.filter((e) => e.matchday === md.matchday && !e.resolved_at).map((e) => e.kind))
-              return (
-                <div className="admin-ev-week" key={md.matchday}>
-                  <div className="admin-ev-week-title">
-                    Journée {md.matchday} <small>· {md.fixtures} matchs · {eventKickoffLabel(md.first_kickoff)} → {eventKickoffLabel(md.last_kickoff)}</small>
-                  </div>
-                  <div className="admin-ev-kinds">
-                    {KINDS.map((k) => (
-                      <button key={k} disabled={busy || taken.has(k)} onClick={() => launchDayEvent(k, md.matchday)}>
-                        {APP_EVENT_INFO[k].icon} {APP_EVENT_INFO[k].label}{taken.has(k) ? ' ✓' : ''}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </section>
-
-          <h3 className="admin-ev-bigtitle">🎯 But en or</h3>
-          <p className="admin-ev-help">
-        But en or : choisis <b>2 matchs</b> dont les joueurs devineront l'équipe et la minute du 1er but, et si tu veux
-        <b> 1 match ×2</b> (ses pronos comptent double). Tous dans la même semaine. Réservé à toi.
-      </p>
-          {eventWeeks.length > 0 && (
+          {(appEvents.length > 0 || eventWeeks.length > 0) && (
             <section className="admin-ev-section">
-              <h3>Événements</h3>
+              <h3>Événements lancés</h3>
+              {appEvents.map((ev) => {
+                const info = APP_EVENT_INFO[ev.kind]
+                const started = new Date(ev.first_kickoff).getTime() <= Date.now()
+                return (
+                  <div className="admin-ev-card admin-ev-card-row" key={ev.id}>
+                    <span>{info.icon} {info.label} · J{ev.matchday}</span>
+                    {ev.resolved_at ? (
+                      <small>✅ terminé</small>
+                    ) : started ? (
+                      <small>en cours</small>
+                    ) : (
+                      <button className="admin-ev-cancel" onClick={() => cancelDayEvent(ev)}>Annuler</button>
+                    )}
+                  </div>
+                )
+              })}
               {eventWeeks.map((w) => {
                 const list = events.filter((e) => e.week_start === w)
                 const x2 = bonuses.find((b) => b.week_start === w)
@@ -302,7 +279,7 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
                 return (
                   <div className="admin-ev-card" key={w}>
                     <div className="admin-ev-card-head">
-                      <strong>{weekLabel(w)}</strong>
+                      <strong>🎯 But en or · {weekLabel(w).toLowerCase()}</strong>
                       {!started && (
                         <button className="admin-ev-cancel" onClick={() => cancel(w)}>Annuler</button>
                       )}
@@ -336,47 +313,72 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
                   </div>
                 )
               })}
-              <p className="admin-ev-help">
-                Le résultat du 1er but se remplit tout seul si l'API foot le fournit. Sinon, entre-le ici après le
-                match : quand les 2 matchs sont renseignés, les points et jetons sont attribués.
-              </p>
+              {eventWeeks.length > 0 && (
+                <p className="admin-ev-help">
+                  But en or : le 1er but se remplit tout seul si l'API foot le fournit. Sinon, entre-le ici après le
+                  match ; quand les 2 matchs sont renseignés, les points et jetons sont attribués.
+                </p>
+              )}
             </section>
           )}
 
           <section className="admin-ev-section">
             <h3>Lancer un événement</h3>
-            {byWeek.length === 0 && <p className="groups-empty">Aucun match à venir pour l'instant.</p>}
-            {byWeek.map(({ week, list }) => (
-              <div key={week} className="admin-ev-week">
-                <div className="admin-ev-week-title">
-                  {weekLabel(week)}
-                  {busyWeeks.has(week) && <span className="admin-ev-taken"> · déjà un événement</span>}
-                </div>
-                {list.map((f) => {
-                  const isGolden = golden.includes(f.api_fixture_id)
-                  const isBonus = bonus === f.api_fixture_id
-                  const disabled = busyWeeks.has(week)
-                  return (
-                    <div className={'admin-ev-fixture' + (isGolden || isBonus ? ' admin-ev-fixture-on' : '')} key={f.api_fixture_id}>
-                      <div className="admin-ev-fixture-text">
-                        <span>{f.home_team} - {f.away_team}</span>
-                        <small>{eventKickoffLabel(f.kickoff_at)}</small>
-                      </div>
-                      <button className={'admin-ev-pick' + (isGolden ? ' on' : '')} disabled={disabled} onClick={() => toggleGolden(f.api_fixture_id)}>🎯</button>
-                      <button className={'admin-ev-pick' + (isBonus ? ' on' : '')} disabled={disabled} onClick={() => toggleBonus(f.api_fixture_id)}>×2</button>
-                    </div>
-                  )
-                })}
-              </div>
-            ))}
-          </section>
+            {matchdays.length === 0 && <p className="groups-empty">Aucune journée à venir pour l'instant.</p>}
+            {matchdays.map((md) => {
+              const taken = new Set<string>(appEvents.filter((e) => e.matchday === md.matchday && !e.resolved_at).map((e) => e.kind))
+              if (busyWeeks.has(weekOf(md.first_kickoff))) taken.add('but_en_or')
+              const dayFixtures = fixtures.filter((f) => f.kickoff_at >= md.first_kickoff && f.kickoff_at <= md.last_kickoff)
+              const pickerOpen = goldenDay === md.matchday
+              return (
+                <div className="admin-ev-week" key={md.matchday}>
+                  <div className="admin-ev-week-title">
+                    Journée {md.matchday} <small>· {md.fixtures} matchs · {eventKickoffLabel(md.first_kickoff)} → {eventKickoffLabel(md.last_kickoff)}</small>
+                  </div>
+                  <div className="admin-ev-kinds">
+                    {KINDS.map((k) => (
+                      <button key={k} disabled={busy || taken.has(k)} onClick={() => launchDayEvent(k, md.matchday)}>
+                        {APP_EVENT_INFO[k].icon} {APP_EVENT_INFO[k].label}{taken.has(k) ? ' ✓' : ''}
+                      </button>
+                    ))}
+                    <button
+                      className={pickerOpen ? 'on' : ''}
+                      disabled={busy || taken.has('but_en_or')}
+                      onClick={() => openGolden(md.matchday)}
+                    >
+                      🎯 But en or{taken.has('but_en_or') ? ' ✓' : ''}
+                    </button>
+                  </div>
 
-          <div className="admin-ev-launch">
-            {!sameWeek && <p className="groups-error">Les matchs choisis doivent être dans la même semaine.</p>}
-            <button className="groups-action-btn" disabled={!canLaunch} onClick={launch}>
-              {busy ? '...' : `Lancer l'événement (${golden.length}/2 🎯${bonus != null ? ' + ×2' : ''})`}
-            </button>
-          </div>
+                  {pickerOpen && (
+                    <div className="admin-ev-golden">
+                      <p className="admin-ev-golden-help">
+                        Choisis <b>2 matchs 🎯</b> (équipe + minute du 1er but) et, si tu veux, <b>1 match ×2</b> (ses pronos comptent double).
+                      </p>
+                      {dayFixtures.map((f) => {
+                        const isGolden = golden.includes(f.api_fixture_id)
+                        const isBonus = bonus === f.api_fixture_id
+                        return (
+                          <div className={'admin-ev-fixture' + (isGolden || isBonus ? ' admin-ev-fixture-on' : '')} key={f.api_fixture_id}>
+                            <div className="admin-ev-fixture-text">
+                              <span>{f.home_team} - {f.away_team}</span>
+                              <small>{eventKickoffLabel(f.kickoff_at)}</small>
+                            </div>
+                            <button className={'admin-ev-pick' + (isGolden ? ' on' : '')} onClick={() => toggleGolden(f.api_fixture_id)}>🎯</button>
+                            <button className={'admin-ev-pick' + (isBonus ? ' on' : '')} disabled={taken.has('journee_x2')} title={taken.has('journee_x2') ? 'Journée x2 : ce match compte déjà double' : undefined} onClick={() => toggleBonus(f.api_fixture_id)}>×2</button>
+                          </div>
+                        )
+                      })}
+                      {!sameWeek && <p className="groups-error">Les matchs choisis doivent être dans la même semaine.</p>}
+                      <button className="groups-action-btn admin-ev-golden-launch" disabled={!canLaunch} onClick={launch}>
+                        {busy ? '...' : `Lancer le But en or (${golden.length}/2 🎯${bonus != null ? ' + ×2' : ''})`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </section>
         </>
       )}
     </div>

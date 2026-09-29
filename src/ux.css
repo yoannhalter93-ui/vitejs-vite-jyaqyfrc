@@ -1054,3 +1054,22 @@ span.dash-v2-match-footer {
 .dash-events .dash-event-card {
   margin: 0;
 }
+.admin-ev-kinds button.on {
+  background: #D4A22C;
+  border-color: #D4A22C;
+  color: #fff;
+}
+.admin-ev-golden {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 2px dashed rgba(212, 162, 44, 0.6);
+}
+.admin-ev-golden-help {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.admin-ev-golden-launch {
+  width: 100%;
+  margin-top: 8px;
+}
