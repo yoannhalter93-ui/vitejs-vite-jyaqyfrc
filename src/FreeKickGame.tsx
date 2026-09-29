@@ -104,24 +104,32 @@ function wallSize(ballX: number, dist: number, n: number): number {
   return Math.max(2, Math.min(5, Math.round((coverage * goalAtWall) / 0.55)))
 }
 
-// Difficulté progressive selon le nombre de coups francs déjà réussis
+// Difficulté progressive selon le nombre de coups francs déjà réussis.
+// Courbe adoucie à partir de la semaine du 5 octobre 2026 (avant : au-delà
+// du 9e but, moins d'1 % des tirs possibles marquaient, et le 13e était
+// quasi impossible). Simulation de tous les tirs (cible x hauteur x effet)
+// sur 6 semaines : ~25 % au 1er, puis jamais moins de ~2,5 % ensuite. La
+// semaine en cours garde l'ancienne courbe pour ne pas fausser son classement.
+const SOFT_CURVE_FROM = '2026-10-05'
+
 function shotConfig(weekSeed: number, n: number): ShotConfig {
+  const soft = monday() >= SOFT_CURVE_FROM
   const r = mulberry32(weekSeed + n * 7919)
   const side = r() < 0.5 ? -1 : 1
-  const lateral = r() * Math.min(8.5, 1.2 + n * 0.8)
+  const lateral = r() * (soft ? Math.min(6.5, 1.2 + n * 0.6) : Math.min(8.5, 1.2 + n * 0.8))
   const ballX = side * lateral
-  const dist = 17 + Math.min(10, n * 0.9) + r() * 2
+  const dist = soft ? 17 + Math.min(7, n * 0.65) + r() * 2 : 17 + Math.min(10, n * 0.9) + r() * 2
   return {
     ballX,
     dist,
     nearSide: lateral < 1 ? side : Math.sign(ballX),
-    wallCount: wallSize(ballX, dist, n),
-    wallJumps: n >= 4 && r() < Math.min(0.8, 0.3 + (n - 4) * 0.1),
+    // adouci : le mur ne grandit plus au-delà du niveau 6
+    wallCount: wallSize(ballX, dist, soft ? Math.min(n, 5) : n),
+    wallJumps: n >= 4 && r() < (soft ? Math.min(0.55, 0.3 + (n - 4) * 0.05) : Math.min(0.8, 0.3 + (n - 4) * 0.1)),
     // début accessible (un coin bien placé passe), puis le gardien devient
-    // plus vif. Plafonné pour qu'au niveau max une lucarne précise côté mur
-    // passe encore (course du gardien 3,85 m/s × ~0,85 s < 3,3 m à couvrir)
-    keeperSpeed: 2.4 + Math.min(1.45, n * 0.16),
-    keeperReaction: Math.max(0.18, 0.38 - n * 0.022),
+    // plus vif, avec un plafond (adouci : 3,3 m/s et 0,25 s de réaction)
+    keeperSpeed: soft ? 2.4 + Math.min(0.9, n * 0.1) : 2.4 + Math.min(1.45, n * 0.16),
+    keeperReaction: soft ? Math.max(0.25, 0.38 - n * 0.015) : Math.max(0.18, 0.38 - n * 0.022),
   }
 }
 
