@@ -12,11 +12,11 @@ export default function Rules({ onBack }: Props) {
         <h2>Règles du jeu</h2>
       </div>
       <p className="predictions-period">
-        Comment marchent les pronos, les mini-jeux et les points, en résumé.
+        Comment marchent les pronos, les mini-jeux et les points. Appuie sur un titre pour ouvrir la règle.
       </p>
 
-      <div className="rules-section">
-        <h3 className="rules-section-title">⚽ Pronostics</h3>
+      <details className="rules-section" name="regles">
+        <summary className="rules-section-title">⚽ Pronostics</summary>
         <p className="rules-section-text">
           Chaque période, des vrais matchs de Ligue 1 sont ouverts aux pronos. Donne un score avant le coup d'envoi. Une fois le match terminé :
         </p>
@@ -26,17 +26,17 @@ export default function Rules({ onBack }: Props) {
           <li>Juste le bon résultat, victoire/nul/défaite — 3 points</li>
           <li>Rien de bon — 0 point</li>
         </ul>
-      </div>
+      </details>
 
-      <div className="rules-section">
-        <h3 className="rules-section-title">🏆 Classement</h3>
+      <details className="rules-section" name="regles">
+        <summary className="rules-section-title">🏆 Classement</summary>
         <p className="rules-section-text">
           Le total de tous les points gagnés dans le groupe sur la période en cours, tous modes de jeu confondus.
         </p>
-      </div>
+      </details>
 
-      <div className="rules-section">
-        <h3 className="rules-section-title">🎡 Mon équipe</h3>
+      <details className="rules-section" name="regles">
+        <summary className="rules-section-title">🎡 Mon équipe</summary>
         <p className="rules-section-text">
           Dès que tu rejoins ou crées un groupe, une équipe de Ligue 1 t'est attribuée au hasard pour la période en cours — impossible d'y échapper. Seuls les matchs joués depuis le début de la période comptent :
         </p>
@@ -45,10 +45,10 @@ export default function Rules({ onBack }: Props) {
           <li>Elle fait match nul — 0 point</li>
           <li>Elle perd — -1 point</li>
         </ul>
-      </div>
+      </details>
 
-      <div className="rules-section">
-        <h3 className="rules-section-title">🥅 Duel de pénalités</h3>
+      <details className="rules-section" name="regles">
+        <summary className="rules-section-title">🥅 Duel de pénalités</summary>
         <p className="rules-section-text">
           Chaque semaine, un adversaire du groupe t'est tiré au sort automatiquement — jamais deux fois la même personne tant que tu n'as pas croisé tout le monde. Chacun tire 3 penaltys sur l'autre, dans n'importe quel ordre : pas besoin d'attendre ton tour, tire quand tu veux, et dès que ton adversaire a tiré les siens tu peux deviner où il a visé. Le tireur vise une zone, le gardien plonge sans savoir laquelle :
         </p>
@@ -68,10 +68,10 @@ export default function Rules({ onBack }: Props) {
         <p className="rules-section-text">
           Le gagnant remporte aussi 1 🪙 jeton.
         </p>
-      </div>
+      </details>
 
-      <div className="rules-section">
-        <h3 className="rules-section-title">❓ Questionnaire</h3>
+      <details className="rules-section" name="regles">
+        <summary className="rules-section-title">❓ Questionnaire</summary>
         <p className="rules-section-text">
           Chaque semaine, un adversaire du groupe t'est tiré au sort automatiquement — jamais deux fois la même personne tant que tu n'as pas croisé tout le monde. Duel à 10 questions, 10 secondes pour répondre à chacune. Celui qui a le plus de bonnes réponses gagne :
         </p>
@@ -83,17 +83,17 @@ export default function Rules({ onBack }: Props) {
         <p className="rules-section-text">
           Le vainqueur remporte aussi 1 🪙 jeton.
         </p>
-      </div>
+      </details>
 
-      <div className="rules-section">
-        <h3 className="rules-section-title">🤝 Paris libres</h3>
+      <details className="rules-section" name="regles">
+        <summary className="rules-section-title">🤝 Paris libres</summary>
         <p className="rules-section-text">
           N'importe qui propose un pari « oui / non » avec une deadline, et les membres votent avant l'échéance (il faut qu'au moins la moitié du groupe vote, sinon le pari est annulé). Plus un camp est minoritaire, plus il rapporte de points. Une fois la deadline passée, c'est l'auteur du pari — et lui seul — qui confirme ce qui s'est vraiment passé. S'il ne confirme pas à temps, ou en cas de litige, un owner/admin du groupe tranche à sa place. Les gagnants empochent les points de la cote, doublés avec le bonus « Double ou rien ».
         </p>
-      </div>
+      </details>
 
-      <div className="rules-section">
-        <h3 className="rules-section-title">🎉 Événements de journée</h3>
+      <details className="rules-section" name="regles">
+        <summary className="rules-section-title">🎉 Événements de journée</summary>
         <p className="rules-section-text">
           Certaines journées de Ligue 1, un événement est lancé en plus du reste (une bannière apparaît sur l'accueil et tout le monde reçoit une notification) :
         </p>
@@ -103,10 +103,10 @@ export default function Rules({ onBack }: Props) {
           <li>🤝 Duo du week-end — des binômes sont tirés au sort dans le groupe (un trio si le groupe est impair). Chaque équipe marque la moyenne des points de pronos de ses joueurs sur la journée ; la meilleure équipe gagne 3 points + 2 🪙 par joueur.</li>
           <li>🎯 But en or — devine l'équipe et la minute du 1er but sur 2 grosses affiches de la journée (règles détaillées juste en dessous).</li>
         </ul>
-      </div>
+      </details>
 
-      <div className="rules-section">
-        <h3 className="rules-section-title">🎯 But en or (événement de journée)</h3>
+      <details className="rules-section" name="regles">
+        <summary className="rules-section-title">🎯 But en or (événement de journée)</summary>
         <p className="rules-section-text">
           Le 4e événement de journée, pour les grosses affiches : deux vrais matchs de la journée sont mis en avant, les mêmes pour tout le monde. Sur chacun, avant le coup d'envoi, tu fais 2 pronostics indépendants : quelle équipe (domicile ou extérieur) va marquer le premier but, et à quelle minute exacte — glisse le ⚽ sur la barre, de 0 à 95 (le +5 couvre le temps additionnel) — ou tu choisis Aucun but si tu penses à un 0-0. Chaque match se verrouille séparément à son coup d'envoi : rater le premier n'empêche pas de jouer le second.
         </p>
@@ -126,10 +126,10 @@ export default function Rules({ onBack }: Props) {
         <p className="rules-section-text">
           Un 3e match peut s'y ajouter : celui-là se parie normalement dans Pronostics (score exact, bon écart, bon résultat), rien ne change — sauf que les points qu'il rapporte comptent double au classement général. Il est repéré par un badge « x2 » dans Pronostics (pas de Joker possible dessus).
         </p>
-      </div>
+      </details>
 
-      <div className="rules-section">
-        <h3 className="rules-section-title">🎮 Jeu de la semaine</h3>
+      <details className="rules-section" name="regles">
+        <summary className="rules-section-title">🎮 Jeu de la semaine</summary>
         <p className="rules-section-text">
           Une seule case dans les mini-jeux, mais son contenu change chaque semaine — jonglage, dribble ou coup franc :
         </p>
@@ -141,10 +141,10 @@ export default function Rules({ onBack }: Props) {
         <p className="rules-section-text">
           Chaque semaine, le meilleur score du groupe au jeu du moment rapporte 3 points au classement et 2 🪙 jetons à son auteur (en cas d'égalité au sommet, tous les joueurs à égalité gagnent).
         </p>
-      </div>
+      </details>
 
-      <div className="rules-section">
-        <h3 className="rules-section-title">🪙 Les jetons</h3>
+      <details className="rules-section" name="regles">
+        <summary className="rules-section-title">🪙 Les jetons</summary>
         <p className="rules-section-text">
           Tu gagnes des jetons en remportant un Duel de pénalités ou un Quiz, +1 à chaque victoire. Dépense-les depuis le badge 🪙 en haut d'un groupe :
         </p>
@@ -158,7 +158,7 @@ export default function Rules({ onBack }: Props) {
           <li>Revanche (5🪙) — rejoue entièrement un duel (penalty ou quiz) perdu ou nul, une fois par semaine</li>
           <li>Bouclier (2🪙) — invisible pour les autres, il bloque le prochain bonus lancé contre toi (échange, retirage, inversé, carton rouge, revanche) : l'attaquant perd ses jetons pour rien. Un seul bouclier actif à la fois.</li>
         </ul>
-      </div>
+      </details>
     </div>
   )
 }

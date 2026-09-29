@@ -1073,3 +1073,43 @@ span.dash-v2-match-footer {
   width: 100%;
   margin-top: 8px;
 }
+
+/* ---- Règles en accordéon : un titre, on appuie pour ouvrir/fermer ---- */
+details.rules-section {
+  padding: 0;
+  margin-bottom: 10px;
+}
+details.rules-section > summary.rules-section-title {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 16px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+details.rules-section > summary.rules-section-title::-webkit-details-marker {
+  display: none;
+}
+details.rules-section > summary.rules-section-title::after {
+  content: '›';
+  font-size: 22px;
+  line-height: 1;
+  color: #D4A22C;
+  transition: transform 0.2s ease;
+}
+details.rules-section[open] > summary.rules-section-title::after {
+  transform: rotate(90deg);
+}
+details.rules-section[open] > summary.rules-section-title {
+  padding-bottom: 8px;
+}
+details.rules-section > :not(summary) {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+details.rules-section > :last-child {
+  margin-bottom: 16px;
+}
