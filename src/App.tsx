@@ -1465,7 +1465,7 @@ function App() {
           <button className="wizz-alert-close" onClick={() => setInviteMessage(null)} aria-label="Fermer">✕</button>
         </div>
       )}
-      {juggleAlert && (
+      {juggleAlert && !showNotifPanel && (
         <div className="wizz-alert-banner">
           <span>{MINIGAME_INFO[juggleAlert.game as MinigameKey]?.icon ?? '🤹'} {juggleAlert.pseudo} joue au mini-jeu !</span>
           {juggleAlert.game === 'jonglage' && (

@@ -1145,3 +1145,13 @@ details.rules-section > :last-child {
   from { opacity: 0; transform: translate(-50%, -8px); }
   to { opacity: 1; transform: translate(-50%, 0); }
 }
+
+/* Panneau des notifications caché derrière les cartes de l'accueil (vu sur
+   iPhone) : l'en-tête a un flou d'arrière-plan (backdrop-filter), ce qui
+   l'isole dans son propre plan ; sans z-index, les cartes de l'accueil
+   (z-index 1 à 3) passaient par-dessus son panneau. Au-dessus du contenu et
+   de la barre du bas (40), mais sous les fenêtres (50). */
+.home-header {
+  position: relative;
+  z-index: 45;
+}
