@@ -1370,6 +1370,11 @@ function App() {
         </div>
       </header>
       )}
+      {/* Bandeaux (installer l'appli, notifications, « X joue au mini-jeu »)
+          masqués pendant une partie de mini-jeu : ils s'insèrent au-dessus du
+          jeu et décalaient tout l'écran, le doigt n'était plus au bon
+          endroit (coup franc, jonglage…). */}
+      {!isActionMinigame && (<>
       {showInstallTip && (
         <div className="push-tip install-tip">
           <div className="install-tip-body">
@@ -1458,6 +1463,7 @@ function App() {
           <button className="wizz-alert-close" onClick={() => setJuggleAlert(null)} aria-label="Fermer">✕</button>
         </div>
       )}
+      </>)}
       {bonusNotice && (
         <div className="bonus-target-overlay" onClick={() => setBonusNotice(null)}>
           <div className="bonus-target-modal bonus-notice-modal" onClick={(e) => e.stopPropagation()}>
