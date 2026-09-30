@@ -1118,3 +1118,30 @@ details.rules-section > :last-child {
   font-size: 14px;
   color: #1B1B1F;
 }
+
+/* Bulle « X joue aussi au mini-jeu » pendant une partie : flottante,
+   ne décale pas l'écran et ne bloque aucun geste */
+.playing-toast {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  max-width: calc(100vw - 32px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(244, 239, 226, 0.95);
+  color: #1B1B1F;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  animation: playing-toast-in 0.25s ease-out;
+}
+@keyframes playing-toast-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}

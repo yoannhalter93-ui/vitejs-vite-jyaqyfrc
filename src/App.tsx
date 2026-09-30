@@ -558,11 +558,17 @@ function App() {
   // Bandeau "X joue au mini-jeu !" : canal partagé avec les mini-jeux (voir
   // wizzChannel.ts), qui y diffusent le début/fin de leurs parties.
   const juggleAlertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // pendant une partie : simple bulle flottante 4 s (voir plus bas)
+  const [playingToast, setPlayingToast] = useState<string | null>(null)
+  const playingToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sendOnWizzChannel = useWizzChannel(session?.user?.id ? selectedGroup?.id : null, {
     onPlaying: (payload) => {
       if (!payload || payload.profileId === session?.user?.id) return
       if (payload.action === 'start') {
         setJuggleAlert({ profileId: payload.profileId, pseudo: payload.pseudo || 'Un coéquipier', game: payload.game || 'jonglage' })
+        setPlayingToast(`${MINIGAME_INFO[(payload.game || 'jonglage') as MinigameKey]?.icon ?? '🤹'} ${payload.pseudo || 'Un coéquipier'} joue aussi au mini-jeu !`)
+        if (playingToastTimerRef.current) clearTimeout(playingToastTimerRef.current)
+        playingToastTimerRef.current = setTimeout(() => setPlayingToast(null), 4000)
         if (juggleAlertTimerRef.current) clearTimeout(juggleAlertTimerRef.current)
         juggleAlertTimerRef.current = setTimeout(() => setJuggleAlert(null), 35000)
       } else if (payload.action === 'stop') {
@@ -1374,6 +1380,11 @@ function App() {
           masqués pendant une partie de mini-jeu : ils s'insèrent au-dessus du
           jeu et décalaient tout l'écran, le doigt n'était plus au bon
           endroit (coup franc, jonglage…). */}
+      {/* pendant la partie : bulle flottante par-dessus le jeu, qui ne
+          décale rien et laisse passer le doigt (pointer-events: none) */}
+      {isActionMinigame && playingToast && (
+        <div className="playing-toast" role="status">{playingToast}</div>
+      )}
       {!isActionMinigame && (<>
       {showInstallTip && (
         <div className="push-tip install-tip">
