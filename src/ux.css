@@ -1156,7 +1156,7 @@ details.rules-section > :last-child {
   z-index: 45;
 }
 
-/* ===== Une-deux (prototype) : le terrain tient dans l'écran, au-dessus de
+/* ===== Le toro (prototype) : le terrain tient dans l'écran, au-dessus de
    la barre du bas ===== */
 .onetwo-stage {
   min-height: 0;

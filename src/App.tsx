@@ -17,7 +17,7 @@ import FreeBets from './FreeBets';
 import JuggleGame from './JuggleGame';
 import DribbleGame from './DribbleGame';
 import FreeKickGame from './FreeKickGame';
-import OneTwoGame from './OneTwoGame';
+import RondoGame from './RondoGame';
 import WeeklySpecial from './WeeklySpecial';
 import Avatar from './Avatar'
 import PredictionsHistory from './PredictionsHistory'
@@ -90,8 +90,8 @@ type Screen =
   | 'evenement-journee'
   // gestion des événements, réservée à l'administrateur (Profil)
   | 'admin-events'
-  // prototype du mini-jeu Une-deux, réservé à l'administrateur (Profil)
-  | 'test-une-deux'
+  // prototype du mini-jeu Le toro, réservé à l'administrateur (Profil)
+  | 'test-toro'
   // écran d'accueil de groupe (une seule fois, à la première entrée dans
   // un groupe) : explique + révèle l'équipe tirée au sort, voir TeamReveal
   | 'team-reveal';
@@ -153,7 +153,7 @@ const MINIGAME_TILES: {
 function bottomTabFor(screen: Screen): Screen {
   if (screen === 'pronostics' || screen === 'recap' || screen === 'evenement' || screen === 'evenement-journee') return 'accueil'
   if (screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') return 'jeux'
-  if (screen === 'parametres' || screen === 'historique-pronos' || screen === 'stats' || screen === 'aide' || screen === 'admin-events' || screen === 'test-une-deux') return 'profil'
+  if (screen === 'parametres' || screen === 'historique-pronos' || screen === 'stats' || screen === 'aide' || screen === 'admin-events' || screen === 'test-toro') return 'profil'
   return screen
 }
 
@@ -1260,9 +1260,9 @@ function App() {
           </button>
         )}
         {isAdmin && (
-          <button className="profil-v2-menu-row" onClick={() => setScreen('test-une-deux')}>
-            <span className="profil-v2-menu-icon">🧪</span>
-            <span className="profil-v2-menu-label">Tester : Une-deux</span>
+          <button className="profil-v2-menu-row" onClick={() => setScreen('test-toro')}>
+            <span className="profil-v2-menu-icon">🐂</span>
+            <span className="profil-v2-menu-label">Tester : Le toro</span>
             <span className="profil-v2-menu-chevron">›</span>
           </button>
         )}
@@ -1777,8 +1777,8 @@ function App() {
           <Help onBack={() => setScreen('profil')} />
         ) : screen === 'admin-events' && isAdmin ? (
           <AdminEvents onBack={() => setScreen('profil')} />
-        ) : screen === 'test-une-deux' && isAdmin ? (
-          <OneTwoGame onExit={() => setScreen('profil')} />
+        ) : screen === 'test-toro' && isAdmin ? (
+          <RondoGame onExit={() => setScreen('profil')} />
         ) : selectedGroup ? (
           <>
             {screen !== 'team-reveal' && !isActionMinigame && !isFullChat && (
