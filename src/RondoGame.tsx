@@ -320,7 +320,7 @@ export default function RondoGame({ onExit }: Props) {
         const off = Math.min(1.6, dc * 0.4)
         b.goal = { x: carrier.x + (dx / dl) * off, y: carrier.y + (dy / dl) * off }
         // tournante repérée : il coupe en avance plutôt que de courir derrière
-        if (e.rotStreak >= 2) {
+        if (e.rotStreak >= 2 && e.hold < 0.5) {
           const amb = ambush(e, b, sp)
           if (amb) b.goal = amb
         }
@@ -329,6 +329,11 @@ export default function RondoGame({ onExit }: Props) {
         const first = e.bulls[0]
         const other = Math.hypot(first.x - ahead.x, first.y - ahead.y) < Math.hypot(first.x - behind.x, first.y - behind.y) ? behind : ahead
         b.goal = { x: carrier.x * 0.2 + other.x * 0.4, y: carrier.y * 0.2 + other.y * 0.4 }
+      }
+      // le porteur garde le ballon : le taureau le plus proche fonce sur lui
+      if (e.hold > 1) {
+        const nearest = e.bulls.reduce((a, c) => (Math.hypot(c.x - carrier.x, c.y - carrier.y) < Math.hypot(a.x - carrier.x, a.y - carrier.y) ? c : a))
+        if (nearest === b) b.goal = { x: carrier.x, y: carrier.y }
       }
       steer(b, sp, dt)
     })
