@@ -777,6 +777,15 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showBonusPanel, selectedGroup?.id])
 
+  // Catalogue vide (réseau coupé au démarrage) : on retente à l'ouverture
+  useEffect(() => {
+    if (!showBonusPanel || bonusCatalog.length || !session?.user?.id) return
+    supabase.from('bonus_catalog').select('*').in('code', BONUS_CODES).then(({ data }: any) => {
+      if (data) setBonusCatalog([...data].sort((a: any, b: any) => BONUS_CODES.indexOf(a.code) - BONUS_CODES.indexOf(b.code)))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showBonusPanel])
+
   const openBonusTargetPicker = async (code: string) => {
     if (!selectedGroup?.id || !session?.user?.id) return
     setBonusError(null)
@@ -828,6 +837,23 @@ function App() {
 
   const [notifications, setNotifications] = useState<any[]>([])
   const [showNotifPanel, setShowNotifPanel] = useState(false)
+
+  // Un appui en dehors du panneau jetons / notifications le ferme. Cet
+  // appui-là ne fait rien d'autre (pas d'ouverture de jeu par erreur).
+  useEffect(() => {
+    if (!(showBonusPanel && !bonusTargetPicker) && !showNotifPanel) return
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Element | null
+      if (t?.closest('.token-balance-wrap, .notif-bell-wrap')) return
+      setShowBonusPanel(false)
+      setShowNotifPanel(false)
+      const swallow = (ev: MouseEvent) => { ev.stopPropagation(); ev.preventDefault() }
+      document.addEventListener('click', swallow, { capture: true, once: true })
+      setTimeout(() => document.removeEventListener('click', swallow, { capture: true }), 600)
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [showBonusPanel, showNotifPanel, bonusTargetPicker])
   const unreadNotifCount = notifications.filter((n) => !n.read).length
 
   const loadNotifications = () => {
