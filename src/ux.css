@@ -1155,3 +1155,11 @@ details.rules-section > :last-child {
   position: relative;
   z-index: 45;
 }
+
+/* ===== Une-deux (prototype) : le terrain tient dans l'écran, au-dessus de
+   la barre du bas ===== */
+.onetwo-stage {
+  min-height: 0;
+  height: max(360px, calc(100dvh - 330px));
+  flex: none;
+}
