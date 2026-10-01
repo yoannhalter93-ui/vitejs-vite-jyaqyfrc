@@ -1163,8 +1163,3 @@ details.rules-section > :last-child {
   height: max(360px, calc(100dvh - 330px));
   flex: none;
 }
-
-/* Classement : encadré « Comment on gagne des points ici ? » sous les onglets */
-.classement-howto {
-  margin: 0 0 12px;
-}
