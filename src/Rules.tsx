@@ -1,13 +1,14 @@
 interface Props {
   onBack: () => void
+  backLabel?: string
 }
 
-export default function Rules({ onBack }: Props) {
+export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
   return (
     <div className="rules-screen">
       <div className="predictions-header">
         <button className="predictions-back" onClick={onBack}>
-          ← Groupes
+          ← {backLabel}
         </button>
         <h2>Règles du jeu</h2>
       </div>

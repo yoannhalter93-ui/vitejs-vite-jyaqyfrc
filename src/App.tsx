@@ -18,6 +18,7 @@ import JuggleGame from './JuggleGame';
 import DribbleGame from './DribbleGame';
 import FreeKickGame from './FreeKickGame';
 import RondoGame from './RondoGame';
+import Rules from './Rules';
 import WeeklySpecial from './WeeklySpecial';
 import Avatar from './Avatar'
 import PredictionsHistory from './PredictionsHistory'
@@ -90,6 +91,8 @@ type Screen =
   | 'evenement-journee'
   // gestion des événements, réservée à l'administrateur (Profil)
   | 'admin-events'
+  // règles du jeu (accessibles depuis le Profil)
+  | 'regles'
   // prototype du mini-jeu Le toro, réservé à l'administrateur (Profil)
   | 'test-toro'
   // écran d'accueil de groupe (une seule fois, à la première entrée dans
@@ -153,7 +156,7 @@ const MINIGAME_TILES: {
 function bottomTabFor(screen: Screen): Screen {
   if (screen === 'pronostics' || screen === 'recap' || screen === 'evenement' || screen === 'evenement-journee') return 'accueil'
   if (screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') return 'jeux'
-  if (screen === 'parametres' || screen === 'historique-pronos' || screen === 'stats' || screen === 'aide' || screen === 'admin-events' || screen === 'test-toro') return 'profil'
+  if (screen === 'parametres' || screen === 'historique-pronos' || screen === 'stats' || screen === 'aide' || screen === 'admin-events' || screen === 'regles' || screen === 'test-toro') return 'profil'
   return screen
 }
 
@@ -1273,6 +1276,11 @@ function App() {
             <span className="profil-v2-menu-chevron">›</span>
           </button>
         )}
+        <button className="profil-v2-menu-row" onClick={() => setScreen('regles')}>
+          <span className="profil-v2-menu-icon">📖</span>
+          <span className="profil-v2-menu-label">Règles du jeu</span>
+          <span className="profil-v2-menu-chevron">›</span>
+        </button>
         <button className="profil-v2-menu-row" onClick={() => setScreen('aide')}>
           <span className="profil-v2-menu-icon">❓</span>
           <span className="profil-v2-menu-label">Aide</span>
@@ -1773,6 +1781,8 @@ function App() {
           <MyStats onBack={() => setScreen('profil')} />
         ) : screen === 'aide' ? (
           <Help onBack={() => setScreen('profil')} />
+        ) : screen === 'regles' ? (
+          <Rules onBack={() => setScreen('profil')} backLabel="Profil" />
         ) : screen === 'admin-events' && isAdmin ? (
           <AdminEvents onBack={() => setScreen('profil')} />
         ) : screen === 'test-toro' && isAdmin ? (
