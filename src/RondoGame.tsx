@@ -100,6 +100,7 @@ interface Engine {
   lastRecvT: number
   habits: number[] // fréquence (récente) de chaque écart de passe autour du cercle
   smart: boolean
+  wizzUntil: number // wizz d'un spectateur : les taureaux sprintent jusqu'à ce moment
   hold: number
   ball: Ball
   flightT: number
@@ -188,7 +189,7 @@ function newEngine(seed: number): Engine {
   const e: Engine = {
     phase: 'idle', t: 0, rng, players,
     bulls: [newBull(rng)],
-    carrier: Math.floor(rng() * N_PLAYERS), from: -1, queued: -1, rotDir: 0, rotStreak: 0, guessDir: 1, cycle: 1.3, lastRecvT: -1, habits: Array(N_PLAYERS).fill(0), smart: false, hold: -1, // 1,5 s de répit au départ
+    carrier: Math.floor(rng() * N_PLAYERS), from: -1, queued: -1, rotDir: 0, rotStreak: 0, guessDir: 1, cycle: 1.3, lastRecvT: -1, habits: Array(N_PLAYERS).fill(0), smart: false, wizzUntil: 0, hold: -1, // 1,5 s de répit au départ
     ball: { x: 0, y: 0, vx: 0, vy: 0, to: -1, crossedGap: false },
     flightT: 0, passes: 0, points: 0, msg: null, pauseUntil: 0, viewH: 480,
   }
@@ -385,11 +386,22 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
   // on n'envoie l'état du jeu (10 fois par seconde) que si quelqu'un regarde.
   const liveChanRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const viewersRef = useRef(0)
+  const wizzCooldownRef = useRef(0)
+  const [wizzFrom, setWizzFrom] = useState<string | null>(null)
   const lastFrameRef = useRef(0)
   const overSentRef = useRef(false)
   const openLive = () => {
     if (!live || !user || liveChanRef.current) return
     const ch = supabase.channel(`toro-live-${user.id}`, { config: { broadcast: { self: false }, presence: { key: 'player' } } })
+    ch.on('broadcast', { event: 'wizz' }, ({ payload }) => {
+      const e = engineRef.current
+      if (e.phase !== 'play' || Date.now() < wizzCooldownRef.current) return
+      wizzCooldownRef.current = Date.now() + 15000 // un wizz toutes les 15 s au plus
+      e.wizzUntil = e.t + 1.5
+      setWizzFrom((payload?.from as string) || 'un pote')
+      if (navigator.vibrate) try { navigator.vibrate([120, 60, 120, 60, 220]) } catch { /* rien */ }
+      setTimeout(() => setWizzFrom(null), 900)
+    })
     ch.on('presence', { event: 'sync' }, () => {
       viewersRef.current = Object.keys(ch.presenceState()).filter((k) => k !== 'player').length
     }).subscribe()
@@ -414,7 +426,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
         b: [r(e.ball.x), r(e.ball.y)],
         p: e.players.map((pl) => [r(pl.x), r(pl.y)]),
         u: e.bulls.map((bl) => [r(bl.x), r(bl.y)]),
-        n: e.passes, s: e.points, m: e.msg,
+        n: e.passes, s: e.points, m: e.msg, wz: e.t < e.wizzUntil,
       },
     })
   }
@@ -556,7 +568,8 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
     const carrier = e.carrier >= 0 ? e.players[e.carrier] : null
     const shutLane = (from: P, to: P, k: number): P => ({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k })
     e.bulls.forEach((b, bi) => {
-      const sp = L.bullSpeed * b.speedMul
+      // wizz d'un spectateur : les taureaux s'excitent (+30 % pendant 1,5 s)
+      const sp = L.bullSpeed * b.speedMul * (e.t < e.wizzUntil ? 1.3 : 1)
       if (!carrier) {
         // passe partie : pendant son temps de réaction il continue sur sa
         // lancée, puis il coupe la trajectoire s'il peut l'atteindre ; sinon il
@@ -769,7 +782,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
   }
 
   return (
-    <div className="predictions-screen dribble-page">
+    <div className={`predictions-screen dribble-page${wizzFrom ? ' juggle-wizz-shake' : ''}`}>
       <div className="predictions-header">
         <button className="predictions-back" onClick={onExit}>{practice ? '← Profil' : '← Accueil'}</button>
         <h2>{practice ? '🐂 Le toro (entraînement)' : `🐂 Le toro — ${groupName ?? ''}`}</h2>
@@ -798,6 +811,11 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
 
         <div className="dribble-stage freekick-stage onetwo-stage" ref={stageRef}>
           <canvas ref={canvasRef} className="freekick-canvas" onPointerDown={onPointerDown} />
+          {wizzFrom && (
+            <div className="juggle-wizz-overlay">
+              <span className="juggle-wizz-overlay-text">⚡ WIZZ de {wizzFrom} !</span>
+            </div>
+          )}
           {phase === 'idle' && (
             <div className="dribble-idle-msg">
               <span style={{ fontSize: 30 }}>🐂</span>

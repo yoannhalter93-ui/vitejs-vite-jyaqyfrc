@@ -34,6 +34,7 @@ interface Frame {
   n: number
   s: number
   m: ToroView['msg']
+  wz?: boolean // le joueur est en train de subir un wizz
 }
 
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k
@@ -48,6 +49,29 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
   const [status, setStatus] = useState<'waiting' | 'live' | 'over' | 'gone'>('waiting')
   const [points, setPoints] = useState(0)
   const [passes, setPasses] = useState(0)
+  const [wizzing, setWizzing] = useState(false)
+  const [myPseudo, setMyPseudo] = useState<string | null>(null)
+  const [cooldown, setCooldown] = useState(0)
+  const chanRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+    supabase.from('profiles').select('pseudo').eq('id', user.id).maybeSingle()
+      .then(({ data }) => setMyPseudo(data?.pseudo ?? null))
+  }, [user])
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(id)
+  }, [cooldown])
+
+  // déranger le joueur : son écran tremble et les taureaux sprintent 1,5 s
+  const sendWizz = () => {
+    if (cooldown > 0 || !chanRef.current) return
+    chanRef.current.send({ type: 'broadcast', event: 'wizz', payload: { from: myPseudo || 'Un pote' } })
+    setCooldown(15)
+  }
 
   // canal du joueur : présence (pour qu'il diffuse) + réception des états
   useEffect(() => {
@@ -66,10 +90,12 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
       setPoints(f.s)
       setPasses(f.n)
       setStatus(f.ph === 'over' ? 'over' : 'live')
+      setWizzing(!!f.wz)
     }).subscribe((st) => {
       if (st === 'SUBSCRIBED') ch.track({ watching: true })
     })
-    return () => { supabase.removeChannel(ch) }
+    chanRef.current = ch
+    return () => { chanRef.current = null; supabase.removeChannel(ch) }
   }, [profileId, user])
 
   // plus aucun état depuis 6 s pendant une partie : le joueur a quitté
@@ -144,8 +170,13 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
           <div className="dribble-stat"><b>{status === 'live' ? '🔴' : '—'}</b><span>{status === 'live' ? 'En direct' : 'Direct'}</span></div>
         </div>
 
-        <div className="dribble-stage freekick-stage onetwo-stage" ref={stageRef}>
+        <div className="dribble-stage freekick-stage onetwo-stage toro-spectator-stage" ref={stageRef}>
           <canvas ref={canvasRef} className="freekick-canvas" />
+          {wizzing && status === 'live' && (
+            <div className="juggle-wizz-overlay">
+              <span className="juggle-wizz-overlay-text">⚡ WIZZ !</span>
+            </div>
+          )}
           {status === 'waiting' && (
             <div className="dribble-idle-msg">
               <span style={{ fontSize: 30 }}>👀</span>
@@ -164,6 +195,11 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
             </div>
           )}
         </div>
+        {status === 'live' && (
+          <button type="button" className="dribble-cta toro-wizz-btn" disabled={cooldown > 0} onClick={sendWizz}>
+            {cooldown > 0 ? `🧪 Wizz (encore ${cooldown} s)` : `🧪 Envoyer un wizz à ${pseudo}`}
+          </button>
+        )}
       </div>
     </div>
   )

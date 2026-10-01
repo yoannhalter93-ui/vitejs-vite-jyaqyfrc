@@ -1163,3 +1163,17 @@ details.rules-section > :last-child {
   height: max(360px, calc(100dvh - 330px));
   flex: none;
 }
+
+/* Toro en direct : bouton pour déranger le joueur */
+.toro-wizz-btn {
+  display: block;
+  margin: 12px auto 0;
+}
+.toro-wizz-btn:disabled {
+  opacity: 0.55;
+}
+
+/* le bouton wizz du spectateur reste au-dessus de la barre du bas */
+.onetwo-stage.toro-spectator-stage {
+  height: max(320px, calc(100dvh - 400px));
+}
