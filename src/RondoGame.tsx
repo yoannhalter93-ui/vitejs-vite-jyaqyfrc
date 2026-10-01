@@ -21,10 +21,11 @@ interface Props {
 type P = { x: number; y: number }
 
 const LW = 360 // largeur logique de l'écran
-const SCALE = LW / 22 // px logiques par mètre
-const RADIUS = 7.5 // rayon du cercle des joueurs (m)
+const SCALE = LW / 27 // px logiques par mètre
+const RADIUS = 9.5 // rayon du cercle des joueurs (m)
 const N_PLAYERS = 6
-const BALL_V = 13
+const BALL_V = 14
+const BULL_ACCEL = 16 // les taureaux ont de l'élan : pas d'arrêt ni de demi-tour instantané
 const PLAYER_R = 0.85
 const RECEIVE_R = 1.4
 const TACKLE_R = 1.2
@@ -41,6 +42,8 @@ interface Player {
 
 interface Bull {
   x: number; y: number
+  vx: number; vy: number
+  goal: P // là où il veut aller (il continue d'y courir pendant son temps de réaction)
   speedMul: number
   reactMul: number
 }
@@ -62,6 +65,12 @@ interface Engine {
   bulls: Bull[]
   carrier: number // -1 : ballon en l'air
   from: number // passeur de la passe en cours
+  queued: number // passe anticipée : jouée en une touche dès la réception (-1 : aucune)
+  rotDir: number // sens de la dernière passe autour du cercle (+1 / -1, 0 : en travers)
+  rotStreak: number // nombre de passes d'affilée dans ce sens (les taureaux le repèrent)
+  guessDir: number // sens de la prochaine passe que les taureaux anticipent
+  cycle: number // temps moyen entre deux réceptions (pour les embuscades)
+  lastRecvT: number
   hold: number
   ball: Ball
   flightT: number
@@ -86,10 +95,47 @@ function mulberry32(seed: number) {
 function level(passes: number) {
   const k = Math.floor(passes / LEVEL_EVERY)
   return {
-    bullSpeed: Math.min(7, 4.4 + k * 0.4),
+    bullSpeed: Math.min(7.2, 4.7 + k * 0.45),
     reaction: Math.max(0.08, 0.25 - k * 0.03),
     reach: Math.min(1.15, 0.85 + k * 0.05),
   }
+}
+
+function newBull(rng: () => number): Bull {
+  return { x: 0, y: 0, vx: 0, vy: 0, goal: { x: 0, y: 0 }, speedMul: 0.95 + rng() * 0.1, reactMul: 0.9 + rng() * 0.3 }
+}
+
+// course avec élan vers b.goal (accélération limitée, freinage à l'arrivée)
+// Embuscade contre une tournante : parmi les prochaines passes dans le même
+// sens, la première ligne de passe que le taureau peut atteindre avant le
+// ballon (il coupe en avance au lieu de courir derrière).
+function ambush(e: Engine, b: Bull, speed: number): P | null {
+  const n = N_PLAYERS, dir = e.rotDir
+  if (!dir) return null
+  const base = e.carrier >= 0 ? e.carrier : e.ball.to
+  const chordT = (2 * RADIUS * Math.sin(Math.PI / n)) / BALL_V
+  const toBase = e.carrier >= 0 ? 0 : Math.hypot(e.players[base].x - e.ball.x, e.players[base].y - e.ball.y) / BALL_V
+  const holdT = Math.max(0.15, e.cycle - chordT - (e.carrier >= 0 ? e.hold : 0))
+  for (let k = 1; k <= 4; k++) {
+    const a = e.players[(base + (k - 1) * dir + n * 4) % n]
+    const c = e.players[(base + k * dir + n * 4) % n]
+    const pt = { x: (a.x + c.x) * 0.47, y: (a.y + c.y) * 0.47 }
+    const tBall = toBase + holdT + (k - 1) * e.cycle + chordT * 0.5
+    if (Math.hypot(pt.x - b.x, pt.y - b.y) / speed + 0.1 < tBall) return pt
+  }
+  return null
+}
+
+function steer(b: Bull, maxSpeed: number, dt: number) {
+  const dx = b.goal.x - b.x, dy = b.goal.y - b.y
+  const d = Math.hypot(dx, dy)
+  const want = Math.min(maxSpeed, d * 3)
+  const tvx = d > 0.01 ? (dx / d) * want : 0, tvy = d > 0.01 ? (dy / d) * want : 0
+  let ax = tvx - b.vx, ay = tvy - b.vy
+  const al = Math.hypot(ax, ay), maxA = BULL_ACCEL * dt
+  if (al > maxA) { ax *= maxA / al; ay *= maxA / al }
+  b.vx += ax; b.vy += ay
+  b.x += b.vx * dt; b.y += b.vy * dt
 }
 
 function newEngine(seed: number): Engine {
@@ -105,8 +151,8 @@ function newEngine(seed: number): Engine {
   }))
   const e: Engine = {
     phase: 'idle', t: 0, rng, players,
-    bulls: [{ x: 0, y: 0, speedMul: 0.95 + rng() * 0.1, reactMul: 0.9 + rng() * 0.3 }],
-    carrier: Math.floor(rng() * N_PLAYERS), from: -1, hold: -1, // 1,5 s de répit au départ
+    bulls: [newBull(rng)],
+    carrier: Math.floor(rng() * N_PLAYERS), from: -1, queued: -1, rotDir: 0, rotStreak: 0, guessDir: 1, cycle: 1.3, lastRecvT: -1, hold: -1, // 1,5 s de répit au départ
     ball: { x: 0, y: 0, vx: 0, vy: 0, to: -1, crossedGap: false },
     flightT: 0, passes: 0, points: 0, msg: null, pauseUntil: 0, viewH: 480,
   }
@@ -124,14 +170,6 @@ function placePlayers(e: Engine, all = false) {
     p.x = Math.cos(a) * r
     p.y = Math.sin(a) * r
   })
-}
-
-function moveTo(o: P, t: P, maxStep: number) {
-  const dx = t.x - o.x, dy = t.y - o.y
-  const d = Math.hypot(dx, dy)
-  if (d <= maxStep || d < 1e-6) { o.x = t.x; o.y = t.y; return }
-  o.x += (dx / d) * maxStep
-  o.y += (dy / d) * maxStep
 }
 
 function segDist(p: P, a: P, b: P) {
@@ -155,6 +193,28 @@ function interceptPoint(ball: Ball, b: P, speed: number, reach: number): P | nul
     if (Math.hypot(x - b.x, y - b.y) - reach <= speed * t) return { x, y }
   }
   return null
+}
+
+// passe du porteur vers le joueur `to`
+function kick(e: Engine, to: number) {
+  const target = e.players[to]
+  const dx = target.x - e.ball.x, dy = target.y - e.ball.y
+  const d = Math.hypot(dx, dy) || 1
+  e.ball.vx = (dx / d) * BALL_V
+  e.ball.vy = (dy / d) * BALL_V
+  e.ball.to = to
+  e.ball.crossedGap = false
+  e.from = e.carrier
+  e.carrier = -1
+  e.flightT = 0
+  e.queued = -1
+  // sens de rotation de la passe : les taureaux repèrent les tournantes
+  const n = N_PLAYERS
+  const diff = (to - e.from + n) % n
+  const dir = diff === 1 ? 1 : diff === n - 1 ? -1 : 0
+  e.rotStreak = dir !== 0 && dir === e.rotDir ? e.rotStreak + 1 : dir !== 0 ? 1 : 0
+  e.rotDir = dir
+  e.guessDir = dir !== 0 ? dir : (e.rng() < 0.5 ? 1 : -1)
 }
 
 export default function RondoGame({ onExit }: Props) {
@@ -224,36 +284,53 @@ export default function RondoGame({ onExit }: Props) {
     }
 
     // --- taureaux ---
+    const n = N_PLAYERS
     const carrier = e.carrier >= 0 ? e.players[e.carrier] : null
+    const shutLane = (from: P, to: P, k: number): P => ({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k })
     e.bulls.forEach((b, bi) => {
       const sp = L.bullSpeed * b.speedMul
       if (!carrier) {
-        // passe partie : contre-pied pendant le temps de réaction, puis il
-        // coupe la trajectoire s'il peut l'atteindre, sinon il recentre
-        if (e.flightT < L.reaction * b.reactMul) return
-        const cut = interceptPoint(ball, b, sp * 0.95, L.reach)
-        moveTo(b, cut ?? { x: ball.x * 0.3, y: ball.y * 0.3 }, sp * (cut ? 1 : 0.5) * dt)
+        // passe partie : pendant son temps de réaction il continue sur sa
+        // lancée, puis il coupe la trajectoire s'il peut l'atteindre ; sinon il
+        // anticipe la passe suivante (il a repéré dans quel sens ça tourne)
+        if (e.flightT >= L.reaction * b.reactMul) {
+          const cut = interceptPoint(ball, b, sp * 0.95, L.reach)
+          const amb = !cut && bi === 0 && e.rotStreak >= 1 ? ambush(e, b, sp) : null
+          if (cut) b.goal = cut
+          else if (amb) b.goal = amb
+          else {
+            const r = e.players[ball.to]
+            const next = e.players[(ball.to + (bi === 0 ? e.guessDir : -e.guessDir) + n) % n]
+            b.goal = bi === 0 ? shutLane(r, next, 0.3) : shutLane(r, next, 0.55)
+          }
+        }
+        steer(b, sp, dt)
         return
       }
       // voisins du porteur = passes les plus probables
-      const n = N_PLAYERS
-      const left = e.players[(e.carrier + 1) % n]
-      const right = e.players[(e.carrier + n - 1) % n]
+      const ahead = e.players[(e.carrier + e.guessDir + n) % n]
+      const behind = e.players[(e.carrier - e.guessDir + n) % n]
       if (bi === 0) {
-        // 1er taureau : il presse le porteur en fermant la ligne de passe
-        // vers le voisin le plus proche de lui (ombre portée)
-        const shut = Math.hypot(b.x - left.x, b.y - left.y) < Math.hypot(b.x - right.x, b.y - right.y) ? left : right
+        // 1er taureau : il presse le porteur en fermant la passe attendue
+        // (celle qui continue la tournante), sinon la plus proche de lui
+        const shut = e.rotStreak >= 1 ? ahead
+          : Math.hypot(b.x - ahead.x, b.y - ahead.y) < Math.hypot(b.x - behind.x, b.y - behind.y) ? ahead : behind
         const dx = shut.x - carrier.x, dy = shut.y - carrier.y, dl = Math.hypot(dx, dy) || 1
         const dc = Math.hypot(b.x - carrier.x, b.y - carrier.y)
         const off = Math.min(1.6, dc * 0.4)
-        moveTo(b, { x: carrier.x + (dx / dl) * off, y: carrier.y + (dy / dl) * off }, sp * dt)
+        b.goal = { x: carrier.x + (dx / dl) * off, y: carrier.y + (dy / dl) * off }
+        // tournante repérée : il coupe en avance plutôt que de courir derrière
+        if (e.rotStreak >= 2) {
+          const amb = ambush(e, b, sp)
+          if (amb) b.goal = amb
+        }
       } else {
-        // 2e taureau : il couvre l'autre voisin et les passes à travers le cercle
+        // 2e taureau : il ferme l'autre voisin et les passes en travers
         const first = e.bulls[0]
-        const other = Math.hypot(first.x - left.x, first.y - left.y) < Math.hypot(first.x - right.x, first.y - right.y) ? right : left
-        const goal = { x: carrier.x * 0.15 + other.x * 0.45, y: carrier.y * 0.15 + other.y * 0.45 }
-        moveTo(b, goal, sp * 0.9 * dt)
+        const other = Math.hypot(first.x - ahead.x, first.y - ahead.y) < Math.hypot(first.x - behind.x, first.y - behind.y) ? behind : ahead
+        b.goal = { x: carrier.x * 0.2 + other.x * 0.4, y: carrier.y * 0.2 + other.y * 0.4 }
       }
+      steer(b, sp, dt)
     })
     // les taureaux ne se superposent pas
     if (e.bulls.length === 2) {
@@ -305,15 +382,20 @@ export default function RondoGame({ onExit }: Props) {
     if (segDist(r, prev, ball) < RECEIVE_R) {
       e.carrier = ball.to
       e.hold = 0
+      if (e.lastRecvT >= 0) e.cycle = e.cycle * 0.7 + (e.t - e.lastRecvT) * 0.3
+      e.lastRecvT = e.t
       e.passes += 1
       e.points += 1
       if (e.passes === SECOND_BULL_AT) {
-        e.bulls.push({ x: 0, y: 0, speedMul: 0.95 + e.rng() * 0.1, reactMul: 0.9 + e.rng() * 0.3 })
+        e.bulls.push(newBull(e.rng))
         say(e, '2e taureau !', 'Ça se complique…', '#E8B931')
       } else if (e.passes % LEVEL_EVERY === 0) {
         say(e, `${e.passes} passes !`, 'Le taureau accélère', '#E8B931')
       }
       if (navigator.vibrate) try { navigator.vibrate(15) } catch { /* rien */ }
+      // passe anticipée : remise en une touche, sans arrêt
+      if (e.queued >= 0 && e.queued !== e.carrier) kick(e, e.queued)
+      e.queued = -1
       sync()
       return
     }
@@ -357,6 +439,16 @@ export default function RondoGame({ onExit }: Props) {
     }
 
     e.players.forEach((p, i) => disc(p.x, p.y, '#E8B931', i === e.carrier ? '#fff' : undefined))
+    // passe anticipée : flèche du receveur vers le prochain joueur
+    if (e.queued >= 0 && e.carrier < 0) {
+      const a = e.players[e.ball.to], q = e.players[e.queued]
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)'
+      ctx.lineWidth = 2
+      ctx.setLineDash([5, 5])
+      ctx.beginPath(); ctx.moveTo(X(a.x), Y(a.y)); ctx.lineTo(X(q.x), Y(q.y)); ctx.stroke()
+      ctx.setLineDash([])
+      ctx.beginPath(); ctx.arc(X(q.x), Y(q.y), r + 5, 0, Math.PI * 2); ctx.stroke()
+    }
 
     // taureaux : disque rouge avec deux cornes
     for (const b of e.bulls) {
@@ -438,29 +530,23 @@ export default function RondoGame({ onExit }: Props) {
   // ------------------------------------------------------------ tap ------
   const onPointerDown = (ev: ReactPointerEvent<HTMLCanvasElement>) => {
     const e = engineRef.current
-    if (e.phase !== 'play' || e.carrier < 0) return
+    if (e.phase !== 'play') return
     const rect = ev.currentTarget.getBoundingClientRect()
     const lx = ((ev.clientX - rect.left) / rect.width) * LW
     const ly = ((ev.clientY - rect.top) / rect.width) * LW
     const p = { x: (lx - LW / 2) / SCALE, y: (e.viewH / 2 - ly) / SCALE }
     // le coéquipier le plus proche du doigt (tap généreux)
+    // ballon en l'air : on prépare la remise en une touche du receveur
+    const holder = e.carrier >= 0 ? e.carrier : e.ball.to
     let to = -1, bestD = 4.5
     e.players.forEach((pl, i) => {
-      if (i === e.carrier) return
+      if (i === holder) return
       const d = Math.hypot(pl.x - p.x, pl.y - p.y)
       if (d < bestD) { bestD = d; to = i }
     })
     if (to < 0) return
-    const target = e.players[to]
-    const dx = target.x - e.ball.x, dy = target.y - e.ball.y
-    const d = Math.hypot(dx, dy) || 1
-    e.ball.vx = (dx / d) * BALL_V
-    e.ball.vy = (dy / d) * BALL_V
-    e.ball.to = to
-    e.ball.crossedGap = false
-    e.from = e.carrier
-    e.carrier = -1
-    e.flightT = 0
+    if (e.carrier < 0) { e.queued = to; return }
+    kick(e, to)
   }
 
   return (
@@ -477,8 +563,8 @@ export default function RondoGame({ onExit }: Props) {
         {showRules && (
           <p className="dribble-intro">
             Tes 6 joueurs jaunes sont en cercle, le taureau rouge est au milieu. Tape un coéquipier pour lui passer
-            le ballon. Le taureau presse le porteur en fermant une passe et coupe celles qu'il peut atteindre : s'il
-            touche le porteur ou intercepte le ballon, c'est fini. Joue vite, en une touche ! 1 point par passe
+            le ballon. Tape le suivant pendant que le ballon roule : le receveur le remet en une touche. Le taureau presse le porteur en fermant une passe et coupe celles qu'il peut atteindre : s'il
+            touche le porteur ou intercepte le ballon, c'est fini. Il repère quand tu fais tourner le ballon toujours dans le même sens : varie ! Joue vite, en une touche ! 1 point par passe
             réussie. Toutes les 6 passes le taureau accélère, et à 12 passes un 2e taureau entre. Une passe entre les
             deux taureaux (petit pont) rapporte 2 points de plus.
           </p>
