@@ -9,8 +9,9 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 // tu tapes l'endroit où tu veux envoyer le ballon : il part en ligne droite
 // vers ce point. Un coéquipier qui passe près du ballon le contrôle. Les
 // défenseurs (rouges) coupent les lignes de passe : il faut viser DEVANT le
-// coéquipier, dans l'espace. Tu n'as que quelques secondes ballon au pied
-// avant d'être taclé. Arrivé dans la surface, tape dans le but pour frapper.
+// coéquipier, dans l'espace. Doigt posé sur le porteur = dribble ; un
+// défenseur le presse et lui prend le ballon s'il le touche. Tape dans le but
+// pour frapper.
 // But = 1 point, 2 points s'il est tiré hors de la surface (les passes ne
 // rapportent rien). Chaque but relance une attaque
 // plus difficile ; la partie s'arrête au premier ballon perdu.
@@ -38,6 +39,10 @@ const SHOT_V = 24
 const BALL_ROLL = 2.5 // le ballon s'arrête ~2,5 m après l'endroit visé
 const RECEIVE_R = 1.3
 const PLAYER_R = 0.85
+const DRIBBLE_V = 5 // vitesse du porteur qui conduit le ballon
+const TACKLE_R = 1.25 // un défenseur à cette distance prend le ballon
+const TACKLE_GRACE = 0.5 // le temps du contrôle, personne ne peut tacler
+const DRIBBLE_TOUCH = 2.8 // doigt posé à moins de 2,8 m du porteur = dribble
 
 type P = { x: number; y: number }
 
@@ -79,7 +84,7 @@ interface Ball {
 
 interface Level {
   defSpeed: number
-  holdTime: number
+  pressSpeed: number // vitesse du défenseur qui presse le porteur
   interceptR: number
   keeperSpeed: number
   reaction: number
@@ -88,7 +93,7 @@ interface Level {
 function level(k: number): Level {
   return {
     defSpeed: Math.min(6.4, 4.1 + k * 0.32),
-    holdTime: Math.max(1.7, 3.2 - k * 0.2),
+    pressSpeed: Math.min(6, 3.4 + k * 0.35),
     interceptR: Math.min(1.15, 0.8 + k * 0.05),
     keeperSpeed: Math.min(6.5, 3.6 + k * 0.4),
     reaction: Math.max(0.15, 0.32 - k * 0.025),
@@ -116,6 +121,8 @@ interface Engine {
   mates: Mate[]
   carrier: number // index du porteur, -1 si ballon en l'air
   hold: number // temps ballon au pied
+  dribble: P | null // doigt posé sur le porteur : il conduit le ballon vers ce point
+  dir: P // direction de course du porteur (le ballon est devant lui)
   defs: Defender[]
   keeperX: number
   ball: Ball
@@ -137,7 +144,7 @@ interface Engine {
 function newEngine(seed: number): Engine {
   const e: Engine = {
     phase: 'idle', seed, attack: 0, lvl: level(0), rng: mulberry32(seed),
-    mates: [], carrier: 0, hold: 0, defs: [], keeperX: 0,
+    mates: [], carrier: 0, hold: 0, dribble: null, dir: { x: 0, y: 1 }, defs: [], keeperX: 0,
     ball: { x: 0, y: 0, vx: 0, vy: 0, target: { x: 0, y: 0 }, passedTarget: false, decel: 0, shot: false, fromOutside: false, trail: [] },
     flightT: 0, points: 0, passes: 0, attackPasses: 0, goals: 0, t: 0, msg: null, tap: null, pauseUntil: 0,
     camY: 0, viewH: 520, lastPasser: -1, reassignAt: 0,
@@ -200,7 +207,9 @@ function setupAttack(e: Engine) {
     mate((r() - 0.5) * 10, 12 + r() * 6, 9),
   ]
   e.carrier = 0
-  e.hold = 0
+  e.hold = -1 // au coup d'envoi, 1,5 s de répit avant le premier tacle
+  e.dribble = null
+  e.dir = { x: 0, y: 1 }
   const k = e.attack
   const defs: Defender[] = []
   // jamais plus de 4 défenseurs (le terrain reste aéré) : ensuite, c'est
@@ -218,7 +227,8 @@ function setupAttack(e: Engine) {
     const m = e.mates[mi]
     defs.push(def(m.x * 0.7, m.y + 3, 'mark', mi))
   }
-  if (k >= 1) defs.push(def(cx + (cx > 0 ? -1.4 : 1.4), 0.6, 'press', 0))
+  // le presseur part à quelques mètres du porteur, dès la 1re attaque
+  defs.push(def(cx + (cx > 0 ? -6 : 6), 11, 'press', 0))
   if (k >= 3) defs.push(def(0, BOX_Y + 2, 'zone', 0))
   e.reassignAt = 0
   e.defs = defs
@@ -297,7 +307,7 @@ export default function OneTwoGame({ onExit }: Props) {
     const startAt = (window as any).__oneTwoStartAttack
     if (startAt) { e.attack = startAt; setupAttack(e) }
     e.phase = 'play'
-    e.msg = { text: 'À toi !', sub: 'Tape devant un coéquipier jaune', color: '#F4EFE2', at: 0 }
+    e.msg = { text: 'À toi !', sub: 'Tape pour passer, glisse ton joueur pour dribbler', color: '#F4EFE2', at: 0 }
     engineRef.current = e
     setPhase('play')
     sync()
@@ -368,8 +378,14 @@ export default function OneTwoGame({ onExit }: Props) {
         return
       }
       if (i === e.carrier) {
-        // le porteur avance doucement vers le but
-        m.y = Math.min(GOAL_Y - 6, m.y + 2.4 * dt)
+        // le porteur ne bouge que si on le conduit (doigt posé sur lui)
+        if (e.dribble) {
+          const t = { x: clamp(e.dribble.x, -14, 14), y: clamp(e.dribble.y, -1, GOAL_Y - 1.5) }
+          const ox = m.x, oy = m.y
+          moveTo(m, t, DRIBBLE_V * dt)
+          const mx = m.x - ox, my = m.y - oy, ml = Math.hypot(mx, my)
+          if (ml > 1e-4) e.dir = { x: mx / ml, y: my / ml }
+        }
         return
       }
       // ballon passé à sa portée : il ajuste sa course pour aller le chercher
@@ -469,11 +485,10 @@ export default function OneTwoGame({ onExit }: Props) {
         moveTo(d, behind ? { x: px, y: py + 1 } : goal, sp * (behind ? 1.08 : 1) * dt)
         continue
       } else if (d.role === 'press') {
-        // il colle le porteur dans son dos (côté du centre), de plus en plus
-        // près à mesure que le porteur garde le ballon
-        const side = c.x > 0 ? -1 : 1
-        const close = 1 - Math.min(1, e.hold / L.holdTime) * 0.5
-        goal = { x: c.x + side * 1.4 * close, y: c.y - 1.2 * close }
+        // pressing : il fonce sur le porteur pour lui prendre le ballon
+        // (pendant une passe, il revient se placer)
+        if (carrier) { moveTo(d, carrier, L.pressSpeed * d.speedMul * dt); continue }
+        goal = { x: c.x, y: c.y + 2 }
       } else {
         // couverture : entre le porteur et le but, au niveau de l'attaquant
         // le plus avancé (personne dans son dos)
@@ -506,14 +521,19 @@ export default function OneTwoGame({ onExit }: Props) {
 
     if (e.phase !== 'play') return
 
-    // --- porteur : chrono ---
+    // --- porteur : un défenseur qui le touche lui prend le ballon ---
     if (carrier) {
       e.hold += dt
-      ball.x = carrier.x
-      ball.y = carrier.y + 0.9
-      if (e.hold >= L.holdTime) {
-        loseBall(e, 'Taclé !', 'Trop long ballon au pied')
-        return
+      ball.x = carrier.x + e.dir.x * 0.9
+      ball.y = carrier.y + e.dir.y * 0.9
+      if (e.hold > TACKLE_GRACE) {
+        for (const d of e.defs) {
+          if (Math.hypot(d.x - carrier.x, d.y - carrier.y) < TACKLE_R) {
+            e.dribble = null
+            loseBall(e, 'Taclé !', 'Passe ou dribble avant qu\'il arrive')
+            return
+          }
+        }
       }
       return
     }
@@ -690,15 +710,12 @@ export default function OneTwoGame({ onExit }: Props) {
     // défenseurs
     for (const d of e.defs) disc(d.x, d.y, '#C8443C')
 
-    // chrono du porteur
-    if (e.carrier >= 0 && e.phase === 'play') {
+    // dribble : trait vers le doigt
+    if (e.carrier >= 0 && e.dribble && e.phase === 'play') {
       const m = e.mates[e.carrier]
-      const left = Math.max(0, 1 - e.hold / e.lvl.holdTime)
-      ctx.strokeStyle = left > 0.35 ? 'rgba(255,255,255,0.9)' : '#E8705F'
-      ctx.lineWidth = 3
-      ctx.beginPath()
-      ctx.arc(X(m.x), Y(m.y), r + 5, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2)
-      ctx.stroke()
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)'
+      ctx.lineWidth = 2
+      ctx.beginPath(); ctx.moveTo(X(m.x), Y(m.y)); ctx.lineTo(X(e.dribble.x), Y(e.dribble.y)); ctx.stroke()
     }
 
     // ballon + traînée
@@ -783,14 +800,34 @@ export default function OneTwoGame({ onExit }: Props) {
   }, [])
 
   // ------------------------------------------------------------ tap ------
-  const onPointerDown = (ev: ReactPointerEvent<HTMLCanvasElement>) => {
+  const toWorld = (ev: ReactPointerEvent<HTMLCanvasElement>): P => {
     const e = engineRef.current
-    if (e.phase !== 'play' || e.carrier < 0) return
     const rect = ev.currentTarget.getBoundingClientRect()
     const lx = ((ev.clientX - rect.left) / rect.width) * LW
     const ly = ((ev.clientY - rect.top) / rect.width) * LW
-    const p = { x: (lx - LW / 2) / SCALE, y: e.camY + (e.viewH - ly) / SCALE }
+    return { x: (lx - LW / 2) / SCALE, y: e.camY + (e.viewH - ly) / SCALE }
+  }
+
+  const onPointerMove = (ev: ReactPointerEvent<HTMLCanvasElement>) => {
+    const e = engineRef.current
+    if (e.dribble) e.dribble = toWorld(ev)
+  }
+
+  const onPointerUp = () => {
+    engineRef.current.dribble = null
+  }
+
+  const onPointerDown = (ev: ReactPointerEvent<HTMLCanvasElement>) => {
+    const e = engineRef.current
+    if (e.phase !== 'play' || e.carrier < 0) return
+    const p = toWorld(ev)
     const from = e.mates[e.carrier]
+    // doigt posé sur le porteur : il conduit le ballon (dribble)
+    if (Math.hypot(p.x - from.x, p.y - from.y) < DRIBBLE_TOUCH) {
+      try { ev.currentTarget.setPointerCapture(ev.pointerId) } catch { /* rien */ }
+      e.dribble = p
+      return
+    }
     const dx = p.x - e.ball.x, dy = p.y - e.ball.y
     const d = Math.hypot(dx, dy)
     if (d < 1.5) return
@@ -837,8 +874,9 @@ export default function OneTwoGame({ onExit }: Props) {
           <p className="dribble-intro">
             Tu attaques vers le haut. Tape l'endroit où tu veux envoyer le ballon : il part droit vers ce point.
             Un coéquipier jaune qui passe près du ballon le contrôle (les pointillés montrent où il court). Les
-            défenseurs rouges coupent les lignes de passe : vise devant ton coéquipier, dans l'espace. Le cercle
-            autour du porteur, c'est ton temps ballon au pied avant d'être taclé. Tape dans le but pour frapper (de loin, le gardien a le temps de se placer : rapproche-toi). Un but vaut 1 point, 2 points s'il est tiré hors de la surface ; les passes ne rapportent rien. Chaque but relance une attaque plus dure. Au premier
+            défenseurs rouges coupent les lignes de passe : vise devant ton coéquipier, dans l'espace. Pose le doigt
+            sur ton joueur et glisse pour dribbler. Un défenseur vient te presser : s'il te touche, il te prend le
+            ballon. Tape dans le but pour frapper (de loin, le gardien a le temps de se placer : rapproche-toi). Un but vaut 1 point, 2 points s'il est tiré hors de la surface ; les passes ne rapportent rien. Chaque but relance une attaque plus dure. Au premier
             ballon perdu, c'est fini.
           </p>
         )}
@@ -850,7 +888,14 @@ export default function OneTwoGame({ onExit }: Props) {
         </div>
 
         <div className="dribble-stage freekick-stage onetwo-stage" ref={stageRef}>
-          <canvas ref={canvasRef} className="freekick-canvas" onPointerDown={onPointerDown} />
+          <canvas
+            ref={canvasRef}
+            className="freekick-canvas"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+          />
           {phase === 'idle' && (
             <div className="dribble-idle-msg">
               <span style={{ fontSize: 30 }}>⚡</span>
