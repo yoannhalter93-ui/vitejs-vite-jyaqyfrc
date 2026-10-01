@@ -155,13 +155,18 @@ const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
 function pickRun(e: Engine, m: Mate, c: P) {
   const r = e.rng
   const others = e.mates.filter((o) => o !== m)
-  for (let tries = 0; tries < 5; tries++) {
+  for (let tries = 0; tries < 8; tries++) {
     const k = r()
     let tx: number, ty: number, sp: number, run: RunKind
     if (k < 0.34) {
       run = 'profondeur'; tx = m.x + (r() - 0.5) * 10; ty = c.y + 10 + r() * 9; sp = 6.6 + r() * 0.8
+      // appel dans le couloir (on écarte le jeu), pas dans l'axe
+      if (Math.abs(tx) < 5) tx = (m.x >= 0 ? 1 : -1) * (5 + r() * 7)
     } else if (k < 0.6) {
       run = 'decrochage'; tx = m.x + (c.x - m.x) * (0.3 + r() * 0.3); ty = c.y + 2 + r() * 5; sp = 5.4 + r() * 0.6
+      // il revient vers le ballon, mais pas dans les pieds du porteur
+      const dc = Math.hypot(tx - c.x, ty - c.y)
+      if (dc < 6) { const k2 = 6 / (dc || 1); tx = c.x + (tx - c.x) * k2; ty = c.y + (ty - c.y) * k2 }
     } else if (k < 0.8) {
       const side = m.x > 0 ? -1 : 1
       run = 'diagonale'; tx = side * (3 + r() * 9); ty = Math.max(m.y, c.y) + 3 + r() * 6; sp = 6.2 + r() * 0.8
@@ -169,10 +174,12 @@ function pickRun(e: Engine, m: Mate, c: P) {
       const side = r() < 0.5 ? -1 : 1
       run = 'soutien'; tx = c.x + side * (5 + r() * 4); ty = c.y - 3 - r() * 4; sp = 4.6 + r() * 0.6
     }
-    tx = clamp(tx, -13, 13)
+    tx = clamp(tx, -13.5, 13.5)
     ty = clamp(ty, Math.max(-1, c.y - 8), GOAL_Y - 3)
-    const crowded = others.some((o) => Math.hypot(o.tx - tx, o.ty - ty) < 5 || Math.hypot(o.x - tx, o.y - ty) < 4)
-    if (crowded && tries < 4) continue
+    // espace libre : loin des coéquipiers et des défenseurs
+    const crowded = others.some((o) => Math.hypot(o.tx - tx, o.ty - ty) < 6.5 || Math.hypot(o.x - tx, o.y - ty) < 5)
+      || e.defs.some((d) => Math.hypot(d.x - tx, d.y - ty) < 3.5)
+    if (crowded && tries < 7) continue
     m.tx = tx; m.ty = ty; m.speed = sp; m.run = run
     m.runUntil = e.t + 1.4 + r() * 1.8
     return
@@ -194,10 +201,11 @@ function setupAttack(e: Engine) {
   ]
   e.carrier = 0
   e.hold = 0
-  for (let i = 1; i < e.mates.length; i++) pickRun(e, e.mates[i], e.mates[0])
   const k = e.attack
   const defs: Defender[] = []
-  const markers = Math.min(3, 1 + k)
+  // jamais plus de 4 défenseurs (le terrain reste aéré) : ensuite, c'est
+  // leur vitesse et leurs réflexes qui augmentent
+  const markers = k >= 3 ? 2 : Math.min(3, 1 + k)
   const def = (x: number, y: number, role: Defender['role'], mark: number): Defender => ({
     x, y, role, mark,
     antic: 0.15 + r() * 0.5,
@@ -212,9 +220,9 @@ function setupAttack(e: Engine) {
   }
   if (k >= 1) defs.push(def(cx + (cx > 0 ? -1.4 : 1.4), 0.6, 'press', 0))
   if (k >= 3) defs.push(def(0, BOX_Y + 2, 'zone', 0))
-  if (k >= 5) defs.push(def((r() - 0.5) * 16, 26, 'zone', 0))
   e.reassignAt = 0
   e.defs = defs
+  for (let i = 1; i < e.mates.length; i++) pickRun(e, e.mates[i], e.mates[0])
   e.keeperX = 0
   e.ball = { x: cx, y: 2.9, vx: 0, vy: 0, target: { x: cx, y: 2.9 }, passedTarget: false, decel: 0, shot: false, fromOutside: false, trail: [] }
   e.camY = 0
@@ -285,6 +293,9 @@ export default function OneTwoGame({ onExit }: Props) {
 
   const startGame = () => {
     const e = newEngine((Math.random() * 4294967296) >>> 0)
+    // tests automatisés : démarrer directement à une attaque avancée
+    const startAt = (window as any).__oneTwoStartAttack
+    if (startAt) { e.attack = startAt; setupAttack(e) }
     e.phase = 'play'
     e.msg = { text: 'À toi !', sub: 'Tape devant un coéquipier jaune', color: '#F4EFE2', at: 0 }
     engineRef.current = e
@@ -377,6 +388,20 @@ export default function OneTwoGame({ onExit }: Props) {
       if (arrived || e.t >= m.runUntil) pickRun(e, m, carrier ?? ball)
     })
 
+    // les coéquipiers s'écartent les uns des autres (et du porteur) : le jeu
+    // reste aéré, sauf pour celui qui va chercher le ballon
+    for (let a = 0; a < e.mates.length; a++) for (let b = a + 1; b < e.mates.length; b++) {
+      if (a === chaser || b === chaser) continue
+      const A = e.mates[a], B = e.mates[b]
+      const dx = B.x - A.x, dy = B.y - A.y, dd = Math.hypot(dx, dy)
+      if (dd > 0.01 && dd < 5) {
+        const push = (5 - dd) * 0.08
+        if (a !== e.carrier) { A.x -= (dx / dd) * push; A.y -= (dy / dd) * push }
+        if (b !== e.carrier) { B.x += (dx / dd) * push; B.y += (dy / dd) * push }
+      }
+    }
+    e.mates.forEach((m) => { m.x = clamp(m.x, -14, 14) })
+
     // vitesse mesurée des coéquipiers (lissée)
     e.mates.forEach((m, i) => {
       if (dt <= 0) return
@@ -435,8 +460,10 @@ export default function OneTwoGame({ onExit }: Props) {
         const px = m.x + m.vx * d.antic, py = m.y + m.vy * d.antic
         const dx = c.x - px, dy = c.y - py
         const dl = Math.hypot(dx, dy) || 1
-        const g = Math.min(d.gap, dl * 0.45)
-        goal = { x: px + (dx / dl) * g, y: py + (dy / dl) * g + 0.8 }
+        // surtout côté but, un peu côté ballon (sinon tout le monde se
+        // resserre autour du porteur)
+        const g = Math.min(d.gap * 0.45, dl * 0.3)
+        goal = { x: px + (dx / dl) * g, y: py + (dy / dl) * g + 0.6 + d.gap * 0.45 }
         // attaquant parti dans son dos : course de repli à fond
         const behind = m.y > d.y + 1.5
         moveTo(d, behind ? { x: px, y: py + 1 } : goal, sp * (behind ? 1.08 : 1) * dt)
@@ -461,8 +488,8 @@ export default function OneTwoGame({ onExit }: Props) {
     for (let a = 0; a < e.defs.length; a++) for (let b = a + 1; b < e.defs.length; b++) {
       const A = e.defs[a], B = e.defs[b]
       const dx = B.x - A.x, dy = B.y - A.y, dd = Math.hypot(dx, dy)
-      if (dd > 0.01 && dd < 2) {
-        const push = (2 - dd) * 0.5
+      if (dd > 0.01 && dd < 3) {
+        const push = (3 - dd) * 0.25
         A.x -= (dx / dd) * push; A.y -= (dy / dd) * push
         B.x += (dx / dd) * push; B.y += (dy / dd) * push
       }
