@@ -100,7 +100,7 @@ export default function Rules({ onBack }: Props) {
         <ul className="rules-points">
           <li>🔥 Journée x2 — tous les pronos de la journée comptent double. Le Joker n'est pas utilisable sur ces matchs.</li>
           <li>⚽ Total de buts — devine combien de buts seront marqués sur toute la journée, avant le premier coup d'envoi. Le plus proche du groupe gagne 3 points + 2 🪙.</li>
-          <li>🤝 Duo du week-end — des binômes sont tirés au sort dans le groupe (un trio si le groupe est impair). Chaque équipe marque la moyenne des points de pronos de ses joueurs sur la journée ; la meilleure équipe gagne 3 points + 2 🪙 par joueur.</li>
+          <li>🤝 Duo du week-end — des binômes sont tirés au sort dans le groupe (un trio si le groupe est impair). Il faut au moins 4 joueurs dans le groupe : en dessous, l'événement ne s'applique pas. Chaque équipe marque la moyenne des points de pronos de ses joueurs sur la journée ; la meilleure équipe gagne 3 points + 2 🪙 par joueur.</li>
           <li>🎯 But en or — devine l'équipe et la minute du 1er but sur 2 grosses affiches de la journée (détail juste en dessous).</li>
         </ul>
         <h4 className="rules-subtitle">🎯 But en or : le détail</h4>

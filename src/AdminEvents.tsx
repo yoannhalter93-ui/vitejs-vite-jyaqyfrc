@@ -242,7 +242,7 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
       <h2 className="admin-ev-title">🎉 Événements</h2>
       <p className="admin-ev-help">
         Sur une journée de Ligue 1 : 🔥 Journée x2 · ⚽ Total de buts · 🤝 Duo du week-end · 🎯 But en or.
-        Tous les joueurs sont prévenus au lancement. Réservé à toi.
+        Tous les joueurs sont prévenus au lancement. Le Duo ne s'applique qu'aux groupes d'au moins 4 joueurs. Réservé à toi.
       </p>
 
       {error && <p className="groups-error">{error}</p>}
