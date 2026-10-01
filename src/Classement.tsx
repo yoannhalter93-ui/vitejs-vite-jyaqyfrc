@@ -34,6 +34,68 @@ const CATEGORIES: { key: string; label: string }[] = [
   { key: 'jeu_semaine', label: 'Événements' },
 ]
 
+// Explication du système de points de chaque onglet (encadré repliable)
+const HOW_TO: Record<string, { intro: string; points: string[] }> = {
+  general: {
+    intro: "Le total de tous tes points dans le groupe sur la période en cours, tous jeux confondus. Choisis un onglet pour voir le détail de chaque jeu.",
+    points: [
+      'Pronostics, Mon équipe, Duels, Mini-jeux, Paris libres et Événements s\'additionnent ici',
+    ],
+  },
+  match: {
+    intro: 'Un score à donner avant le coup d\'envoi de chaque match de Ligue 1 :',
+    points: [
+      'Score exact — 5 points',
+      'Bon écart de buts et bon résultat — 4 points',
+      'Juste le bon résultat (victoire / nul / défaite) — 3 points',
+      'Rien de bon — 0 point',
+      'Joker ×2 (bonus) ou match d\'un événement ×2 : points doublés',
+    ],
+  },
+  team_assignment: {
+    intro: 'Une équipe de Ligue 1 t\'est tirée au sort pour la période. À chacun de ses matchs :',
+    points: [
+      'Elle gagne — +1 point',
+      'Match nul — 0 point',
+      'Elle perd — -1 point',
+      'Bonus inversé : victoire et défaite sont inversées',
+    ],
+  },
+  duels: {
+    intro: 'Chaque semaine, un duel de penaltys et un quiz contre un adversaire tiré au sort :',
+    points: [
+      'Victoire — 3 points (+1 🪙)',
+      'Match nul — 1 point',
+      'Défaite — 0 point',
+    ],
+  },
+  jonglage_chrono: {
+    intro: 'Le jeu de la semaine (jonglage, dribble ou coup franc) :',
+    points: [
+      'Meilleur score du groupe de la semaine — 3 points (+2 🪙)',
+      'Égalité au sommet — tous les ex æquo gagnent',
+      'Les autres — 0 point (rejoue autant que tu veux, seul ton meilleur score compte)',
+    ],
+  },
+  free_bet: {
+    intro: 'Des paris « oui / non » proposés par les membres :',
+    points: [
+      'Bon camp — tu gagnes les points de la cote',
+      'Plus ton camp était minoritaire, plus la cote est haute',
+      'Double ou rien (bonus) — points doublés si tu gagnes',
+    ],
+  },
+  jeu_semaine: {
+    intro: 'Les événements lancés certaines journées de Ligue 1 :',
+    points: [
+      '⚽ Total de buts — le plus proche du groupe : 3 points (+2 🪙)',
+      '🤝 Duo du week-end — la meilleure équipe : 3 points (+2 🪙) par joueur',
+      '🎯 But en or — le meilleur total du groupe : 3 points (+2 🪙)',
+      '🔥 Journée x2 — tes pronos de la journée comptent double (dans Pronostics)',
+    ],
+  },
+}
+
 // Le classement "Duels" fusionne deux catégories de points_ledger.source_type
 // (les quiz et les duels penalty) en un seul total par joueur.
 function mergeCategoryPoints(a?: Record<string, number>, b?: Record<string, number>): Record<string, number> {
@@ -171,6 +233,16 @@ export default function Classement({ groupId, groupName }: Props) {
           </button>
         ))}
       </div>
+
+      {HOW_TO[tab] && (
+        <details className="rules-section classement-howto" key={tab}>
+          <summary className="rules-section-title">ℹ️ Comment on gagne des points ici ?</summary>
+          <p className="rules-section-text">{HOW_TO[tab].intro}</p>
+          <ul className="rules-points">
+            {HOW_TO[tab].points.map((pt) => <li key={pt}>{pt}</li>)}
+          </ul>
+        </details>
+      )}
 
       {loading ? (
         <LoadingSkeleton rows={6} />
