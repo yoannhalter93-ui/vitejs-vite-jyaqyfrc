@@ -504,6 +504,8 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
     sync()
     if (live && user && groupId) {
       sendOnWizzChannel('playing', { action: 'start', profileId: user.id, pseudo: myPseudo || 'Un coéquipier', game: 'toro' })
+      // notification + push (une par jour et par joueur) ; .then() : sans lui l'appel ne part jamais
+      supabase.rpc('notify_toro_start', { p_group_id: groupId }).then(() => {})
     }
   }
 

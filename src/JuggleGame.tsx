@@ -326,7 +326,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
                 // notification persistée + push, pour les membres du groupe qui
                 // n'ont pas l'appli ouverte en ce moment (le broadcast temps réel
                 // ci-dessus ne les atteint pas)
-                supabase.rpc('notify_juggle_start', { p_group_id: groupId })
+                supabase.rpc('notify_juggle_start', { p_group_id: groupId }).then(() => {})
         }
 
         const canvas = canvasRef.current

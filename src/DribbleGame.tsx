@@ -680,7 +680,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     // mini-jeux, via App.tsx) que la partie démarre.
     if (user) {
       sendOnWizzChannel('playing', { action: 'start', profileId: user.id, pseudo: myPseudo || 'Un coéquipier', game: 'dribble' })
-      supabase.rpc('notify_dribble_start', { p_group_id: groupId })
+      supabase.rpc('notify_dribble_start', { p_group_id: groupId }).then(() => {})
     }
   }
 

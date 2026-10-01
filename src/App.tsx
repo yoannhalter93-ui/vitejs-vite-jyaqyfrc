@@ -607,7 +607,7 @@ function App() {
     // plus sur l'écran Jonglages (ou plus dans l'appli) pour voir l'effet
     // temps réel
     if (selectedGroup?.id) {
-      supabase.rpc('notify_wizz', { p_target_profile_id: juggleAlert.profileId, p_group_id: selectedGroup.id })
+      supabase.rpc('notify_wizz', { p_target_profile_id: juggleAlert.profileId, p_group_id: selectedGroup.id }).then(() => {})
     }
   }
 
@@ -1030,7 +1030,7 @@ function App() {
   // enregistre une notif + push pour le destinataire.
   const sendWizzFromNotification = (n: any) => {
     if (!n.related_profile_id || !n.ref_id) return
-    supabase.rpc('notify_wizz', { p_target_profile_id: n.related_profile_id, p_group_id: n.ref_id })
+    supabase.rpc('notify_wizz', { p_target_profile_id: n.related_profile_id, p_group_id: n.ref_id }).then(() => {})
     markNotifRead(n.id)
   }
 

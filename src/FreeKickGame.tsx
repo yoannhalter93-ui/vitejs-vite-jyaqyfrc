@@ -430,7 +430,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     setupShot()
     if (user) {
       sendOnWizzChannel('playing', { action: 'start', profileId: user.id, pseudo: myPseudo || 'Un coéquipier', game: 'coup-franc' })
-      supabase.rpc('notify_freekick_start', { p_group_id: groupId })
+      supabase.rpc('notify_freekick_start', { p_group_id: groupId }).then(() => {})
     }
   }
 
