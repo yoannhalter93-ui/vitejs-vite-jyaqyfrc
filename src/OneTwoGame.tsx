@@ -11,7 +11,8 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 // défenseurs (rouges) coupent les lignes de passe : il faut viser DEVANT le
 // coéquipier, dans l'espace. Tu n'as que quelques secondes ballon au pied
 // avant d'être taclé. Arrivé dans la surface, tape dans le but pour frapper.
-// Passe réussie = 1 point, but = 5 points. Chaque but relance une attaque
+// But = 10 points moins 1 par passe de l'action (minimum 2) : on construit
+// vite plutôt que de faire tourner le ballon. Chaque but relance une attaque
 // plus difficile ; la partie s'arrête au premier ballon perdu.
 // ============================================================================
 
@@ -34,7 +35,7 @@ const SCALE = LW / 32 // px logiques par mètre (1 m de marge de chaque côté)
 
 const BALL_V = 17 // vitesse de passe (m/s)
 const SHOT_V = 24
-const BALL_DECEL = 9 // freinage une fois la cible dépassée
+const BALL_ROLL = 2.5 // le ballon s'arrête ~2,5 m après l'endroit visé
 const RECEIVE_R = 1.3
 const PLAYER_R = 0.85
 
@@ -60,6 +61,7 @@ interface Ball {
   vx: number; vy: number
   target: P
   passedTarget: boolean
+  decel: number // freinage une fois la cible dépassée
   shot: boolean
   trail: P[]
 }
@@ -121,6 +123,7 @@ interface Engine {
   flightT: number
   points: number
   passes: number
+  attackPasses: number // passes de l'attaque en cours
   goals: number
   t: number
   msg: { text: string; sub: string; color: string; at: number } | null
@@ -135,8 +138,8 @@ function newEngine(seed: number): Engine {
   const e: Engine = {
     phase: 'idle', seed, attack: 0, lvl: level(0), rng: mulberry32(seed),
     mates: [], carrier: 0, hold: 0, defs: [], keeperX: 0,
-    ball: { x: 0, y: 0, vx: 0, vy: 0, target: { x: 0, y: 0 }, passedTarget: false, shot: false, trail: [] },
-    flightT: 0, points: 0, passes: 0, goals: 0, t: 0, msg: null, tap: null, pauseUntil: 0,
+    ball: { x: 0, y: 0, vx: 0, vy: 0, target: { x: 0, y: 0 }, passedTarget: false, decel: 0, shot: false, trail: [] },
+    flightT: 0, points: 0, passes: 0, attackPasses: 0, goals: 0, t: 0, msg: null, tap: null, pauseUntil: 0,
     camY: 0, viewH: 520, lastPasser: -1,
   }
   setupAttack(e)
@@ -178,9 +181,10 @@ function setupAttack(e: Engine) {
   if (k >= 5) defs.push({ x: (r() - 0.5) * 16, y: 26, role: 'zone', mark: 0, lane: 0 })
   e.defs = defs
   e.keeperX = 0
-  e.ball = { x: cx, y: 2.9, vx: 0, vy: 0, target: { x: cx, y: 2.9 }, passedTarget: false, shot: false, trail: [] }
+  e.ball = { x: cx, y: 2.9, vx: 0, vy: 0, target: { x: cx, y: 2.9 }, passedTarget: false, decel: 0, shot: false, trail: [] }
   e.camY = 0
   e.lastPasser = -1
+  e.attackPasses = 0
 }
 
 // distance d'un point au segment [a, b]
@@ -189,6 +193,10 @@ function segDist(p: P, a: P, b: P) {
   const l2 = dx * dx + dy * dy || 1
   const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2))
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+}
+
+function goalPoints(passes: number) {
+  return Math.max(2, 10 - passes)
 }
 
 function moveTo(o: P, t: P, maxStep: number) {
@@ -261,8 +269,33 @@ export default function OneTwoGame({ onExit }: Props) {
     const ball = e.ball
     const carrier = e.carrier >= 0 ? e.mates[e.carrier] : null
 
+    // ballon qui roule librement (cible dépassée) : le coéquipier et le
+    // défenseur les plus proches de l'endroit où il va s'arrêter foncent dessus
+    let loose: P | null = null
+    let chaser = -1
+    let defChaser: Defender | null = null
+    if (e.carrier < 0 && !ball.shot && ball.passedTarget) {
+      const v = Math.hypot(ball.vx, ball.vy)
+      const roll = v > 0.01 ? (v * v) / (2 * (ball.decel || 1)) : 0
+      loose = { x: ball.x + (v > 0.01 ? (ball.vx / v) * roll : 0), y: ball.y + (v > 0.01 ? (ball.vy / v) * roll : 0) }
+      let best = Infinity
+      e.mates.forEach((m, i) => {
+        const d = Math.hypot(m.x - loose!.x, m.y - loose!.y)
+        if (e.t >= m.lockUntil && d < best) { best = d; chaser = i }
+      })
+      best = Infinity
+      for (const d of e.defs) {
+        const dd = Math.hypot(d.x - loose.x, d.y - loose.y)
+        if (dd < best) { best = dd; defChaser = d }
+      }
+    }
+
     // --- coéquipiers ---
     e.mates.forEach((m, i) => {
+      if (loose && i === chaser) {
+        moveTo(m, Math.hypot(ball.vx, ball.vy) < 2 ? ball : loose, m.speed * dt)
+        return
+      }
       if (i === e.carrier) {
         // le porteur avance doucement vers le but
         m.y = Math.min(GOAL_Y - 6, m.y + 2.4 * dt)
@@ -289,6 +322,10 @@ export default function OneTwoGame({ onExit }: Props) {
     for (const d of e.defs) {
       let goal: P
       const sp = L.defSpeed
+      if (loose && d === defChaser) {
+        moveTo(d, Math.hypot(ball.vx, ball.vy) < 2 ? ball : loose, sp * dt)
+        continue
+      }
       if (ballFree && e.flightT > L.reaction && d.role !== 'press') {
         // en l'air : il se jette vers la trajectoire du ballon
         const v = Math.hypot(ball.vx, ball.vy) || 1
@@ -344,13 +381,17 @@ export default function OneTwoGame({ onExit }: Props) {
     if (ball.passedTarget || ball.shot) {
       const v = Math.hypot(ball.vx, ball.vy)
       if (!ball.shot) {
-        const nv = Math.max(0, v - BALL_DECEL * dt)
+        const nv = Math.max(0, v - ball.decel * dt)
         if (v > 0) { ball.vx *= nv / v; ball.vy *= nv / v }
       }
     }
     ball.x += ball.vx * dt
     ball.y += ball.vy * dt
-    if (!ball.passedTarget && (ball.target.x - ball.x) * ball.vx + (ball.target.y - ball.y) * ball.vy <= 0) ball.passedTarget = true
+    if (!ball.passedTarget && (ball.target.x - ball.x) * ball.vx + (ball.target.y - ball.y) * ball.vy <= 0) {
+      ball.passedTarget = true
+      const v = Math.hypot(ball.vx, ball.vy)
+      ball.decel = (v * v) / (2 * BALL_ROLL)
+    }
     ball.trail.push({ x: ball.x, y: ball.y })
     if (ball.trail.length > 14) ball.trail.shift()
 
@@ -375,10 +416,11 @@ export default function OneTwoGame({ onExit }: Props) {
       if (ball.y >= GOAL_Y) {
         if (Math.abs(ball.x) <= GOAL_HALF_W - 0.1) {
           e.goals += 1
-          e.points += 5
+          const pts = goalPoints(e.attackPasses)
+          e.points += pts
           e.phase = 'goal'
           e.pauseUntil = e.t + 1.6
-          say(e, 'BUT !', '+5 points', '#E8B931')
+          say(e, 'BUT !', `+${pts} points (${e.attackPasses} passe${e.attackPasses > 1 ? 's' : ''})`, '#E8B931')
           if (navigator.vibrate) try { navigator.vibrate([40, 40, 80]) } catch { /* rien */ }
           sync()
         } else {
@@ -396,7 +438,7 @@ export default function OneTwoGame({ onExit }: Props) {
         e.carrier = i
         e.hold = 0
         e.passes += 1
-        e.points += 1
+        e.attackPasses += 1
         // une-deux : le passeur file vers l'avant pour se proposer
         if (e.lastPasser >= 0) {
           const p = e.mates[e.lastPasser]
@@ -411,7 +453,7 @@ export default function OneTwoGame({ onExit }: Props) {
 
     const v = Math.hypot(ball.vx, ball.vy)
     if (Math.abs(ball.x) > HALF_W || ball.y < -3 || ball.y > GOAL_Y) { loseBall(e, 'Sortie !', 'Le ballon est sorti'); return }
-    if (v < 0.4) loseBall(e, 'Ballon perdu', 'Personne n\'était là pour le prendre')
+    if (v < 0.4 && e.flightT > 6) loseBall(e, 'Ballon perdu', 'Personne n\'était là pour le prendre')
   }
 
   // ---------------------------------------------------------- dessin -----
@@ -646,7 +688,7 @@ export default function OneTwoGame({ onExit }: Props) {
             Tu attaques vers le haut. Tape l'endroit où tu veux envoyer le ballon : il part droit vers ce point.
             Un coéquipier jaune qui passe près du ballon le contrôle (les pointillés montrent où il court). Les
             défenseurs rouges coupent les lignes de passe : vise devant ton coéquipier, dans l'espace. Le cercle
-            autour du porteur, c'est ton temps ballon au pied avant d'être taclé. Tape dans le but pour frapper (de loin, le gardien a le temps de se placer : rapproche-toi). Passe = 1 point, but = 5 points ; chaque but relance une attaque plus dure. Au premier
+            autour du porteur, c'est ton temps ballon au pied avant d'être taclé. Tape dans le but pour frapper (de loin, le gardien a le temps de se placer : rapproche-toi). Un but vaut 10 points moins 1 par passe de l'action (minimum 2) : construis vite ! Chaque but relance une attaque plus dure. Au premier
             ballon perdu, c'est fini.
           </p>
         )}
