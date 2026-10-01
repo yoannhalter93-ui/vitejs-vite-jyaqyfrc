@@ -32,7 +32,18 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
       <details className="rules-section" name="regles">
         <summary className="rules-section-title">🏆 Classement</summary>
         <p className="rules-section-text">
-          Le total de tous les points gagnés dans le groupe sur la période en cours, tous modes de jeu confondus.
+          Le total de tous les points gagnés dans le groupe sur la période en cours, tous modes de jeu confondus. Chaque jeu a son onglet dans le classement ; voici ce que chacun rapporte :
+        </p>
+        <ul className="rules-points">
+          <li>⚽ Pronostics — score exact 5 pts, bon écart 4 pts, bon résultat 3 pts, sinon 0 (doublés avec un Joker ou sur un match ×2)</li>
+          <li>🎡 Mon équipe — à chacun de ses matchs : victoire +1, nul 0, défaite -1</li>
+          <li>🥅 Duels (penaltys et quiz) — victoire 3 pts (+1 🪙), nul 1 pt, défaite 0</li>
+          <li>🎮 Mini-jeux — meilleur score du groupe au jeu de la semaine : 3 pts (+2 🪙)</li>
+          <li>🤝 Paris libres — le bon camp gagne les points de la cote (plus il était minoritaire, plus ça rapporte)</li>
+          <li>🎉 Événements — le gagnant du Total de buts, du Duo du week-end ou du But en or : 3 pts (+2 🪙) ; la Journée x2 double tes pronos</li>
+        </ul>
+        <p className="rules-section-text">
+          Le détail de chaque jeu est dans sa règle ci-dessous.
         </p>
       </details>
 
