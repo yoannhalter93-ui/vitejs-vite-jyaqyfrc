@@ -1242,6 +1242,13 @@ function App() {
           <span className="profil-v2-menu-label">Mes statistiques</span>
           <span className="profil-v2-menu-chevron">›</span>
         </button>
+        {selectedGroup && (
+          <button className="profil-v2-menu-row" onClick={() => setScreen('roulette')}>
+            <span className="profil-v2-menu-icon">🛡️</span>
+            <span className="profil-v2-menu-label">Mon équipe ({selectedGroup.name})</span>
+            <span className="profil-v2-menu-chevron">›</span>
+          </button>
+        )}
         <button className="profil-v2-menu-row" onClick={() => setScreen('historique-pronos')}>
           <span className="profil-v2-menu-icon">📋</span>
           <span className="profil-v2-menu-label">Historique de mes pronos</span>
