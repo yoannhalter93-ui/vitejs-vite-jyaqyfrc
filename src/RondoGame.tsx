@@ -31,6 +31,7 @@ const RECEIVE_R = 1.4
 const TACKLE_R = 1.2
 const CONTROL_TIME = 0.45 // le temps du contrôle, personne ne peut tacler
 const SECOND_BULL_AT = 12
+const SMART_AT = 45 // les taureaux apprennent tes habitudes, feintent et tendent des pièges
 const LEVEL_EVERY = 6 // le taureau accélère toutes les 6 passes
 
 interface Player {
@@ -46,6 +47,7 @@ interface Bull {
   goal: P // là où il veut aller (il continue d'y courir pendant son temps de réaction)
   speedMul: number
   reactMul: number
+  bait: number // passe laissée ouverte exprès (piège), -1 : aucune
 }
 
 interface Ball {
@@ -71,6 +73,8 @@ interface Engine {
   guessDir: number // sens de la prochaine passe que les taureaux anticipent
   cycle: number // temps moyen entre deux réceptions (pour les embuscades)
   lastRecvT: number
+  habits: number[] // fréquence (récente) de chaque écart de passe autour du cercle
+  smart: boolean
   hold: number
   ball: Ball
   flightT: number
@@ -102,7 +106,14 @@ function level(passes: number) {
 }
 
 function newBull(rng: () => number): Bull {
-  return { x: 0, y: 0, vx: 0, vy: 0, goal: { x: 0, y: 0 }, speedMul: 0.95 + rng() * 0.1, reactMul: 0.9 + rng() * 0.3 }
+  return { x: 0, y: 0, vx: 0, vy: 0, goal: { x: 0, y: 0 }, speedMul: 0.95 + rng() * 0.1, reactMul: 0.9 + rng() * 0.3, bait: -1 }
+}
+
+// les deux passes que le joueur fait le plus souvent depuis `base` (d'après ses habitudes)
+function predict(e: Engine, base: number): [number, number] {
+  const n = N_PLAYERS
+  const offs = [1, 2, 3, 4, 5].sort((a, b) => e.habits[b] - e.habits[a])
+  return [(base + offs[0]) % n, (base + offs[1]) % n]
 }
 
 // course avec élan vers b.goal (accélération limitée, freinage à l'arrivée)
@@ -152,7 +163,7 @@ function newEngine(seed: number): Engine {
   const e: Engine = {
     phase: 'idle', t: 0, rng, players,
     bulls: [newBull(rng)],
-    carrier: Math.floor(rng() * N_PLAYERS), from: -1, queued: -1, rotDir: 0, rotStreak: 0, guessDir: 1, cycle: 1.3, lastRecvT: -1, hold: -1, // 1,5 s de répit au départ
+    carrier: Math.floor(rng() * N_PLAYERS), from: -1, queued: -1, rotDir: 0, rotStreak: 0, guessDir: 1, cycle: 1.3, lastRecvT: -1, habits: Array(N_PLAYERS).fill(0), smart: false, hold: -1, // 1,5 s de répit au départ
     ball: { x: 0, y: 0, vx: 0, vy: 0, to: -1, crossedGap: false },
     flightT: 0, passes: 0, points: 0, msg: null, pauseUntil: 0, viewH: 480,
   }
@@ -215,6 +226,9 @@ function kick(e: Engine, to: number) {
   e.rotStreak = dir !== 0 && dir === e.rotDir ? e.rotStreak + 1 : dir !== 0 ? 1 : 0
   e.rotDir = dir
   e.guessDir = dir !== 0 ? dir : (e.rng() < 0.5 ? 1 : -1)
+  // habitudes du joueur (les plus récentes comptent plus)
+  e.habits = e.habits.map((h) => h * 0.9)
+  e.habits[diff] += 1
 }
 
 export default function RondoGame({ onExit }: Props) {
@@ -235,6 +249,9 @@ export default function RondoGame({ onExit }: Props) {
 
   const startGame = () => {
     const e = newEngine((Math.random() * 4294967296) >>> 0)
+    // tests automatisés : démarrer à un nombre de passes donné
+    const startAt = (window as any).__toroStartPasses
+    if (startAt) { e.passes = startAt; e.bulls.push(newBull(e.rng)); e.hold = 0; e.smart = startAt >= SMART_AT }
     e.phase = 'play'
     e.msg = { text: 'Toro !', sub: 'Tape un coéquipier pour lui passer le ballon', color: '#F4EFE2', at: 0 }
     engineRef.current = e
@@ -293,16 +310,47 @@ export default function RondoGame({ onExit }: Props) {
         // passe partie : pendant son temps de réaction il continue sur sa
         // lancée, puis il coupe la trajectoire s'il peut l'atteindre ; sinon il
         // anticipe la passe suivante (il a repéré dans quel sens ça tourne)
-        if (e.flightT >= L.reaction * b.reactMul) {
-          const cut = interceptPoint(ball, b, sp * 0.95, L.reach)
+        // piège : la passe qu'il avait laissée ouverte exprès, il l'attendait
+        const trapped = e.smart && ball.to === b.bait
+        if (trapped || e.flightT >= L.reaction * b.reactMul) {
+          const cut = interceptPoint(ball, b, sp * (trapped ? 1.12 : 0.95), L.reach)
           const amb = !cut && bi === 0 && e.rotStreak >= 1 ? ambush(e, b, sp) : null
           if (cut) b.goal = cut
           else if (amb) b.goal = amb
           else {
             const r = e.players[ball.to]
-            const next = e.players[(ball.to + (bi === 0 ? e.guessDir : -e.guessDir) + n) % n]
+            const [p1, p2] = predict(e, ball.to)
+            const next = e.smart ? e.players[bi === 0 ? p1 : p2] : e.players[(ball.to + (bi === 0 ? e.guessDir : -e.guessDir) + n) % n]
             b.goal = bi === 0 ? shutLane(r, next, 0.3) : shutLane(r, next, 0.55)
           }
+        }
+        steer(b, sp * (trapped ? 1.12 : 1), dt)
+        return
+      }
+      if (e.smart) {
+        // mode malin : il connaît tes passes préférées depuis ce porteur
+        const [p1, p2] = predict(e, e.carrier)
+        if (bi === 0) {
+          // feinte : il fait mine de fermer ta 2e passe préférée, puis bascule
+          // sur la 1re (celle que tu fais le plus)
+          const feint = e.hold % 1.2 < 0.35
+          const shut = e.players[feint ? p2 : p1]
+          const dx = shut.x - carrier.x, dy = shut.y - carrier.y, dl = Math.hypot(dx, dy) || 1
+          const dc = Math.hypot(b.x - carrier.x, b.y - carrier.y)
+          const off = Math.min(1.6, dc * 0.4)
+          b.goal = { x: carrier.x + (dx / dl) * off, y: carrier.y + (dy / dl) * off }
+        } else {
+          // piège : il laisse ta 2e passe préférée l'air libre, mais se tient à
+          // 2,4 m de la ligne, côté intérieur, prêt à bondir
+          const t = e.players[p2]
+          const mx = (carrier.x + t.x) / 2, my = (carrier.y + t.y) / 2
+          const ml = Math.hypot(mx, my) || 1
+          b.goal = { x: mx - (mx / ml) * 2.4, y: my - (my / ml) * 2.4 }
+          b.bait = p2
+        }
+        if (e.hold > 1) {
+          const nearest = e.bulls.reduce((a, c) => (Math.hypot(c.x - carrier.x, c.y - carrier.y) < Math.hypot(a.x - carrier.x, a.y - carrier.y) ? c : a))
+          if (nearest === b) b.goal = { x: carrier.x, y: carrier.y }
         }
         steer(b, sp, dt)
         return
@@ -391,7 +439,10 @@ export default function RondoGame({ onExit }: Props) {
       e.lastRecvT = e.t
       e.passes += 1
       e.points += 1
-      if (e.passes === SECOND_BULL_AT) {
+      if (e.passes === SMART_AT) {
+        e.smart = true
+        say(e, '🧠 Taureaux malins !', 'Ils ont appris ta façon de jouer', '#E8B931')
+      } else if (e.passes === SECOND_BULL_AT) {
         e.bulls.push(newBull(e.rng))
         say(e, '2e taureau !', 'Ça se complique…', '#E8B931')
       } else if (e.passes % LEVEL_EVERY === 0) {
@@ -571,7 +622,8 @@ export default function RondoGame({ onExit }: Props) {
             le ballon. Tape le suivant pendant que le ballon roule : le receveur le remet en une touche. Le taureau presse le porteur en fermant une passe et coupe celles qu'il peut atteindre : s'il
             touche le porteur ou intercepte le ballon, c'est fini. Il repère quand tu fais tourner le ballon toujours dans le même sens : varie ! Joue vite, en une touche ! 1 point par passe
             réussie. Toutes les 6 passes le taureau accélère, et à 12 passes un 2e taureau entre. Une passe entre les
-            deux taureaux (petit pont) rapporte 2 points de plus.
+            deux taureaux (petit pont) rapporte 2 points de plus. À 45 passes, les taureaux deviennent malins : ils
+            retiennent tes passes préférées, feintent et laissent des passes faussement libres.
           </p>
         )}
 
