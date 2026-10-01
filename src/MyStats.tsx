@@ -7,7 +7,7 @@ interface Stats {
   predictions: { played: number; exact: number; good_result: number; points: number }
   quiz: Record3
   penalty: Record3
-  minigames: { best_juggle: number | null; best_dribble: number | null; best_freekick?: number | null; games_played: number }
+  minigames: { best_juggle: number | null; best_dribble: number | null; best_freekick?: number | null; best_toro?: number | null; games_played: number }
   free_bets: { votes: number; created: number; points: number }
   total_points: number
 }
@@ -103,6 +103,7 @@ export default function MyStats({ onBack }: Props) {
               <div><b>{stats.minigames.best_juggle ?? '—'}</b><span>record jonglage</span></div>
               <div><b>{stats.minigames.best_dribble ?? '—'}</b><span>record dribble</span></div>
               <div><b>{stats.minigames.best_freekick ?? '—'}</b><span>record coup franc</span></div>
+              <div><b>{stats.minigames.best_toro ?? '—'}</b><span>record toro</span></div>
               <div><b>{stats.minigames.games_played}</b><span>parties jouées</span></div>
             </div>
           </div>

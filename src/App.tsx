@@ -128,12 +128,13 @@ const JEUX_HUB: { key: Screen; label: string; icon: string; sub: string; color: 
 // cliquable (elle lance le jeu en plein écran), les deux autres restent
 // grisées — même traitement visuel que l'ancien "teaser" de But en or.
 // les 4 mini-jeux de la rotation hebdomadaire (voir assign_weekly_minigame)
-type MinigameKey = 'jonglage' | 'dribble' | 'coup-franc' | 'jeu-semaine'
+type MinigameKey = 'jonglage' | 'dribble' | 'coup-franc' | 'toro' | 'jeu-semaine'
 
 const MINIGAME_INFO: Record<MinigameKey, { icon: string; label: string }> = {
   jonglage: { icon: '🤹', label: 'Jonglage' },
   dribble: { icon: '⚽', label: 'Dribble' },
   'coup-franc': { icon: '🧱', label: 'Coup franc' },
+  toro: { icon: '🐂', label: 'Le toro' },
   'jeu-semaine': { icon: '🎯', label: 'But en or' },
 }
 
@@ -147,6 +148,7 @@ const MINIGAME_TILES: {
   { key: 'jonglage', icon: '🤹', label: 'Jonglages', subActive: 'Ton défi de la semaine', subDisabled: 'Pas cette semaine' },
   { key: 'dribble', icon: '⚽', label: 'Dribble', subActive: 'Ton défi de la semaine', subDisabled: 'Pas cette semaine' },
   { key: 'coup-franc', icon: '🧱', label: 'Coup franc', subActive: 'Vise la lucarne', subDisabled: 'Pas cette semaine' },
+  { key: 'toro', icon: '🐂', label: 'Le toro', subActive: 'Fais tourner le ballon', subDisabled: 'Pas cette semaine' },
   // But en or n'est plus un jeu de la semaine mais un événement (bannière de
   // l'accueil, lancé par l'administrateur — voir AdminEvents.tsx)
 ]
@@ -645,7 +647,7 @@ function App() {
   useEffect(() => {
     if (screen !== 'jonglages' || !selectedGroup?.id) return
     const groupId = selectedGroup.id
-    ;(['jonglage', 'dribble', 'coup-franc', 'jeu-semaine'] as const).forEach((key) => {
+    ;(['jonglage', 'dribble', 'coup-franc', 'toro', 'jeu-semaine'] as const).forEach((key) => {
       supabase.rpc('get_last_minigame_result', { p_group_id: groupId, p_game_key: key }).then(({ data, error }: any) => {
         if (error) return
         const row = Array.isArray(data) ? data[0] : data
@@ -1272,7 +1274,7 @@ function App() {
         {isAdmin && (
           <button className="profil-v2-menu-row" onClick={() => setScreen('test-toro')}>
             <span className="profil-v2-menu-icon">🐂</span>
-            <span className="profil-v2-menu-label">Tester : Le toro</span>
+            <span className="profil-v2-menu-label">Entraînement : Le toro</span>
             <span className="profil-v2-menu-chevron">›</span>
           </button>
         )}
@@ -1786,7 +1788,7 @@ function App() {
         ) : screen === 'admin-events' && isAdmin ? (
           <AdminEvents onBack={() => setScreen('profil')} />
         ) : screen === 'test-toro' && isAdmin ? (
-          <RondoGame onExit={() => setScreen('profil')} />
+          <RondoGame practice onExit={() => setScreen('profil')} />
         ) : selectedGroup ? (
           <>
             {screen !== 'team-reveal' && !isActionMinigame && !isFullChat && (
@@ -1997,6 +1999,13 @@ function App() {
                   groupName={selectedGroup.name}
                   autoApplyAllLeagues={autoApplyAllLeagues}
                   onGoToBonusMatch={() => setScreen('pronostics')}
+                  onExit={() => setScreen('accueil')}
+                />
+              ) : activeMinigame === 'toro' ? (
+                <RondoGame
+                  groupId={selectedGroup.id}
+                  groupName={selectedGroup.name}
+                  autoApplyAllLeagues={autoApplyAllLeagues}
                   onExit={() => setScreen('accueil')}
                 />
               ) : activeMinigame === 'coup-franc' ? (

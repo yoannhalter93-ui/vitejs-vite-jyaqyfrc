@@ -26,6 +26,7 @@ const GAME_LABEL: Record<string, string> = {
   jonglage: '🤹 Jonglage',
   dribble: '⚽ Dribble',
   'coup-franc': '🧱 Coup franc',
+  toro: '🐂 Le toro',
   'jeu-semaine': '🎯 But en or',
 }
 const RESULT_LABEL = { won: 'Gagné ✅', lost: 'Perdu', draw: 'Nul' }

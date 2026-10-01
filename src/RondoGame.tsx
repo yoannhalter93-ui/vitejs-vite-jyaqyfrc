@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
+import { supabase } from './supabaseClient'
+import { useAuth } from './AuthContext'
+import { useWizzChannel } from './wizzChannel'
 
 // ============================================================================
-// Le toro (taureau / rondo) — PROTOTYPE de mini-jeu (visible par
-// l'administrateur seulement, score non enregistré).
+// Le toro (taureau / rondo) — mini-jeu de la semaine (dans la rotation à
+// partir du 5 octobre 2026). En mode entraînement (practice, depuis le
+// Profil de l'administrateur) rien n'est enregistré.
 //
 // Tes 6 joueurs (jaunes) sont en cercle et bougent un peu ; un taureau (rouge)
 // est au milieu. Tape un coéquipier pour lui passer le ballon. Le taureau
@@ -15,7 +19,28 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 // ============================================================================
 
 interface Props {
+  groupId?: string
+  groupName?: string
+  autoApplyAllLeagues?: boolean
+  practice?: boolean // entraînement : score non enregistré, pas d'annonce au groupe
   onExit: () => void
+}
+
+interface ScoreRow { profile_id: string; score: number; pseudo: string }
+interface BestScore { pseudo: string; score: number }
+
+const MAX_SCORE = 2000
+
+function monday(): string {
+  const now = new Date()
+  const day = now.getUTCDay()
+  const diff = day === 0 ? 6 : day - 1
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - diff)).toISOString().slice(0, 10)
+}
+function previousMonday(): string {
+  const d = new Date(monday() + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() - 7)
+  return d.toISOString().slice(0, 10)
 }
 
 type P = { x: number; y: number }
@@ -231,7 +256,15 @@ function kick(e: Engine, to: number) {
   e.habits[diff] += 1
 }
 
-export default function RondoGame({ onExit }: Props) {
+export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = false, practice = false, onExit }: Props) {
+  const { user } = useAuth()
+  const live = !practice && !!groupId
+  const sendOnWizzChannel = useWizzChannel(live ? groupId : null)
+  const [myPseudo, setMyPseudo] = useState<string | null>(null)
+  const [scores, setScores] = useState<ScoreRow[]>([])
+  const [lastWeekBest, setLastWeekBest] = useState<BestScore | null>(null)
+  const [allTimeBest, setAllTimeBest] = useState<BestScore | null>(null)
+  const [showBoard, setShowBoard] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
   const engineRef = useRef<Engine>(newEngine((Math.random() * 4294967296) >>> 0))
@@ -241,6 +274,63 @@ export default function RondoGame({ onExit }: Props) {
   const [bulls, setBulls] = useState(1)
   const [best, setBest] = useState(0)
   const [showRules, setShowRules] = useState(false)
+
+  const loadScores = async () => {
+    if (!live || !groupId) return
+    const { data: s } = await supabase.from('toro_scores').select('profile_id, score')
+      .eq('group_id', groupId).eq('week_start', monday()).order('score', { ascending: false })
+    const { data: lastWeekRows } = await supabase.from('toro_scores').select('profile_id, score')
+      .eq('group_id', groupId).eq('week_start', previousMonday()).order('score', { ascending: false }).limit(1)
+    const { data: allTimeRows } = await supabase.from('toro_scores').select('profile_id, score')
+      .eq('group_id', groupId).order('score', { ascending: false }).limit(1)
+    const ids = new Set<string>()
+    for (const r of [...(s ?? []), ...(lastWeekRows ?? []), ...(allTimeRows ?? [])]) ids.add(r.profile_id)
+    let pseudos: Record<string, string> = {}
+    if (ids.size > 0) {
+      const { data: profs } = await supabase.from('profiles').select('id, pseudo').in('id', [...ids])
+      pseudos = Object.fromEntries((profs ?? []).map((p) => [p.id, p.pseudo]))
+    }
+    const bestBy: Record<string, number> = {}
+    for (const r of s ?? []) bestBy[r.profile_id] = Math.max(bestBy[r.profile_id] ?? 0, r.score)
+    setScores(Object.entries(bestBy)
+      .map(([profile_id, sc]) => ({ profile_id, score: sc, pseudo: pseudos[profile_id] ?? '???' }))
+      .sort((a, b) => b.score - a.score))
+    setLastWeekBest(lastWeekRows?.[0] ? { pseudo: pseudos[lastWeekRows[0].profile_id] ?? '???', score: lastWeekRows[0].score } : null)
+    setAllTimeBest(allTimeRows?.[0] ? { pseudo: pseudos[allTimeRows[0].profile_id] ?? '???', score: allTimeRows[0].score } : null)
+  }
+
+  useEffect(() => {
+    loadScores()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId])
+
+  useEffect(() => {
+    if (!user) return
+    supabase.from('profiles').select('pseudo').eq('id', user.id).maybeSingle()
+      .then(({ data }) => setMyPseudo(data?.pseudo ?? null))
+  }, [user])
+
+  // partie interrompue (on quitte l'écran) : on prévient le groupe
+  useEffect(() => {
+    return () => {
+      const ph = engineRef.current.phase
+      if (live && user && (ph === 'play' || ph === 'lost')) sendOnWizzChannel('playing', { action: 'stop', profileId: user.id })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId, user])
+
+  // fin de partie : enregistrement du score (toutes les ligues si l'option est active)
+  const finishGame = (final: number) => {
+    if (!live || !user || !groupId) return
+    sendOnWizzChannel('playing', { action: 'stop', profileId: user.id })
+    const score = Math.min(final, MAX_SCORE)
+    const save = autoApplyAllLeagues
+      ? supabase.rpc('submit_toro_score_all_leagues', { p_score: score })
+      : supabase.from('toro_scores').insert({ group_id: groupId, profile_id: user.id, week_start: monday(), score })
+    save.then(() => loadScores())
+  }
+  const finishRef = useRef(finishGame)
+  finishRef.current = finishGame
 
   const sync = () => {
     const e = engineRef.current
@@ -257,6 +347,9 @@ export default function RondoGame({ onExit }: Props) {
     engineRef.current = e
     setPhase('play')
     sync()
+    if (live && user && groupId) {
+      sendOnWizzChannel('playing', { action: 'start', profileId: user.id, pseudo: myPseudo || 'Un coéquipier', game: 'toro' })
+    }
   }
 
   const say = (e: Engine, text: string, sub: string, color: string) => {
@@ -281,6 +374,7 @@ export default function RondoGame({ onExit }: Props) {
         e.phase = 'over'
         setBest((b) => Math.max(b, e.points))
         setPhase('over')
+        finishRef.current(e.points)
       }
       return
     }
@@ -608,8 +702,8 @@ export default function RondoGame({ onExit }: Props) {
   return (
     <div className="predictions-screen dribble-page">
       <div className="predictions-header">
-        <button className="predictions-back" onClick={onExit}>← Profil</button>
-        <h2>🐂 Le toro (test)</h2>
+        <button className="predictions-back" onClick={onExit}>{practice ? '← Profil' : '← Accueil'}</button>
+        <h2>{practice ? '🐂 Le toro (entraînement)' : `🐂 Le toro — ${groupName ?? ''}`}</h2>
       </div>
 
       <div className="dribble-app">
@@ -638,7 +732,7 @@ export default function RondoGame({ onExit }: Props) {
           {phase === 'idle' && (
             <div className="dribble-idle-msg">
               <span style={{ fontSize: 30 }}>🐂</span>
-              <p className="dribble-sub">Fais tourner le ballon sans te faire prendre par le taureau. Mode test : score non enregistré.</p>
+              <p className="dribble-sub">Fais tourner le ballon sans te faire prendre par le taureau.{practice ? ' Entraînement : score non enregistré.' : ''}</p>
               <button className="dribble-cta" onClick={startGame}>Commencer</button>
             </div>
           )}
@@ -654,6 +748,32 @@ export default function RondoGame({ onExit }: Props) {
           )}
         </div>
       </div>
+
+      {live && (allTimeBest || lastWeekBest || scores.length > 0) && (
+        <button type="button" className="dribble-rules-toggle" onClick={() => setShowBoard((v) => !v)}>
+          {showBoard ? 'Masquer le classement ▲' : '🏆 Voir le classement ▼'}
+        </button>
+      )}
+      {showBoard && (allTimeBest || lastWeekBest) && (
+        <div className="juggle-palmares">
+          <p className="predictions-period">🏆 Palmarès</p>
+          {allTimeBest && <p className="juggle-palmares-row">Record du groupe : <b>{allTimeBest.score}</b> ({allTimeBest.pseudo})</p>}
+          {lastWeekBest && <p className="juggle-palmares-row">Semaine dernière : <b>{lastWeekBest.score}</b> ({lastWeekBest.pseudo})</p>}
+        </div>
+      )}
+      {showBoard && scores.length > 0 && (
+        <div className="roulette-teammates">
+          <p className="predictions-period">Meilleurs scores de la semaine :</p>
+          <ul className="matches-list">
+            {scores.map((r, i) => (
+              <li className="match-card roulette-teammate-card" key={r.profile_id}>
+                <span>{i + 1}. {r.pseudo}</span>
+                <span className="roulette-teammate-team">{r.score}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }

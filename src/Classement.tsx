@@ -137,8 +137,10 @@ export default function Classement({ groupId, groupName }: Props) {
         // onglet "Mini-jeux" : tous les concours hebdomadaires (avant, seuls
         // les points du jonglage y apparaissaient, pas ceux du dribble)
         ? mergeCategoryPoints(
-            mergeCategoryPoints(categoryPoints['jonglage_chrono'], categoryPoints['dribble_chrono']),
-            categoryPoints['coup_franc_chrono'])
+            mergeCategoryPoints(
+              mergeCategoryPoints(categoryPoints['jonglage_chrono'], categoryPoints['dribble_chrono']),
+              categoryPoints['coup_franc_chrono']),
+            categoryPoints['toro_chrono'])
         : tab === 'jeu_semaine'
           // onglet "Événements" : But en or + événements de journée
           ? mergeCategoryPoints(categoryPoints['jeu_semaine'], categoryPoints['evenement'])
