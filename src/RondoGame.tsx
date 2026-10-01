@@ -45,7 +45,7 @@ function previousMonday(): string {
 
 type P = { x: number; y: number }
 
-const LW = 360 // largeur logique de l'écran
+export const LW = 360 // largeur logique de l'écran
 const SCALE = LW / 27 // px logiques par mètre
 const RADIUS = 9.5 // rayon du cercle des joueurs (m)
 const N_PLAYERS = 6
@@ -231,6 +231,120 @@ function interceptPoint(ball: Ball, b: P, speed: number, reach: number): P | nul
   return null
 }
 
+// ---------------------------------------------------------- dessin -----
+// Ce qu'il faut pour dessiner une partie : le moteur du joueur, ou l'état
+// reçu en direct par un spectateur (ToroSpectator).
+export interface ToroView {
+  viewH: number
+  t: number
+  players: P[]
+  bulls: P[]
+  ball: P & { to: number }
+  carrier: number
+  queued: number
+  msg: { text: string; sub: string; color: string; at: number } | null
+}
+
+export function drawToro(ctx: CanvasRenderingContext2D, e: ToroView, viewers = 0) {
+  const H = e.viewH
+  const X = (x: number) => LW / 2 + x * SCALE
+  const Y = (y: number) => H / 2 - y * SCALE
+
+  ctx.fillStyle = '#1d6b45'
+  ctx.fillRect(0, 0, LW, H)
+  for (let s = -20; s < 20; s += 2.5) {
+    if (((s / 2.5) | 0) % 2 === 0) { ctx.fillStyle = '#227a4f'; ctx.fillRect(0, Y(s + 2.5), LW, 2.5 * SCALE) }
+  }
+  // cercle de l'exercice + plots
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)'
+  ctx.lineWidth = 1.5
+  ctx.setLineDash([6, 6])
+  ctx.beginPath(); ctx.arc(X(0), Y(0), RADIUS * SCALE, 0, Math.PI * 2); ctx.stroke()
+  ctx.setLineDash([])
+  for (let i = 0; i < 12; i++) {
+    const a = (i * Math.PI * 2) / 12 + 0.26
+    const cx = X(Math.cos(a) * (RADIUS + 2.2)), cy = Y(Math.sin(a) * (RADIUS + 2.2))
+    ctx.fillStyle = '#E8833A'
+    ctx.beginPath(); ctx.moveTo(cx, cy - 5); ctx.lineTo(cx - 4, cy + 3); ctx.lineTo(cx + 4, cy + 3); ctx.closePath(); ctx.fill()
+  }
+
+  const r = PLAYER_R * SCALE
+  const disc = (x: number, y: number, fill: string, ring?: string) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'
+    ctx.beginPath(); ctx.ellipse(X(x) + 2, Y(y) + 3, r, r * 0.8, 0, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = fill
+    ctx.beginPath(); ctx.arc(X(x), Y(y), r, 0, Math.PI * 2); ctx.fill()
+    ctx.strokeStyle = ring ?? 'rgba(0,0,0,0.35)'
+    ctx.lineWidth = ring ? 2.6 : 1
+    ctx.stroke()
+  }
+
+  e.players.forEach((p, i) => disc(p.x, p.y, '#E8B931', i === e.carrier ? '#fff' : undefined))
+  // passe anticipée : flèche du receveur vers le prochain joueur
+  if (e.queued >= 0 && e.carrier < 0) {
+    const a = e.players[e.ball.to], q = e.players[e.queued]
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)'
+    ctx.lineWidth = 2
+    ctx.setLineDash([5, 5])
+    ctx.beginPath(); ctx.moveTo(X(a.x), Y(a.y)); ctx.lineTo(X(q.x), Y(q.y)); ctx.stroke()
+    ctx.setLineDash([])
+    ctx.beginPath(); ctx.arc(X(q.x), Y(q.y), r + 5, 0, Math.PI * 2); ctx.stroke()
+  }
+
+  // taureaux : disque rouge avec deux cornes
+  for (const b of e.bulls) {
+    const bx = X(b.x), by = Y(b.y)
+    ctx.strokeStyle = '#F4EFE2'
+    ctx.lineWidth = 2.4
+    ctx.lineCap = 'round'
+    ctx.beginPath(); ctx.moveTo(bx - r * 0.6, by - r * 0.6); ctx.quadraticCurveTo(bx - r * 1.4, by - r * 1.0, bx - r * 1.1, by - r * 1.7); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(bx + r * 0.6, by - r * 0.6); ctx.quadraticCurveTo(bx + r * 1.4, by - r * 1.0, bx + r * 1.1, by - r * 1.7); ctx.stroke()
+    ctx.lineCap = 'butt'
+    disc(b.x, b.y, '#C8443C')
+  }
+
+  // ballon
+  const b = e.ball
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'
+  ctx.beginPath(); ctx.arc(X(b.x) + 1.5, Y(b.y) + 2, 4.5, 0, Math.PI * 2); ctx.fill()
+  ctx.fillStyle = '#fff'
+  ctx.beginPath(); ctx.arc(X(b.x), Y(b.y), 4.5, 0, Math.PI * 2); ctx.fill()
+  ctx.strokeStyle = '#1B1B1F'
+  ctx.lineWidth = 0.8
+  ctx.stroke()
+
+  if (e.msg && e.t - e.msg.at < 1.6) {
+    const a = Math.min(1, (1.6 - (e.t - e.msg.at)) / 0.4)
+    ctx.globalAlpha = a
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = 'rgba(12,44,34,0.75)'
+    // en haut de l'écran : le centre du cercle reste visible
+    const my = Math.max(36, H / 2 - (RADIUS + 3.5) * SCALE)
+    ctx.fillRect(LW / 2 - 130, my - 29, 260, 58)
+    ctx.fillStyle = e.msg.color
+    ctx.font = 'bold 24px Oswald, sans-serif'
+    ctx.fillText(e.msg.text, LW / 2, my - 7)
+    ctx.fillStyle = '#F4EFE2'
+    ctx.font = '12px sans-serif'
+    ctx.fillText(e.msg.sub, LW / 2, my + 16)
+    ctx.globalAlpha = 1
+  }
+
+  // nombre de potes qui regardent la partie en direct
+  if (viewers > 0) {
+    const label = `👀 ${viewers} pote${viewers > 1 ? 's' : ''} te regarde${viewers > 1 ? 'nt' : ''}`
+    ctx.font = 'bold 12px sans-serif'
+    const w = ctx.measureText(label).width + 16
+    ctx.fillStyle = 'rgba(12,44,34,0.75)'
+    ctx.fillRect(8, H - 30, w, 22)
+    ctx.fillStyle = '#F4EFE2'
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(label, 16, H - 19)
+  }
+}
+
 // passe du porteur vers le joueur `to`
 function kick(e: Engine, to: number) {
   const target = e.players[to]
@@ -265,6 +379,45 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
   const [lastWeekBest, setLastWeekBest] = useState<BestScore | null>(null)
   const [allTimeBest, setAllTimeBest] = useState<BestScore | null>(null)
   const [showBoard, setShowBoard] = useState(false)
+
+  // --- direct : les potes peuvent regarder la partie (ToroSpectator) ---
+  // Canal `toro-live-<mon id>` : les spectateurs y signalent leur présence ;
+  // on n'envoie l'état du jeu (10 fois par seconde) que si quelqu'un regarde.
+  const liveChanRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const viewersRef = useRef(0)
+  const lastFrameRef = useRef(0)
+  const overSentRef = useRef(false)
+  const openLive = () => {
+    if (!live || !user || liveChanRef.current) return
+    const ch = supabase.channel(`toro-live-${user.id}`, { config: { broadcast: { self: false }, presence: { key: 'player' } } })
+    ch.on('presence', { event: 'sync' }, () => {
+      viewersRef.current = Object.keys(ch.presenceState()).filter((k) => k !== 'player').length
+    }).subscribe()
+    liveChanRef.current = ch
+  }
+  useEffect(() => () => {
+    if (liveChanRef.current) supabase.removeChannel(liveChanRef.current)
+    liveChanRef.current = null
+  }, [])
+  const sendFrame = (ts: number) => {
+    const ch = liveChanRef.current
+    const e = engineRef.current
+    if (!ch || viewersRef.current === 0 || e.phase === 'idle') return
+    if (e.phase === 'over') { if (overSentRef.current) return; overSentRef.current = true }
+    else if (ts - lastFrameRef.current < 100) return
+    lastFrameRef.current = ts
+    const r = (v: number) => Math.round(v * 100) / 100
+    ch.send({
+      type: 'broadcast', event: 'frame',
+      payload: {
+        t: r(e.t), ph: e.phase, c: e.carrier, to: e.ball.to, q: e.queued,
+        b: [r(e.ball.x), r(e.ball.y)],
+        p: e.players.map((pl) => [r(pl.x), r(pl.y)]),
+        u: e.bulls.map((bl) => [r(bl.x), r(bl.y)]),
+        n: e.passes, s: e.points, m: e.msg,
+      },
+    })
+  }
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
   const engineRef = useRef<Engine>(newEngine((Math.random() * 4294967296) >>> 0))
@@ -345,6 +498,8 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
     e.phase = 'play'
     e.msg = { text: 'Toro !', sub: 'Tape un coéquipier pour lui passer le ballon', color: '#F4EFE2', at: 0 }
     engineRef.current = e
+    overSentRef.current = false
+    openLive()
     setPhase('play')
     sync()
     if (live && user && groupId) {
@@ -552,95 +707,6 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
     if (Math.hypot(ball.x, ball.y) > RADIUS + 4) lose(e, 'Sortie !', 'Le ballon a quitté le cercle')
   }
 
-  // ---------------------------------------------------------- dessin -----
-  const draw = (ctx: CanvasRenderingContext2D) => {
-    const e = engineRef.current
-    const H = e.viewH
-    const X = (x: number) => LW / 2 + x * SCALE
-    const Y = (y: number) => H / 2 - y * SCALE
-
-    ctx.fillStyle = '#1d6b45'
-    ctx.fillRect(0, 0, LW, H)
-    for (let s = -20; s < 20; s += 2.5) {
-      if (((s / 2.5) | 0) % 2 === 0) { ctx.fillStyle = '#227a4f'; ctx.fillRect(0, Y(s + 2.5), LW, 2.5 * SCALE) }
-    }
-    // cercle de l'exercice + plots
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)'
-    ctx.lineWidth = 1.5
-    ctx.setLineDash([6, 6])
-    ctx.beginPath(); ctx.arc(X(0), Y(0), RADIUS * SCALE, 0, Math.PI * 2); ctx.stroke()
-    ctx.setLineDash([])
-    for (let i = 0; i < 12; i++) {
-      const a = (i * Math.PI * 2) / 12 + 0.26
-      const cx = X(Math.cos(a) * (RADIUS + 2.2)), cy = Y(Math.sin(a) * (RADIUS + 2.2))
-      ctx.fillStyle = '#E8833A'
-      ctx.beginPath(); ctx.moveTo(cx, cy - 5); ctx.lineTo(cx - 4, cy + 3); ctx.lineTo(cx + 4, cy + 3); ctx.closePath(); ctx.fill()
-    }
-
-    const r = PLAYER_R * SCALE
-    const disc = (x: number, y: number, fill: string, ring?: string) => {
-      ctx.fillStyle = 'rgba(0,0,0,0.25)'
-      ctx.beginPath(); ctx.ellipse(X(x) + 2, Y(y) + 3, r, r * 0.8, 0, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = fill
-      ctx.beginPath(); ctx.arc(X(x), Y(y), r, 0, Math.PI * 2); ctx.fill()
-      ctx.strokeStyle = ring ?? 'rgba(0,0,0,0.35)'
-      ctx.lineWidth = ring ? 2.6 : 1
-      ctx.stroke()
-    }
-
-    e.players.forEach((p, i) => disc(p.x, p.y, '#E8B931', i === e.carrier ? '#fff' : undefined))
-    // passe anticipée : flèche du receveur vers le prochain joueur
-    if (e.queued >= 0 && e.carrier < 0) {
-      const a = e.players[e.ball.to], q = e.players[e.queued]
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)'
-      ctx.lineWidth = 2
-      ctx.setLineDash([5, 5])
-      ctx.beginPath(); ctx.moveTo(X(a.x), Y(a.y)); ctx.lineTo(X(q.x), Y(q.y)); ctx.stroke()
-      ctx.setLineDash([])
-      ctx.beginPath(); ctx.arc(X(q.x), Y(q.y), r + 5, 0, Math.PI * 2); ctx.stroke()
-    }
-
-    // taureaux : disque rouge avec deux cornes
-    for (const b of e.bulls) {
-      const bx = X(b.x), by = Y(b.y)
-      ctx.strokeStyle = '#F4EFE2'
-      ctx.lineWidth = 2.4
-      ctx.lineCap = 'round'
-      ctx.beginPath(); ctx.moveTo(bx - r * 0.6, by - r * 0.6); ctx.quadraticCurveTo(bx - r * 1.4, by - r * 1.0, bx - r * 1.1, by - r * 1.7); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(bx + r * 0.6, by - r * 0.6); ctx.quadraticCurveTo(bx + r * 1.4, by - r * 1.0, bx + r * 1.1, by - r * 1.7); ctx.stroke()
-      ctx.lineCap = 'butt'
-      disc(b.x, b.y, '#C8443C')
-    }
-
-    // ballon
-    const b = e.ball
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'
-    ctx.beginPath(); ctx.arc(X(b.x) + 1.5, Y(b.y) + 2, 4.5, 0, Math.PI * 2); ctx.fill()
-    ctx.fillStyle = '#fff'
-    ctx.beginPath(); ctx.arc(X(b.x), Y(b.y), 4.5, 0, Math.PI * 2); ctx.fill()
-    ctx.strokeStyle = '#1B1B1F'
-    ctx.lineWidth = 0.8
-    ctx.stroke()
-
-    if (e.msg && e.t - e.msg.at < 1.6) {
-      const a = Math.min(1, (1.6 - (e.t - e.msg.at)) / 0.4)
-      ctx.globalAlpha = a
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillStyle = 'rgba(12,44,34,0.75)'
-      // en haut de l'écran : le centre du cercle reste visible
-      const my = Math.max(36, H / 2 - (RADIUS + 3.5) * SCALE)
-      ctx.fillRect(LW / 2 - 130, my - 29, 260, 58)
-      ctx.fillStyle = e.msg.color
-      ctx.font = 'bold 24px Oswald, sans-serif'
-      ctx.fillText(e.msg.text, LW / 2, my - 7)
-      ctx.fillStyle = '#F4EFE2'
-      ctx.font = '12px sans-serif'
-      ctx.fillText(e.msg.sub, LW / 2, my + 16)
-      ctx.globalAlpha = 1
-    }
-  }
-
   // ------------------------------------------------ boucle d'animation -----
   useEffect(() => {
     const canvas = canvasRef.current
@@ -667,7 +733,8 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
       last = ts
       engineRef.current.viewH = (canvas.height / canvas.width) * LW
       for (let i = 0; i < 3; i++) step(dt / 3)
-      draw(ctx)
+      drawToro(ctx, engineRef.current, viewersRef.current)
+      sendFrame(ts)
       // état lisible par les tests automatisés (bot), seulement s'ils le demandent
       if ((window as any).__toroDebug) (window as any).__toro = engineRef.current
       raf = requestAnimationFrame(loop)

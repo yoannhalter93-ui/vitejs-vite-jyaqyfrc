@@ -19,6 +19,7 @@ import DribbleGame from './DribbleGame';
 import FreeKickGame from './FreeKickGame';
 import RondoGame from './RondoGame';
 import Rules from './Rules';
+import ToroSpectator from './ToroSpectator';
 import WeeklySpecial from './WeeklySpecial';
 import Avatar from './Avatar'
 import PredictionsHistory from './PredictionsHistory'
@@ -93,6 +94,8 @@ type Screen =
   | 'admin-events'
   // règles du jeu (accessibles depuis le Profil)
   | 'regles'
+  // regarder un pote jouer au toro en direct (voir watching)
+  | 'regarder'
   // prototype du mini-jeu Le toro, réservé à l'administrateur (Profil)
   | 'test-toro'
   // écran d'accueil de groupe (une seule fois, à la première entrée dans
@@ -157,6 +160,7 @@ const MINIGAME_TILES: {
 // atteint depuis le tableau de bord, reste sous l'onglet "Pronos")
 function bottomTabFor(screen: Screen): Screen {
   if (screen === 'pronostics' || screen === 'recap' || screen === 'evenement' || screen === 'evenement-journee') return 'accueil'
+  if (screen === 'regarder') return 'jeux'
   if (screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') return 'jeux'
   if (screen === 'parametres' || screen === 'historique-pronos' || screen === 'stats' || screen === 'aide' || screen === 'admin-events' || screen === 'regles' || screen === 'test-toro') return 'profil'
   return screen
@@ -340,6 +344,8 @@ function App() {
   // tout le reste pour lui montrer l'écran dédié plutôt que l'appli.
   const [isRecovery, setIsRecovery] = useState(() => window.location.hash.includes('type=recovery'))
   const [juggleAlert, setJuggleAlert] = useState<{ profileId: string; pseudo: string; game: string } | null>(null)
+  // pote qu'on regarde jouer au toro en direct (écran 'regarder')
+  const [watching, setWatching] = useState<{ profileId: string; pseudo: string } | null>(null)
   const [myPseudo, setMyPseudo] = useState<string | null>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null)
@@ -1518,11 +1524,17 @@ function App() {
           <button className="wizz-alert-close" onClick={() => setInviteMessage(null)} aria-label="Fermer">✕</button>
         </div>
       )}
-      {juggleAlert && !showNotifPanel && (
+      {juggleAlert && !showNotifPanel && !(screen === 'regarder' && watching?.profileId === juggleAlert.profileId) && (
         <div className="wizz-alert-banner">
           <span>{MINIGAME_INFO[juggleAlert.game as MinigameKey]?.icon ?? '🤹'} {juggleAlert.pseudo} joue au mini-jeu !</span>
           {juggleAlert.game === 'jonglage' && (
             <button className="juggle-wizz-btn" onClick={sendWizz}>🧪 Envoyer un wizz</button>
+          )}
+          {juggleAlert.game === 'toro' && screen !== 'regarder' && (
+            <button
+              className="juggle-wizz-btn"
+              onClick={() => { setWatching({ profileId: juggleAlert.profileId, pseudo: juggleAlert.pseudo }); setScreen('regarder') }}
+            >👀 Regarder</button>
           )}
           <button className="wizz-alert-close" onClick={() => setJuggleAlert(null)} aria-label="Fermer">✕</button>
         </div>
@@ -1783,6 +1795,8 @@ function App() {
           <MyStats onBack={() => setScreen('profil')} />
         ) : screen === 'aide' ? (
           <Help onBack={() => setScreen('profil')} />
+        ) : screen === 'regarder' && watching ? (
+          <ToroSpectator key={watching.profileId} profileId={watching.profileId} pseudo={watching.pseudo} onExit={() => setScreen('jeux')} />
         ) : screen === 'regles' ? (
           <Rules onBack={() => setScreen('profil')} backLabel="Profil" />
         ) : screen === 'admin-events' && isAdmin ? (
