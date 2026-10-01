@@ -1700,15 +1700,6 @@ function App() {
 
             <div className="parametres-card">
               <h3 className="parametres-card-title">Préférences</h3>
-              <button
-                className="parametres-row"
-                disabled={!selectedGroup}
-                onClick={() => setScreen('roulette')}
-              >
-                <span className="parametres-row-icon">🛡️</span>
-                <span className="parametres-row-label">Mon équipe</span>
-                <span className="parametres-row-chevron">›</span>
-              </button>
               <div className="parametres-row parametres-row-static">
                 <span className="parametres-row-icon">🏆</span>
                 <span className="parametres-row-label">Compétition</span>
