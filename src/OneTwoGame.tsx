@@ -362,6 +362,11 @@ export default function OneTwoGame({ onExit }: Props) {
       }
     }
 
+    // un ballon qui arrive dans le but (même sur une passe) est une frappe
+    if (!ball.shot && ball.y >= GOAL_Y - 0.6 && Math.abs(ball.x) <= GOAL_HALF_W + 0.5) {
+      ball.shot = true
+      ball.target = { x: ball.x, y: GOAL_Y }
+    }
     if (ball.shot) {
       if (ball.y >= GOAL_Y - 0.6 && prev.y < GOAL_Y - 0.6) {
         const xAtLine = ball.x
@@ -599,7 +604,10 @@ export default function OneTwoGame({ onExit }: Props) {
     const d = Math.hypot(dx, dy)
     if (d < 1.5) return
     e.tap = { p, at: e.t }
-    const shot = from.y >= BOX_Y - 2 && p.y >= SIX_Y - 1
+    // frappe : depuis la surface (tap dans les 6 m), ou de n'importe où en
+    // tapant dans le but (de loin, le gardien a le temps de se placer)
+    const inGoal = p.y >= GOAL_Y - 2.5 && Math.abs(p.x) <= GOAL_HALF_W + 1.5
+    const shot = inGoal || (from.y >= BOX_Y - 2 && p.y >= SIX_Y - 1)
     let target = p
     if (shot) {
       // frappe : vers la ligne de but, à l'endroit visé
@@ -638,8 +646,7 @@ export default function OneTwoGame({ onExit }: Props) {
             Tu attaques vers le haut. Tape l'endroit où tu veux envoyer le ballon : il part droit vers ce point.
             Un coéquipier jaune qui passe près du ballon le contrôle (les pointillés montrent où il court). Les
             défenseurs rouges coupent les lignes de passe : vise devant ton coéquipier, dans l'espace. Le cercle
-            autour du porteur, c'est ton temps ballon au pied avant d'être taclé. Dans la surface, tape dans le but
-            pour frapper. Passe = 1 point, but = 5 points ; chaque but relance une attaque plus dure. Au premier
+            autour du porteur, c'est ton temps ballon au pied avant d'être taclé. Tape dans le but pour frapper (de loin, le gardien a le temps de se placer : rapproche-toi). Passe = 1 point, but = 5 points ; chaque but relance une attaque plus dure. Au premier
             ballon perdu, c'est fini.
           </p>
         )}
