@@ -56,6 +56,7 @@ const RECEIVE_R = 1.4
 const TACKLE_R = 1.2
 const CONTROL_TIME = 0.45 // le temps du contrôle, personne ne peut tacler
 const SECOND_BULL_AT = 12
+const EXPERT_AT = 60 // les taureaux ferment tout sauf une passe, et la ferment aussi si on traîne
 const SMART_AT = 45 // les taureaux apprennent tes habitudes, feintent et tendent des pièges
 const LEVEL_EVERY = 6 // le taureau accélère toutes les 6 passes
 
@@ -104,6 +105,8 @@ interface Engine {
   lastRecvT: number
   habits: number[] // fréquence (récente) de chaque écart de passe autour du cercle
   smart: boolean
+  expert: boolean
+  plan: ExpertPlan | null // mode expert : placement concerté des taureaux pour le porteur actuel
   wizzUntil: number // chambrage d'un spectateur : un taureau en plus jusqu'à ce moment
   hold: number
   ball: Ball
@@ -194,7 +197,7 @@ function newEngine(seed: number): Engine {
   const e: Engine = {
     phase: 'idle', t: 0, rng, players,
     bulls: [newBull(rng)],
-    carrier: Math.floor(rng() * N_PLAYERS), from: -1, queued: -1, rotDir: 0, rotStreak: 0, guessDir: 1, cycle: 1.3, lastRecvT: -1, habits: Array(N_PLAYERS).fill(0), smart: false, wizzUntil: 0, hold: -1, // 1,5 s de répit au départ
+    carrier: Math.floor(rng() * N_PLAYERS), from: -1, queued: -1, rotDir: 0, rotStreak: 0, guessDir: 1, cycle: 1.3, lastRecvT: -1, habits: Array(N_PLAYERS).fill(0), smart: false, expert: false, plan: null, wizzUntil: 0, hold: -1, // 1,5 s de répit au départ
     ball: { x: 0, y: 0, vx: 0, vy: 0, to: -1, crossedGap: false },
     flightT: 0, passes: 0, points: 0, msg: null, pauseUntil: 0, viewH: 480,
   }
@@ -349,6 +352,77 @@ export function drawToro(ctx: CanvasRenderingContext2D, e: ToroView, viewers = 0
     ctx.textBaseline = 'middle'
     ctx.fillText(label, 16, H - 19)
   }
+}
+
+// ---------------------------------------------------------- mode expert --
+// À partir de 60 passes, les taureaux se concertent à chaque réception : ils
+// ferment toutes les lignes de passe sauf UNE (tirée au hasard). Si le joueur
+// tarde (fenêtre `window`), le taureau le plus proche ferme aussi celle-là et
+// un autre fonce sur le porteur.
+interface ExpertPlan {
+  carrier: number
+  bullCount: number
+  open: number // joueur laissé libre
+  goals: P[] // place de chaque taureau (même ordre que e.bulls)
+  closer: number // taureau qui ferme la passe libre une fois la fenêtre passée
+  presser: number // taureau qui fonce ensuite sur le porteur
+  openShut: P
+  window: number
+}
+
+function expertPlan(e: Engine, carrierIdx: number): ExpertPlan {
+  const c = e.players[carrierIdx]
+  const cand = e.players.map((_, j) => j).filter((j) => j !== carrierIdx)
+  const open = cand[Math.floor(e.rng() * cand.length)]
+  const lanes = cand.filter((j) => j !== open).map((j) => {
+    const p = e.players[j]
+    const dx = p.x - c.x, dy = p.y - c.y, len = Math.hypot(dx, dy) || 1
+    return { ang: Math.atan2(dy, dx), ux: dx / len, uy: dy / len, len }
+  })
+  // vu du porteur (sur le cercle), les lignes tiennent dans un demi-tour :
+  // on peut les trier par angle en partant de la direction du centre
+  const ref = Math.atan2(-c.y, -c.x)
+  const rel = (a: number) => { let d = a - ref; while (d < -Math.PI) d += 2 * Math.PI; while (d > Math.PI) d -= 2 * Math.PI; return d }
+  lanes.sort((a, b) => rel(a.ang) - rel(b.ang))
+  // autant de groupes de lignes que de taureaux : on fusionne les lignes voisines
+  let groups = lanes.map((l) => [l])
+  while (groups.length > e.bulls.length && groups.length > 1) {
+    let bi = 0, bg = Infinity
+    for (let i = 0; i < groups.length - 1; i++) {
+      const g = Math.abs(rel(groups[i + 1][0].ang) - rel(groups[i][groups[i].length - 1].ang))
+      if (g < bg) { bg = g; bi = i }
+    }
+    groups = [...groups.slice(0, bi), [...groups[bi], ...groups[bi + 1]], ...groups.slice(bi + 2)]
+  }
+  const spots = groups.map((g) => {
+    if (g.length === 1) { const d = Math.min(g[0].len * 0.42, 4.2); return { x: c.x + g[0].ux * d, y: c.y + g[0].uy * d } }
+    let ux = 0, uy = 0
+    for (const l of g) { ux += l.ux; uy += l.uy }
+    const ul = Math.hypot(ux, uy) || 1
+    return { x: c.x + (ux / ul) * 2.8, y: c.y + (uy / ul) * 2.8 }
+  })
+  // chaque place au taureau libre le plus proche
+  const goals: P[] = e.bulls.map(() => ({ x: c.x * 0.6, y: c.y * 0.6 }))
+  const free = e.bulls.map((_, i) => i)
+  for (const sp of spots) {
+    let k = 0
+    free.forEach((bi, idx) => { if (Math.hypot(e.bulls[bi].x - sp.x, e.bulls[bi].y - sp.y) < Math.hypot(e.bulls[free[k]].x - sp.x, e.bulls[free[k]].y - sp.y)) k = idx })
+    goals[free[k]] = sp
+    free.splice(k, 1)
+  }
+  const o = e.players[open]
+  const od = Math.hypot(o.x - c.x, o.y - c.y) || 1
+  const openShut = { x: c.x + ((o.x - c.x) / od) * Math.min(od * 0.45, 4.2), y: c.y + ((o.y - c.y) / od) * Math.min(od * 0.45, 4.2) }
+  let closer = 0
+  e.bulls.forEach((bl, i) => { if (Math.hypot(bl.x - openShut.x, bl.y - openShut.y) < Math.hypot(e.bulls[closer].x - openShut.x, e.bulls[closer].y - openShut.y)) closer = i })
+  // le presseur : un taureau sans place s'il y en a, sinon le plus proche du porteur
+  let presser = free.length ? free[0] : -1
+  if (presser < 0) {
+    presser = closer === 0 ? 1 : 0
+    e.bulls.forEach((bl, i) => { if (i !== closer && Math.hypot(bl.x - c.x, bl.y - c.y) < Math.hypot(e.bulls[presser].x - c.x, e.bulls[presser].y - c.y)) presser = i })
+  }
+  const window = Math.max(0.45, 0.75 - (e.passes - EXPERT_AT) * 0.01)
+  return { carrier: carrierIdx, bullCount: e.bulls.length, open, goals, closer, presser, openShut, window }
 }
 
 // passe du porteur vers le joueur `to`
@@ -528,7 +602,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
     const e = newEngine((Math.random() * 4294967296) >>> 0)
     // tests automatisés : démarrer à un nombre de passes donné
     const startAt = (window as any).__toroStartPasses
-    if (startAt) { e.passes = startAt; e.bulls.push(newBull(e.rng)); e.hold = 0; e.smart = startAt >= SMART_AT; if (e.smart) { const hb = newBull(e.rng); hb.hunter = true; e.bulls.push(hb) } }
+    if (startAt) { e.passes = startAt; e.bulls.push(newBull(e.rng)); e.hold = 0; e.smart = startAt >= SMART_AT; e.expert = startAt >= EXPERT_AT; if (e.smart) { const hb = newBull(e.rng); hb.hunter = true; e.bulls.push(hb) } }
     e.phase = 'play'
     e.msg = { text: 'Toro !', sub: 'Tape un coéquipier pour lui passer le ballon', color: '#F4EFE2', at: 0 }
     engineRef.current = e
@@ -603,10 +677,15 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
         // anticipe la passe suivante (il a repéré dans quel sens ça tourne)
         // piège : la passe qu'il avait laissée ouverte exprès, il l'attendait
         const trapped = e.smart && ball.to === b.bait
-        if (trapped || e.flightT >= L.reaction * b.reactMul) {
+        if (trapped || e.flightT >= (e.expert ? 0.05 : L.reaction * b.reactMul)) {
           const cut = interceptPoint(ball, b, sp * (trapped ? 1.12 : 0.95), L.reach)
           const amb = !cut && bi === 0 && e.rotStreak >= 1 ? ambush(e, b, sp) : null
           if (cut) b.goal = cut
+          else if (e.expert) {
+            // expert : ils se placent déjà pour le receveur pendant que le ballon voyage
+            if (!e.plan || e.plan.carrier !== ball.to || e.plan.bullCount !== e.bulls.length) e.plan = expertPlan(e, ball.to)
+            b.goal = e.plan.goals[bi] ?? b.goal
+          }
           else if (amb) b.goal = amb
           else {
             const r = e.players[ball.to]
@@ -616,6 +695,22 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
           }
         }
         steer(b, sp * (trapped ? 1.12 : 1), dt)
+        return
+      }
+      if (e.expert) {
+        // mode expert : placement concerté (une seule passe libre)
+        if (!e.plan || e.plan.carrier !== e.carrier || e.plan.bullCount !== e.bulls.length) {
+          if (bi === 0) e.plan = expertPlan(e, e.carrier)
+        }
+        const pl = e.plan
+        if (pl) {
+          b.goal = pl.goals[bi] ?? b.goal
+          if (e.hold > pl.window) {
+            if (bi === pl.closer) b.goal = pl.openShut // il ferme la dernière ouverture
+            else if (bi === pl.presser) b.goal = { x: carrier.x, y: carrier.y } // et ça presse
+          }
+        }
+        steer(b, sp, dt)
         return
       }
       if (b.temp || b.hunter) {
@@ -754,7 +849,11 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
       e.lastRecvT = e.t
       e.passes += 1
       e.points += 1
-      if (e.passes === SMART_AT) {
+      if (e.passes === EXPERT_AT) {
+        e.expert = true
+        e.plan = null
+        say(e, '🔥 Taureaux experts !', 'Une seule passe libre : trouve-la vite', '#E8705F')
+      } else if (e.passes === SMART_AT) {
         e.smart = true
         // et un 3e taureau entre pour de bon (de l'extérieur, à l'opposé du ballon)
         const a = Math.atan2(ball.y, ball.x) + Math.PI
@@ -856,7 +955,8 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
             touche le porteur ou intercepte le ballon, c'est fini. Il repère quand tu fais tourner le ballon toujours dans le même sens : varie ! Joue vite, en une touche ! 1 point par passe
             réussie. Toutes les 6 passes le taureau accélère, et à 12 passes un 2e taureau entre. Une passe entre les
             deux taureaux (petit pont) rapporte 2 points de plus. À 45 passes, un 3e taureau entre et les taureaux deviennent malins : ils
-            retiennent tes passes préférées, feintent et laissent des passes faussement libres.
+            retiennent tes passes préférées, feintent et laissent des passes faussement libres. À 60 passes, ils deviennent experts :
+            ils ferment toutes les passes sauf une, et la ferment aussi si tu tardes à la trouver.
           </p>
         )}
 
