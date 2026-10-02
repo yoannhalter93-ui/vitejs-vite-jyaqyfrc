@@ -74,6 +74,7 @@ interface Bull {
   reactMul: number
   bait: number // passe laissée ouverte exprès (piège), -1 : aucune
   temp?: boolean // taureau en plus amené par un chambrage (repart au bout de 7 s)
+  hunter?: boolean // 3e taureau (dès 45 passes) : même jeu indépendant que celui du chambrage
   hunt?: number // taureau du chambrage : joueur dont il coupe la ligne de passe
   huntUntil?: number
 }
@@ -527,7 +528,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
     const e = newEngine((Math.random() * 4294967296) >>> 0)
     // tests automatisés : démarrer à un nombre de passes donné
     const startAt = (window as any).__toroStartPasses
-    if (startAt) { e.passes = startAt; e.bulls.push(newBull(e.rng)); e.hold = 0; e.smart = startAt >= SMART_AT }
+    if (startAt) { e.passes = startAt; e.bulls.push(newBull(e.rng)); e.hold = 0; e.smart = startAt >= SMART_AT; if (e.smart) { const hb = newBull(e.rng); hb.hunter = true; e.bulls.push(hb) } }
     e.phase = 'play'
     e.msg = { text: 'Toro !', sub: 'Tape un coéquipier pour lui passer le ballon', color: '#F4EFE2', at: 0 }
     engineRef.current = e
@@ -617,8 +618,8 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
         steer(b, sp * (trapped ? 1.12 : 1), dt)
         return
       }
-      if (b.temp) {
-        // taureau du chambrage, indépendant des autres : il chasse la passe
+      if (b.temp || b.hunter) {
+        // taureau du chambrage (ou 3e taureau), indépendant des autres : il chasse la passe
         // la plus libre (celle qu'aucun autre taureau ne ferme) et la coupe
         // à mi-chemin ; il change de cible à chaque nouveau porteur ou ~1 s
         if (b.hunt === undefined || b.hunt === e.carrier || e.hold < dt * 2 || e.t >= (b.huntUntil ?? 0)) {
@@ -732,13 +733,17 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
       if (segDist(b, prev, ball) < L.reach) { lose(e, 'Intercepté !', 'Le taureau a coupé la passe'); return }
     }
     // petit pont : le ballon passe entre les deux taureaux
-    if (e.bulls.length === 2 && !ball.crossedGap) {
-      const [A, B] = e.bulls
-      if (Math.hypot(A.x - B.x, A.y - B.y) < 6 && crosses(prev, ball, A, B)) {
-        ball.crossedGap = true
-        e.points += 2
-        say(e, 'Petit pont !', '+2 points', '#E8B931')
-        sync()
+    // (entre deux taureaux quelconques quand il y en a plus de deux)
+    if (e.bulls.length >= 2 && !ball.crossedGap) {
+      outer: for (let i = 0; i < e.bulls.length; i++) for (let j = i + 1; j < e.bulls.length; j++) {
+        const A = e.bulls[i], B = e.bulls[j]
+        if (Math.hypot(A.x - B.x, A.y - B.y) < 6 && crosses(prev, ball, A, B)) {
+          ball.crossedGap = true
+          e.points += 2
+          say(e, 'Petit pont !', '+2 points', '#E8B931')
+          sync()
+          break outer
+        }
       }
     }
     const r = e.players[ball.to]
@@ -751,7 +756,13 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
       e.points += 1
       if (e.passes === SMART_AT) {
         e.smart = true
-        say(e, '🧠 Taureaux malins !', 'Ils ont appris ta façon de jouer', '#E8B931')
+        // et un 3e taureau entre pour de bon (de l'extérieur, à l'opposé du ballon)
+        const a = Math.atan2(ball.y, ball.x) + Math.PI
+        const hb = newBull(e.rng)
+        hb.x = Math.cos(a) * (RADIUS + 1.5); hb.y = Math.sin(a) * (RADIUS + 1.5)
+        hb.hunter = true
+        e.bulls.push(hb)
+        say(e, '🧠 3e taureau !', 'Et ils ont appris ta façon de jouer…', '#E8B931')
       } else if (e.passes === SECOND_BULL_AT) {
         e.bulls.push(newBull(e.rng))
         say(e, '2e taureau !', 'Ça se complique…', '#E8B931')
@@ -844,7 +855,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
             le ballon. Tape le suivant pendant que le ballon roule : le receveur le remet en une touche. Le taureau presse le porteur en fermant une passe et coupe celles qu'il peut atteindre : s'il
             touche le porteur ou intercepte le ballon, c'est fini. Il repère quand tu fais tourner le ballon toujours dans le même sens : varie ! Joue vite, en une touche ! 1 point par passe
             réussie. Toutes les 6 passes le taureau accélère, et à 12 passes un 2e taureau entre. Une passe entre les
-            deux taureaux (petit pont) rapporte 2 points de plus. À 45 passes, les taureaux deviennent malins : ils
+            deux taureaux (petit pont) rapporte 2 points de plus. À 45 passes, un 3e taureau entre et les taureaux deviennent malins : ils
             retiennent tes passes préférées, feintent et laissent des passes faussement libres.
           </p>
         )}
