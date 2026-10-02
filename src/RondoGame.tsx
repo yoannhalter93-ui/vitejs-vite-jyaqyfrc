@@ -73,6 +73,7 @@ interface Bull {
   speedMul: number
   reactMul: number
   bait: number // passe laissée ouverte exprès (piège), -1 : aucune
+  temp?: boolean // taureau en plus amené par un chambrage (repart au bout de 7 s)
 }
 
 interface Ball {
@@ -100,7 +101,7 @@ interface Engine {
   lastRecvT: number
   habits: number[] // fréquence (récente) de chaque écart de passe autour du cercle
   smart: boolean
-  wizzUntil: number // chambrage d'un spectateur : les taureaux sprintent jusqu'à ce moment
+  wizzUntil: number // chambrage d'un spectateur : un taureau en plus jusqu'à ce moment
   hold: number
   ball: Ball
   flightT: number
@@ -393,7 +394,17 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
   const chambrer = (from: string) => {
     const e = engineRef.current
     if (e.phase !== 'play') return
-    e.wizzUntil = e.t + 1.5
+    // un taureau de plus entre dans le cercle pendant 7 s (il arrive de
+    // l'extérieur, à l'opposé du ballon, pour ne pas couper une passe d'office)
+    if (!e.bulls.some((bl) => bl.temp)) {
+      const a = Math.atan2(e.ball.y, e.ball.x) + Math.PI
+      const nb = newBull(e.rng)
+      nb.x = Math.cos(a) * (RADIUS + 1.5); nb.y = Math.sin(a) * (RADIUS + 1.5)
+      nb.temp = true
+      e.bulls.push(nb)
+      setBulls(e.bulls.length)
+    }
+    e.wizzUntil = e.t + 7
     setWizzFrom(from)
     if (navigator.vibrate) try { navigator.vibrate([120, 60, 120, 60, 220]) } catch { /* rien */ }
     setTimeout(() => setWizzFrom(null), 900)
@@ -406,7 +417,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
     // « Chambrer » : un spectateur dérange le joueur
     ch.on('broadcast', { event: 'wizz' }, ({ payload }) => {
       if (Date.now() < wizzCooldownRef.current) return
-      wizzCooldownRef.current = Date.now() + 15000 // un chambrage toutes les 15 s au plus
+      wizzCooldownRef.current = Date.now() + 20000 // un chambrage toutes les 20 s au plus
       chambrer((payload?.from as string) || 'Un pote')
     })
     ch.on('presence', { event: 'sync' }, () => {
@@ -433,7 +444,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
         b: [r(e.ball.x), r(e.ball.y)],
         p: e.players.map((pl) => [r(pl.x), r(pl.y)]),
         u: e.bulls.map((bl) => [r(bl.x), r(bl.y)]),
-        n: e.passes, s: e.points, m: e.msg, wz: e.t < e.wizzUntil,
+        n: e.passes, s: e.points, m: e.msg, wz: e.t < e.wizzUntil - 6,
       },
     })
   }
@@ -570,13 +581,18 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
       }
     }
 
+    // fin du chambrage : le taureau en plus repart
+    if (e.t >= e.wizzUntil && e.bulls.some((bl) => bl.temp)) {
+      e.bulls = e.bulls.filter((bl) => !bl.temp)
+      setBulls(e.bulls.length)
+    }
+
     // --- taureaux ---
     const n = N_PLAYERS
     const carrier = e.carrier >= 0 ? e.players[e.carrier] : null
     const shutLane = (from: P, to: P, k: number): P => ({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k })
     e.bulls.forEach((b, bi) => {
-      // chambrage d'un spectateur : les taureaux s'excitent (+30 % pendant 1,5 s)
-      const sp = L.bullSpeed * b.speedMul * (e.t < e.wizzUntil ? 1.3 : 1)
+      const sp = L.bullSpeed * b.speedMul
       if (!carrier) {
         // passe partie : pendant son temps de réaction il continue sur sa
         // lancée, puis il coupe la trajectoire s'il peut l'atteindre ; sinon il
@@ -596,6 +612,12 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
           }
         }
         steer(b, sp * (trapped ? 1.12 : 1), dt)
+        return
+      }
+      if (b.temp) {
+        // taureau du chambrage : il bouche le milieu (les passes en travers)
+        b.goal = { x: carrier.x * 0.35, y: carrier.y * 0.35 }
+        steer(b, sp, dt)
         return
       }
       if (e.smart) {
@@ -657,8 +679,8 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
       steer(b, sp, dt)
     })
     // les taureaux ne se superposent pas
-    if (e.bulls.length === 2) {
-      const [A, B] = e.bulls
+    for (let i = 0; i < e.bulls.length; i++) for (let j = i + 1; j < e.bulls.length; j++) {
+      const A = e.bulls[i], B = e.bulls[j]
       const dx = B.x - A.x, dy = B.y - A.y, dd = Math.hypot(dx, dy)
       if (dd > 0.01 && dd < 1.8) {
         const push = (1.8 - dd) * 0.5
@@ -820,7 +842,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
           <canvas ref={canvasRef} className="freekick-canvas" onPointerDown={onPointerDown} />
           {wizzFrom && (
             <div className="juggle-wizz-overlay">
-              <span className="juggle-wizz-overlay-text">😜 {wizzFrom} te chambre !</span>
+              <span className="juggle-wizz-overlay-text toro-chambre-text">😜 {wizzFrom} te chambre !<br />+1 taureau 7 s</span>
             </div>
           )}
           {phase === 'idle' && (

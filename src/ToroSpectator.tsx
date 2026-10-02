@@ -66,11 +66,11 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
     return () => clearTimeout(id)
   }, [cooldown])
 
-  // « Chambrer » le joueur : son écran tremble et les taureaux sprintent 1,5 s
+  // « Chambrer » le joueur : son écran tremble et un taureau de plus entre 7 s
   const sendWizz = () => {
     if (cooldown > 0 || !chanRef.current) return
     chanRef.current.send({ type: 'broadcast', event: 'wizz', payload: { from: myPseudo || 'Un pote' } })
-    setCooldown(15)
+    setCooldown(20)
   }
 
   // canal du joueur : présence (pour qu'il diffuse) + réception des états
@@ -174,7 +174,7 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
           <canvas ref={canvasRef} className="freekick-canvas" />
           {wizzing && status === 'live' && (
             <div className="juggle-wizz-overlay">
-              <span className="juggle-wizz-overlay-text">😜 Chambré !</span>
+              <span className="juggle-wizz-overlay-text toro-chambre-text">😜 Chambré !<br />+1 taureau 7 s</span>
             </div>
           )}
           {status === 'waiting' && (

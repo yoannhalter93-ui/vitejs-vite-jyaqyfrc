@@ -1177,3 +1177,11 @@ details.rules-section > :last-child {
 .onetwo-stage.toro-spectator-stage {
   height: max(320px, calc(100dvh - 400px));
 }
+
+/* message du chambrage au toro : plus petit, centré sur 2 lignes */
+.juggle-wizz-overlay-text.toro-chambre-text {
+  font-size: 22px;
+  text-align: center;
+  line-height: 1.3;
+  padding: 0 12px;
+}
