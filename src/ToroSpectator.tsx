@@ -34,7 +34,7 @@ interface Frame {
   n: number
   s: number
   m: ToroView['msg']
-  wz?: boolean // le joueur est en train de subir un wizz
+  wz?: boolean // le joueur est en train de se faire chambrer
 }
 
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k
@@ -66,7 +66,7 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
     return () => clearTimeout(id)
   }, [cooldown])
 
-  // déranger le joueur : son écran tremble et les taureaux sprintent 1,5 s
+  // « Chambrer » le joueur : son écran tremble et les taureaux sprintent 1,5 s
   const sendWizz = () => {
     if (cooldown > 0 || !chanRef.current) return
     chanRef.current.send({ type: 'broadcast', event: 'wizz', payload: { from: myPseudo || 'Un pote' } })
@@ -174,7 +174,7 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
           <canvas ref={canvasRef} className="freekick-canvas" />
           {wizzing && status === 'live' && (
             <div className="juggle-wizz-overlay">
-              <span className="juggle-wizz-overlay-text">⚡ WIZZ !</span>
+              <span className="juggle-wizz-overlay-text">😜 Chambré !</span>
             </div>
           )}
           {status === 'waiting' && (
@@ -197,7 +197,7 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
         </div>
         {status === 'live' && (
           <button type="button" className="dribble-cta toro-wizz-btn" disabled={cooldown > 0} onClick={sendWizz}>
-            {cooldown > 0 ? `🧪 Wizz (encore ${cooldown} s)` : `🧪 Envoyer un wizz à ${pseudo}`}
+            {cooldown > 0 ? `😜 Chambrer (encore ${cooldown} s)` : `😜 Chambrer ${pseudo}`}
           </button>
         )}
       </div>

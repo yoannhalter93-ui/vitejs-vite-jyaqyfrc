@@ -100,7 +100,7 @@ interface Engine {
   lastRecvT: number
   habits: number[] // fréquence (récente) de chaque écart de passe autour du cercle
   smart: boolean
-  wizzUntil: number // wizz d'un spectateur : les taureaux sprintent jusqu'à ce moment
+  wizzUntil: number // chambrage d'un spectateur : les taureaux sprintent jusqu'à ce moment
   hold: number
   ball: Ball
   flightT: number
@@ -388,19 +388,26 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
   const viewersRef = useRef(0)
   const wizzCooldownRef = useRef(0)
   const [wizzFrom, setWizzFrom] = useState<string | null>(null)
+  // effet du chambrage : écran qui tremble, message, vibration, et les
+  // taureaux sprintent (+30 %) pendant 1,5 s
+  const chambrer = (from: string) => {
+    const e = engineRef.current
+    if (e.phase !== 'play') return
+    e.wizzUntil = e.t + 1.5
+    setWizzFrom(from)
+    if (navigator.vibrate) try { navigator.vibrate([120, 60, 120, 60, 220]) } catch { /* rien */ }
+    setTimeout(() => setWizzFrom(null), 900)
+  }
   const lastFrameRef = useRef(0)
   const overSentRef = useRef(false)
   const openLive = () => {
     if (!live || !user || liveChanRef.current) return
     const ch = supabase.channel(`toro-live-${user.id}`, { config: { broadcast: { self: false }, presence: { key: 'player' } } })
+    // « Chambrer » : un spectateur dérange le joueur
     ch.on('broadcast', { event: 'wizz' }, ({ payload }) => {
-      const e = engineRef.current
-      if (e.phase !== 'play' || Date.now() < wizzCooldownRef.current) return
-      wizzCooldownRef.current = Date.now() + 15000 // un wizz toutes les 15 s au plus
-      e.wizzUntil = e.t + 1.5
-      setWizzFrom((payload?.from as string) || 'un pote')
-      if (navigator.vibrate) try { navigator.vibrate([120, 60, 120, 60, 220]) } catch { /* rien */ }
-      setTimeout(() => setWizzFrom(null), 900)
+      if (Date.now() < wizzCooldownRef.current) return
+      wizzCooldownRef.current = Date.now() + 15000 // un chambrage toutes les 15 s au plus
+      chambrer((payload?.from as string) || 'Un pote')
     })
     ch.on('presence', { event: 'sync' }, () => {
       viewersRef.current = Object.keys(ch.presenceState()).filter((k) => k !== 'player').length
@@ -568,7 +575,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
     const carrier = e.carrier >= 0 ? e.players[e.carrier] : null
     const shutLane = (from: P, to: P, k: number): P => ({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k })
     e.bulls.forEach((b, bi) => {
-      // wizz d'un spectateur : les taureaux s'excitent (+30 % pendant 1,5 s)
+      // chambrage d'un spectateur : les taureaux s'excitent (+30 % pendant 1,5 s)
       const sp = L.bullSpeed * b.speedMul * (e.t < e.wizzUntil ? 1.3 : 1)
       if (!carrier) {
         // passe partie : pendant son temps de réaction il continue sur sa
@@ -813,7 +820,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
           <canvas ref={canvasRef} className="freekick-canvas" onPointerDown={onPointerDown} />
           {wizzFrom && (
             <div className="juggle-wizz-overlay">
-              <span className="juggle-wizz-overlay-text">⚡ WIZZ de {wizzFrom} !</span>
+              <span className="juggle-wizz-overlay-text">😜 {wizzFrom} te chambre !</span>
             </div>
           )}
           {phase === 'idle' && (
@@ -834,6 +841,11 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
             </div>
           )}
         </div>
+        {practice && phase === 'play' && (
+          <button type="button" className="dribble-cta toro-wizz-btn" onClick={() => chambrer('Un pote')}>
+            😜 Tester le chambrage
+          </button>
+        )}
       </div>
 
       {live && (allTimeBest || lastWeekBest || scores.length > 0) && (
