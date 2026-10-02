@@ -74,6 +74,8 @@ interface Bull {
   reactMul: number
   bait: number // passe laissée ouverte exprès (piège), -1 : aucune
   temp?: boolean // taureau en plus amené par un chambrage (repart au bout de 7 s)
+  hunt?: number // taureau du chambrage : joueur dont il coupe la ligne de passe
+  huntUntil?: number
 }
 
 interface Ball {
@@ -126,7 +128,8 @@ function mulberry32(seed: number) {
 function level(passes: number) {
   const k = Math.floor(passes / LEVEL_EVERY)
   return {
-    bullSpeed: Math.min(7.2, 4.7 + k * 0.45),
+    // au-delà de 50 passes, encore un peu plus vite à chaque passe (max +1,2 m/s)
+    bullSpeed: Math.min(7.2, 4.7 + k * 0.45) + Math.min(1.2, Math.max(0, passes - 50) * 0.04),
     reaction: Math.max(0.08, 0.25 - k * 0.03),
     reach: Math.min(1.15, 0.85 + k * 0.05),
   }
@@ -615,8 +618,22 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
         return
       }
       if (b.temp) {
-        // taureau du chambrage : il bouche le milieu (les passes en travers)
-        b.goal = { x: carrier.x * 0.35, y: carrier.y * 0.35 }
+        // taureau du chambrage, indépendant des autres : il chasse la passe
+        // la plus libre (celle qu'aucun autre taureau ne ferme) et la coupe
+        // à mi-chemin ; il change de cible à chaque nouveau porteur ou ~1 s
+        if (b.hunt === undefined || b.hunt === e.carrier || e.hold < dt * 2 || e.t >= (b.huntUntil ?? 0)) {
+          let best = -1, bestOpen = -1
+          e.players.forEach((pl, j) => {
+            if (j === e.carrier) return
+            let open = 99
+            for (const o of e.bulls) if (o !== b) open = Math.min(open, segDist(o, carrier, pl))
+            if (open > bestOpen) { bestOpen = open; best = j }
+          })
+          b.hunt = best
+          b.huntUntil = e.t + 0.8 + e.rng() * 0.6
+        }
+        const tgt = e.players[b.hunt ?? 0]
+        b.goal = { x: carrier.x + (tgt.x - carrier.x) * 0.45, y: carrier.y + (tgt.y - carrier.y) * 0.45 }
         steer(b, sp, dt)
         return
       }
