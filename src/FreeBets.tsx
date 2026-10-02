@@ -133,9 +133,11 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
   const [myGroups, setMyGroups] = useState<GroupOption[]>([])
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([groupId])
 
-  // "En cours" = paris encore ouverts, votables. "Historique" = paris
-  // verrouillés (échéance passée) : plus votable, mais on peut y voir qui a
-  // voté quoi — jamais avant, pour ne pas influencer les votes en cours.
+  // "En cours" = paris pas encore réglés : ouverts (votables), puis ceux dont
+  // l'échéance est passée mais dont le résultat attend d'être confirmé (ou
+  // tranché en cas de litige). "Historique" = paris réglés (résolus ou
+  // annulés). Qui a voté quoi ne se voit qu'une fois les votes fermés, pour
+  // ne pas influencer les votes en cours.
   const [tab, setTab] = useState<'ouverts' | 'historique'>('ouverts')
   const [reveals, setReveals] = useState<Record<string, Reveal[]>>({})
   const [revealLoading, setRevealLoading] = useState<string | null>(null)
@@ -350,8 +352,12 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     setRevealLoading(null)
   }
 
-  const openBets = bets.filter((b) => b.status === 'open')
-  const lockedBets = bets.filter((b) => b.status !== 'open')
+  const pendingStatuses = ['open', 'closed', 'contested']
+  const openBets = bets
+    .filter((b) => pendingStatuses.includes(b.status))
+    // d'abord les paris encore votables, ensuite ceux à valider
+    .sort((a, b) => Number(a.status !== 'open') - Number(b.status !== 'open'))
+  const lockedBets = bets.filter((b) => !pendingStatuses.includes(b.status))
 
   const renderBet = (b: Bet, locked: boolean) => {
     const counts = voteCounts[b.id] ?? { oui: 0, non: 0 }
@@ -558,10 +564,10 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
         openBets.length === 0 ? (
           <p className="groups-empty">Aucun pari en cours pour l'instant.</p>
         ) : (
-          <ul className="matches-list bet-list">{openBets.map((b) => renderBet(b, false))}</ul>
+          <ul className="matches-list bet-list">{openBets.map((b) => renderBet(b, b.status !== 'open'))}</ul>
         )
       ) : lockedBets.length === 0 ? (
-        <p className="groups-empty">Aucun pari verrouillé pour l'instant.</p>
+        <p className="groups-empty">Aucun pari réglé pour l'instant.</p>
       ) : (
         <ul className="matches-list bet-list">{lockedBets.map((b) => renderBet(b, true))}</ul>
       )}
