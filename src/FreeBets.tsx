@@ -139,6 +139,7 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
   // annulés). Qui a voté quoi ne se voit qu'une fois les votes fermés, pour
   // ne pas influencer les votes en cours.
   const [tab, setTab] = useState<'ouverts' | 'historique'>('ouverts')
+  const [info, setInfo] = useState<string | null>(null)
   const [reveals, setReveals] = useState<Record<string, Reveal[]>>({})
   const [revealLoading, setRevealLoading] = useState<string | null>(null)
   const [revealError, setRevealError] = useState<string | null>(null)
@@ -318,8 +319,12 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     // le clic "ne faisait rien"
     if (!user || myConfirmations[betId]) return
     setError(null)
-    const { error: err } = await supabase.from('free_bet_resolutions').insert({ bet_id: betId, profile_id: user.id, confirmed_side: side })
+    setInfo(null)
+    // un même pari publié dans plusieurs groupes : la confirmation vaut pour
+    // tous les groupes où je peux le valider, et le résultat tombe tout de suite
+    const { data: n, error: err } = await supabase.rpc('confirm_free_bet_result', { p_bet_id: betId, p_side: side })
     if (err) setError(err.message)
+    else if (typeof n === 'number' && n > 1) setInfo(`Résultat « ${side} » appliqué dans tes ${n} groupes où ce pari a été publié.`)
     await load()
   }
 
@@ -520,6 +525,7 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
       </div>
 
       {error && <p className="groups-error">{error}</p>}
+      {info && <p className="bet-info-notice">✅ {info}</p>}
       {revealError && <p className="groups-error">{revealError}</p>}
 
       <button className="groups-action-btn" onClick={() => setShowCreate((v) => !v)}>+ Proposer un pari</button>
