@@ -373,7 +373,15 @@ interface ExpertPlan {
 function expertPlan(e: Engine, carrierIdx: number): ExpertPlan {
   const c = e.players[carrierIdx]
   const cand = e.players.map((_, j) => j).filter((j) => j !== carrierIdx)
-  const open = cand[Math.floor(e.rng() * cand.length)]
+  // la passe laissée libre n'est jamais celle que le joueur attend : ni la
+  // suite de sa tournante, ni ses deux passes favorites
+  const n = N_PLAYERS
+  const [f1, f2] = predict(e, carrierIdx)
+  const expected = new Set([f1, f2])
+  if (e.rotDir) expected.add((carrierIdx + e.rotDir + n) % n)
+  const pool = cand.filter((j) => !expected.has(j))
+  const pick = pool.length ? pool : cand
+  const open = pick[Math.floor(e.rng() * pick.length)]
   const lanes = cand.filter((j) => j !== open).map((j) => {
     const p = e.players[j]
     const dx = p.x - c.x, dy = p.y - c.y, len = Math.hypot(dx, dy) || 1
@@ -669,6 +677,14 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
     const n = N_PLAYERS
     const carrier = e.carrier >= 0 ? e.players[e.carrier] : null
     const shutLane = (from: P, to: P, k: number): P => ({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k })
+    // mode expert : le taureau le plus proche de la passe qui continue la tournante s'en charge
+    let antiRot = -1
+    if (e.expert && e.rotDir && e.bulls.length > 1) {
+      const base = e.carrier >= 0 ? e.carrier : e.ball.to
+      const a = e.players[(base + n) % n], c = e.players[(base + e.rotDir + n) % n]
+      let bd = Infinity
+      e.bulls.forEach((bl, i) => { const d = segDist(bl, a, c); if (d < bd) { bd = d; antiRot = i } })
+    }
     e.bulls.forEach((b, bi) => {
       const sp = L.bullSpeed * b.speedMul
       if (!carrier) {
@@ -679,8 +695,9 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
         const trapped = e.smart && ball.to === b.bait
         if (trapped || e.flightT >= (e.expert ? 0.05 : L.reaction * b.reactMul)) {
           const cut = interceptPoint(ball, b, sp * (trapped ? 1.12 : 0.95), L.reach)
-          const amb = !cut && bi === 0 && e.rotStreak >= 1 ? ambush(e, b, sp) : null
+          const amb = !cut && (e.expert ? bi === antiRot : bi === 0) && e.rotStreak >= 1 ? ambush(e, b, sp) : null
           if (cut) b.goal = cut
+          else if (amb && e.expert) b.goal = amb
           else if (e.expert) {
             // expert : ils se placent déjà pour le receveur pendant que le ballon voyage
             if (!e.plan || e.plan.carrier !== ball.to || e.plan.bullCount !== e.bulls.length) e.plan = expertPlan(e, ball.to)
@@ -708,6 +725,10 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
           if (e.hold > pl.window) {
             if (bi === pl.closer) b.goal = pl.openShut // il ferme la dernière ouverture
             else if (bi === pl.presser) b.goal = { x: carrier.x, y: carrier.y } // et ça presse
+          } else if (bi === antiRot && e.rotStreak >= 1) {
+            // tournante repérée : il attend déjà sur la passe suivante
+            const amb = ambush(e, b, sp)
+            if (amb) b.goal = amb
           }
         }
         steer(b, sp, dt)
