@@ -52,6 +52,7 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
   const [wizzing, setWizzing] = useState(false)
   const [myPseudo, setMyPseudo] = useState<string | null>(null)
   const [cooldown, setCooldown] = useState(0)
+  const [others, setOthers] = useState<string[]>([])
   const chanRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   // mon pseudo, affiché chez le joueur (« 👀 Seb te regarde »)
   const myPseudoRef = useRef<string | null>(null)
@@ -84,6 +85,12 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
   useEffect(() => {
     if (!user) return
     const ch = supabase.channel(`toro-live-${profileId}`, { config: { presence: { key: user.id } } })
+    // les autres potes qui regardent la même partie
+    ch.on('presence', { event: 'sync' }, () => {
+      const state = ch.presenceState() as Record<string, { pseudo?: string | null }[]>
+      setOthers(Object.keys(state).filter((k) => k !== 'player' && k !== user.id)
+        .map((k) => [...(state[k] ?? [])].reverse().find((m) => m.pseudo)?.pseudo || 'Un pote'))
+    })
     ch.on('broadcast', { event: 'frame' }, ({ payload }) => {
       const f = payload as Frame
       const fr = framesRef.current
@@ -188,6 +195,14 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
 
         <div className="dribble-stage freekick-stage onetwo-stage toro-spectator-stage" ref={stageRef}>
           <canvas ref={canvasRef} className="freekick-canvas" />
+          {others.length > 0 && (
+            <div className="toro-viewers">
+              👀 {others.length <= 3
+                ? others.join(', ').replace(/, ([^,]*)$/, ' et $1')
+                : `${others.slice(0, 3).join(', ')} et ${others.length - 3} autre${others.length - 3 > 1 ? 's' : ''}`}
+              {others.length > 1 ? ' regardent' : ' regarde'} aussi
+            </div>
+          )}
           {wizzing && status === 'live' && (
             <div className="juggle-wizz-overlay">
               <span className="juggle-wizz-overlay-text toro-chambre-text">😜 Chambré !<br />+1 taureau 7 s</span>
