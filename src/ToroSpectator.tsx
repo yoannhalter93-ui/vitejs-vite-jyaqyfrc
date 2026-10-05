@@ -53,6 +53,13 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
   const [myPseudo, setMyPseudo] = useState<string | null>(null)
   const [cooldown, setCooldown] = useState(0)
   const chanRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  // mon pseudo, affiché chez le joueur (« 👀 Seb te regarde »)
+  const myPseudoRef = useRef<string | null>(null)
+  const joinedRef = useRef(false)
+  useEffect(() => {
+    myPseudoRef.current = myPseudo
+    if (myPseudo && joinedRef.current && chanRef.current) chanRef.current.track({ watching: true, pseudo: myPseudo })
+  }, [myPseudo])
 
   useEffect(() => {
     if (!user) return
@@ -92,10 +99,12 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
       setStatus(f.ph === 'over' ? 'over' : 'live')
       setWizzing(!!f.wz)
     }).subscribe((st) => {
-      if (st === 'SUBSCRIBED') ch.track({ watching: true })
+      if (st !== 'SUBSCRIBED') return
+      joinedRef.current = true
+      ch.track({ watching: true, pseudo: myPseudoRef.current })
     })
     chanRef.current = ch
-    return () => { chanRef.current = null; supabase.removeChannel(ch) }
+    return () => { chanRef.current = null; joinedRef.current = false; supabase.removeChannel(ch) }
   }, [profileId, user])
 
   // personne ne joue : au bout de 5 s on le dit (la page reste à l'écoute)

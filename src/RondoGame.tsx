@@ -473,6 +473,8 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
   // on n'envoie l'état du jeu (10 fois par seconde) que si quelqu'un regarde.
   const liveChanRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const viewersRef = useRef(0)
+  // pseudos des potes qui regardent (affichés en haut du terrain)
+  const [viewerNames, setViewerNames] = useState<string[]>([])
   const wizzCooldownRef = useRef(0)
   const [wizzFrom, setWizzFrom] = useState<string | null>(null)
   // effet du chambrage : écran qui tremble, message, vibration, et les
@@ -507,7 +509,10 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
       chambrer((payload?.from as string) || 'Un pote')
     })
     ch.on('presence', { event: 'sync' }, () => {
-      viewersRef.current = Object.keys(ch.presenceState()).filter((k) => k !== 'player').length
+      const state = ch.presenceState() as Record<string, { pseudo?: string | null }[]>
+      const keys = Object.keys(state).filter((k) => k !== 'player')
+      viewersRef.current = keys.length
+      setViewerNames(keys.map((k) => [...(state[k] ?? [])].reverse().find((m) => m.pseudo)?.pseudo || 'Un pote'))
     }).subscribe()
     liveChanRef.current = ch
   }
@@ -934,7 +939,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
       last = ts
       engineRef.current.viewH = (canvas.height / canvas.width) * LW
       for (let i = 0; i < 3; i++) step(dt / 3)
-      drawToro(ctx, engineRef.current, viewersRef.current)
+      drawToro(ctx, engineRef.current)
       sendFrame(ts)
       // état lisible par les tests automatisés (bot), seulement s'ils le demandent
       if ((window as any).__toroDebug) (window as any).__toro = engineRef.current
@@ -998,6 +1003,14 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
 
         <div className="dribble-stage freekick-stage onetwo-stage" ref={stageRef}>
           <canvas ref={canvasRef} className="freekick-canvas" onPointerDown={onPointerDown} />
+          {viewerNames.length > 0 && (
+              <div className="toro-viewers">
+                👀 {viewerNames.length <= 3
+                  ? viewerNames.join(', ').replace(/, ([^,]*)$/, ' et $1')
+                  : `${viewerNames.slice(0, 3).join(', ')} et ${viewerNames.length - 3} autre${viewerNames.length - 3 > 1 ? 's' : ''}`}
+                {viewerNames.length > 1 ? ' te regardent' : ' te regarde'} en direct
+              </div>
+            )}
           {wizzFrom && (
             <div className="juggle-wizz-overlay">
               <span className="juggle-wizz-overlay-text toro-chambre-text">😜 {wizzFrom} te chambre !<br />+1 taureau 7 s</span>

@@ -1195,3 +1195,27 @@ details.rules-section > :last-child {
   margin: 8px 0;
   font-size: 13px;
 }
+
+/* toro : potes qui regardent la partie en direct (en haut du terrain, par-dessus :
+   le terrain ne bouge pas quand quelqu'un arrive) */
+.toro-viewers {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 16px);
+  pointer-events: none;
+  z-index: 2;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: rgba(12, 44, 34, 0.85);
+  border: 1px solid rgba(232, 185, 49, 0.55);
+  color: #F4EFE2;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  opacity: 0.92;
+  animation: toro-viewers-in 0.25s ease-out;
+}
+@keyframes toro-viewers-in { from { opacity: 0; } to { opacity: 1; } }
