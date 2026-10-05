@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { useFloatingReactions, FloatingReactions, ReactionBar } from './ToroReactions'
 import { useAuth } from './AuthContext'
 import { drawToro, LW } from './RondoGame'
 import type { ToroView } from './RondoGame'
@@ -53,6 +54,7 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
   const [myPseudo, setMyPseudo] = useState<string | null>(null)
   const [cooldown, setCooldown] = useState(0)
   const [others, setOthers] = useState<string[]>([])
+  const reactions = useFloatingReactions()
   const chanRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   // mon pseudo, affiché chez le joueur (« 👀 Seb te regarde »)
   const myPseudoRef = useRef<string | null>(null)
@@ -75,6 +77,13 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
   }, [cooldown])
 
   // « Chambrer » le joueur : son écran tremble et un taureau de plus entre 7 s
+  // réaction emoji : visible par le joueur et les autres spectateurs, sans déranger
+  const sendReaction = (emoji: string) => {
+    if (!chanRef.current) return
+    chanRef.current.send({ type: 'broadcast', event: 'react', payload: { emoji, from: myPseudo || 'Un pote' } })
+    reactions.add(emoji, 'Toi')
+  }
+
   const sendWizz = () => {
     if (cooldown > 0 || !chanRef.current) return
     chanRef.current.send({ type: 'broadcast', event: 'wizz', payload: { from: myPseudo || 'Un pote' } })
@@ -85,6 +94,9 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
   useEffect(() => {
     if (!user) return
     const ch = supabase.channel(`toro-live-${profileId}`, { config: { presence: { key: user.id } } })
+    ch.on('broadcast', { event: 'react' }, ({ payload }) => {
+      reactions.add(String(payload?.emoji ?? ''), String(payload?.from ?? 'Un pote'))
+    })
     // les autres potes qui regardent la même partie
     ch.on('presence', { event: 'sync' }, () => {
       const state = ch.presenceState() as Record<string, { pseudo?: string | null }[]>
@@ -195,6 +207,7 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
 
         <div className="dribble-stage freekick-stage onetwo-stage toro-spectator-stage" ref={stageRef}>
           <canvas ref={canvasRef} className="freekick-canvas" />
+          <FloatingReactions items={reactions.items} />
           {others.length > 0 && (
             <div className="toro-viewers">
               👀 {others.length <= 3
@@ -230,6 +243,7 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
             </div>
           )}
         </div>
+        {status === 'live' && <ReactionBar onReact={sendReaction} />}
         {status === 'live' && (
           <button type="button" className="dribble-cta toro-wizz-btn" disabled={cooldown > 0} onClick={sendWizz}>
             {cooldown > 0 ? `😜 Chambrer (encore ${cooldown} s)` : `😜 Chambrer ${pseudo}`}

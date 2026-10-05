@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import { useWizzChannel, setPlayingPresence } from './wizzChannel'
+import { useFloatingReactions, FloatingReactions } from './ToroReactions'
 
 // ============================================================================
 // Le toro (taureau / rondo) — mini-jeu de la semaine (dans la rotation à
@@ -475,6 +476,8 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
   const viewersRef = useRef(0)
   // pseudos des potes qui regardent (affichés en haut du terrain)
   const [viewerNames, setViewerNames] = useState<string[]>([])
+  // réactions emoji des spectateurs (décoratives, ne touchent pas au jeu)
+  const reactions = useFloatingReactions()
   const wizzCooldownRef = useRef(0)
   const [wizzFrom, setWizzFrom] = useState<string | null>(null)
   // effet du chambrage : écran qui tremble, message, vibration, et les
@@ -503,6 +506,9 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
     if (!live || !user || liveChanRef.current) return
     const ch = supabase.channel(`toro-live-${user.id}`, { config: { broadcast: { self: false }, presence: { key: 'player' } } })
     // « Chambrer » : un spectateur dérange le joueur
+    ch.on('broadcast', { event: 'react' }, ({ payload }) => {
+      reactions.add(String(payload?.emoji ?? ''), String(payload?.from ?? 'Un pote'))
+    })
     ch.on('broadcast', { event: 'wizz' }, ({ payload }) => {
       if (Date.now() < wizzCooldownRef.current) return
       wizzCooldownRef.current = Date.now() + 20000 // un chambrage toutes les 20 s au plus
@@ -1003,6 +1009,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
 
         <div className="dribble-stage freekick-stage onetwo-stage" ref={stageRef}>
           <canvas ref={canvasRef} className="freekick-canvas" onPointerDown={onPointerDown} />
+          <FloatingReactions items={reactions.items} />
           {viewerNames.length > 0 && (
               <div className="toro-viewers">
                 👀 {viewerNames.length <= 3
