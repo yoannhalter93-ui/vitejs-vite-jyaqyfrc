@@ -38,7 +38,7 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
           <li>⚽ Pronostics — score exact 5 pts, bon écart 4 pts, bon résultat 3 pts, sinon 0 (doublés avec un Joker ou sur un match ×2)</li>
           <li>🎡 Mon équipe — à chacun de ses matchs : victoire +1, nul 0, défaite -1</li>
           <li>🥅 Duels (penaltys et quiz) — victoire 3 pts (+1 🪙), nul 1 pt, défaite 0</li>
-          <li>🎮 Mini-jeux — meilleur score du groupe au jeu de la semaine : 3 pts (+2 🪙)</li>
+          <li>🎮 Mini-jeux — podium du groupe au jeu de la semaine : 1er 3 pts (+2 🪙), 2e 2 pts (+1 🪙), 3e 1 pt</li>
           <li>🤝 Paris libres — le bon camp gagne les points de la cote (plus il était minoritaire, plus ça rapporte)</li>
           <li>🎉 Événements — le gagnant du Total de buts, du Duo du week-end ou du But en or : 3 pts (+2 🪙) ; la Journée x2 double tes pronos</li>
         </ul>
@@ -150,7 +150,7 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
           <li>🐂 Le toro — tes 6 joueurs en cercle, un taureau au milieu : tape un coéquipier pour lui passer le ballon (tape le suivant pendant que le ballon roule et il le remet en une touche). Si le taureau touche le porteur ou coupe une passe, c'est fini. 1 point par passe, +2 pour une passe entre les deux taureaux (petit pont). Le taureau accélère toutes les 6 passes, un 2e arrive à 12 passes, et à 45 passes un 3e taureau entre et ils deviennent malins : ils repèrent tes habitudes, feintent et tendent des pièges, après 50 passes ils accélèrent encore un peu à chaque passe, et à 60 passes ils deviennent experts : ils ferment toutes les passes sauf une, et la ferment aussi si tu mets trop de temps à la trouver. Tes potes peuvent te regarder jouer en direct (👀 Regarder) et te chambrer 😜 : ton écran tremble et un taureau de plus entre dans le cercle pendant 7 secondes (un chambrage toutes les 20 s au plus).</li>
         </ul>
         <p className="rules-section-text">
-          Chaque semaine, le meilleur score du groupe au jeu du moment rapporte 3 points au classement et 2 🪙 jetons à son auteur (en cas d'égalité au sommet, tous les joueurs à égalité gagnent).
+          Chaque semaine, le podium du groupe au jeu du moment (meilleur score de chacun) gagne des points au classement : 🥇 1er 3 points + 2 🪙, 🥈 2e 2 points + 1 🪙, 🥉 3e 1 point. Une place n'est donnée que s'il reste au moins un joueur derrière (2e : 3 joueurs minimum, 3e : 4 joueurs minimum). En cas d'égalité, les joueurs à égalité partagent la même place.
         </p>
       </details>
 
