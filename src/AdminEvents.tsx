@@ -42,6 +42,8 @@ interface AppEventRow {
   matchday: number
   first_kickoff: string
   resolved_at: string | null
+  announce_at: string | null
+  announced_at: string | null
 }
 
 const KINDS: AppEventKind[] = ['journee_x2', 'total_buts', 'duo']
@@ -145,7 +147,7 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
         .limit(12),
       supabase.from('weekly_bonus_matches').select('week_start, home_team, away_team, kickoff_at').order('week_start', { ascending: false }).limit(6),
       supabase.rpc('admin_upcoming_matchdays'),
-      supabase.from('app_events').select('id, kind, matchday, first_kickoff, resolved_at').order('first_kickoff', { ascending: false }).limit(12),
+      supabase.from('app_events').select('id, kind, matchday, first_kickoff, resolved_at, announce_at, announced_at').order('first_kickoff', { ascending: false }).limit(12),
     ])
     setMatchdays((md.data ?? []) as MatchdayRow[])
     setAppEvents((ae.data ?? []) as AppEventRow[])
@@ -209,13 +211,13 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
 
   const launchDayEvent = async (kind: AppEventKind, matchday: number) => {
     const info = APP_EVENT_INFO[kind]
-    if (!window.confirm(`Lancer « ${info.icon} ${info.label} » sur la journée ${matchday} ?\n\nTous les joueurs recevront une notification.`)) return
+    if (!window.confirm(`Lancer « ${info.icon} ${info.label} » sur la journée ${matchday} ?\n\nLes joueurs seront prévenus le lundi de cette journée à 9 h (tout de suite si on y est déjà).`)) return
     setBusy(true)
     setError(null)
     const { error: err } = await supabase.rpc('admin_create_app_event', { p_kind: kind, p_matchday: matchday })
     setBusy(false)
     if (err) { setError(err.message); return }
-    setNotice(`${info.icon} ${info.label} lancé sur la journée ${matchday} !`)
+    setNotice(`${info.icon} ${info.label} programmé sur la journée ${matchday} !`)
     load()
   }
 
@@ -242,7 +244,7 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
       <h2 className="admin-ev-title">🎉 Événements</h2>
       <p className="admin-ev-help">
         Sur une journée de Ligue 1 : 🔥 Journée x2 · ⚽ Total de buts · 🤝 Duo du week-end · 🎯 But en or.
-        Tous les joueurs sont prévenus au lancement. Le Duo ne s'applique qu'aux groupes d'au moins 4 joueurs. Réservé à toi.
+        Les joueurs sont prévenus le lundi de la journée choisie à 9 h (tout de suite si la semaine a déjà commencé) : d'ici là, l'événement reste secret. Le Duo ne s'applique qu'aux groupes d'au moins 4 joueurs. Réservé à toi.
       </p>
 
       {error && <p className="groups-error">{error}</p>}
@@ -260,7 +262,10 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
                 const started = new Date(ev.first_kickoff).getTime() <= Date.now()
                 return (
                   <div className="admin-ev-card admin-ev-card-row" key={ev.id}>
-                    <span>{info.icon} {info.label} · J{ev.matchday}</span>
+                    <span>
+                      {info.icon} {info.label} · J{ev.matchday}
+                      {!ev.announced_at && ev.announce_at && <small className="admin-ev-pending"> · 📣 annoncé {eventKickoffLabel(ev.announce_at)}</small>}
+                    </span>
                     {ev.resolved_at ? (
                       <small>✅ terminé</small>
                     ) : started ? (
