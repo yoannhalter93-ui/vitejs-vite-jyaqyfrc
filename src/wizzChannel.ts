@@ -14,7 +14,10 @@ type Handler = (payload: any) => void
 interface Entry {
   channel: ReturnType<typeof supabase.channel>
   refs: number
-  listeners: { wizz: Set<Handler>; playing: Set<Handler> }
+  listeners: { wizz: Set<Handler>; playing: Set<Handler>; presence: Set<Handler> }
+  subscribed: boolean
+  // présence « je joue » à (re)publier dès que le canal est prêt
+  pendingTrack: Record<string, unknown> | null | undefined
 }
 
 const entries = new Map<string, Entry>()
@@ -22,13 +25,22 @@ const entries = new Map<string, Entry>()
 function acquire(groupId: string): Entry {
   let entry = entries.get(groupId)
   if (!entry) {
-    const listeners = { wizz: new Set<Handler>(), playing: new Set<Handler>() }
+    const listeners = { wizz: new Set<Handler>(), playing: new Set<Handler>(), presence: new Set<Handler>() }
     const channel = supabase.channel(`wizz-${groupId}`)
+    const e: Entry = { channel, refs: 0, listeners, subscribed: false, pendingTrack: undefined }
     channel
       .on('broadcast', { event: 'wizz' }, ({ payload }) => listeners.wizz.forEach((fn) => fn(payload)))
       .on('broadcast', { event: 'playing' }, ({ payload }) => listeners.playing.forEach((fn) => fn(payload)))
-      .subscribe()
-    entry = { channel, refs: 0, listeners }
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState()
+        listeners.presence.forEach((fn) => fn(state))
+      })
+      .subscribe((st) => {
+        if (st !== 'SUBSCRIBED') return
+        e.subscribed = true
+        if (e.pendingTrack) channel.track(e.pendingTrack)
+      })
+    entry = e
     entries.set(groupId, entry)
   }
   entry.refs++
@@ -48,6 +60,21 @@ function release(groupId: string) {
 export interface WizzHandlers {
   onWizz?: Handler
   onPlaying?: Handler
+  // état de présence du canal (qui est en train de jouer, en continu)
+  onPresence?: Handler
+}
+
+// « Je suis en train de jouer » (payload) ou plus (null) : contrairement au
+// broadcast 'playing' (un instant), la présence reste visible tant que la
+// partie dure, même pour quelqu'un qui ouvre l'appli en cours de route.
+export function setPlayingPresence(groupId: string | null | undefined, payload: Record<string, unknown> | null) {
+  if (!groupId) return
+  const entry = entries.get(groupId)
+  if (!entry) return
+  entry.pendingTrack = payload
+  if (!entry.subscribed) return
+  if (payload) entry.channel.track(payload)
+  else entry.channel.untrack()
 }
 
 // Renvoie une fonction d'envoi stable ; les handlers sont lus via une ref à
@@ -63,11 +90,15 @@ export function useWizzChannel(groupId: string | null | undefined, handlers: Wiz
     const entry = acquire(groupId)
     const onWizz: Handler = (p) => handlersRef.current.onWizz?.(p)
     const onPlaying: Handler = (p) => handlersRef.current.onPlaying?.(p)
+    const onPresence: Handler = (p) => handlersRef.current.onPresence?.(p)
     entry.listeners.wizz.add(onWizz)
     entry.listeners.playing.add(onPlaying)
+    entry.listeners.presence.add(onPresence)
+    if (entry.subscribed) onPresence(entry.channel.presenceState())
     return () => {
       entry.listeners.wizz.delete(onWizz)
       entry.listeners.playing.delete(onPlaying)
+      entry.listeners.presence.delete(onPresence)
       release(groupId)
     }
   }, [groupId])

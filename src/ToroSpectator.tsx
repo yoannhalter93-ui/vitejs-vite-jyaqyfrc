@@ -98,6 +98,13 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
     return () => { chanRef.current = null; supabase.removeChannel(ch) }
   }, [profileId, user])
 
+  // personne ne joue : au bout de 5 s on le dit (la page reste à l'écoute)
+  const [idleLong, setIdleLong] = useState(false)
+  useEffect(() => {
+    const id = setTimeout(() => setIdleLong(true), 5000)
+    return () => clearTimeout(id)
+  }, [profileId])
+
   // plus aucun état depuis 6 s pendant une partie : le joueur a quitté
   useEffect(() => {
     const id = setInterval(() => {
@@ -180,7 +187,11 @@ export default function ToroSpectator({ profileId, pseudo, onExit }: Props) {
           {status === 'waiting' && (
             <div className="dribble-idle-msg">
               <span style={{ fontSize: 30 }}>👀</span>
-              <p className="dribble-sub">Connexion à la partie de {pseudo}…</p>
+              <p className="dribble-sub">
+                {idleLong
+                  ? `${pseudo} n'est pas en pleine partie en ce moment. Reste sur cet écran : dès qu'il relance une partie, tu la verras ici en direct.`
+                  : `Connexion à la partie de ${pseudo}…`}
+              </p>
             </div>
           )}
           {(status === 'over' || status === 'gone') && (

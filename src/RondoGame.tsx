@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
-import { useWizzChannel } from './wizzChannel'
+import { useWizzChannel, setPlayingPresence } from './wizzChannel'
 
 // ============================================================================
 // Le toro (taureau / rondo) — mini-jeu de la semaine (dans la rotation à
@@ -587,6 +587,15 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, user])
+
+  // « en train de jouer » visible en continu par le groupe (bandeau 👀 Regarder,
+  // même pour un pote qui ouvre l'appli en cours de partie)
+  useEffect(() => {
+    if (!live || !user) return
+    if (phase === 'play') setPlayingPresence(groupId, { playing: 'toro', profileId: user.id, pseudo: myPseudo || 'Un coéquipier' })
+    else setPlayingPresence(groupId, null)
+  }, [phase, live, user, groupId, myPseudo])
+  useEffect(() => () => setPlayingPresence(groupId, null), [groupId])
 
   // fin de partie : enregistrement du score (toutes les ligues si l'option est active)
   const finishGame = (final: number) => {
