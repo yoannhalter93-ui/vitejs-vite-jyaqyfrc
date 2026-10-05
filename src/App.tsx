@@ -34,6 +34,7 @@ import Chat from './Chat'
 import { useWizzChannel } from './wizzChannel'
 import { readPendingJoin, clearPendingJoin } from './invite'
 import { useRedCards, redCardUntilLabel } from './redCards'
+import { useAppUpdate } from './useAppUpdate'
 
 // Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
 // d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
@@ -625,6 +626,8 @@ function App() {
   }
 
   const [screen, setScreen] = useState<Screen>('accueil');
+  // nouvelle version en ligne : rechargement auto au retour sur l'appli (hors partie)
+  const updateReady = useAppUpdate(minigamePlaying || screen === 'regarder')
 
   useEffect(() => {
     if (screen !== 'jonglages') setMinigamePlaying(false)
@@ -1546,6 +1549,12 @@ function App() {
           <button className="wizz-alert-close" onClick={() => setInviteMessage(null)} aria-label="Fermer">✕</button>
         </div>
       )}
+      {updateReady && (
+        <div className="wizz-alert-banner">
+          <span>✨ Nouvelle version de l'appli disponible</span>
+          <button className="juggle-wizz-btn" onClick={() => window.location.reload()}>Mettre à jour</button>
+        </div>
+      )}
       {(() => {
         const p = liveToro.find((x) => !liveToroClosed.includes(x.profileId) && !(screen === 'regarder' && watching?.profileId === x.profileId))
         if (!p || showNotifPanel) return null
@@ -2073,13 +2082,20 @@ function App() {
                   autoApplyAllLeagues={autoApplyAllLeagues}
                   onExit={() => setScreen('accueil')}
                 />
-              ) : (
+              ) : activeMinigame === 'jonglage' ? (
                 <JuggleGame
                   groupId={selectedGroup.id}
                   groupName={selectedGroup.name}
                   autoApplyAllLeagues={autoApplyAllLeagues}
                   onExit={() => setScreen('accueil')}
                 />
+              ) : (
+                // jeu de la semaine inconnu de cette version : jamais un autre
+                // jeu à la place (avant : les Jonglages par défaut)
+                <div className="groups-empty" style={{ padding: 24, textAlign: 'center' }}>
+                  <p>✨ Le jeu de cette semaine est arrivé avec une nouvelle version de l'appli.</p>
+                  <button className="dribble-cta" onClick={() => window.location.reload()}>Mettre à jour</button>
+                </div>
               )
             )}
             {screen === 'chat' && (
