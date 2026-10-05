@@ -35,6 +35,7 @@ import { useWizzChannel } from './wizzChannel'
 import { readPendingJoin, clearPendingJoin } from './invite'
 import { useRedCards, redCardUntilLabel } from './redCards'
 import { useAppUpdate } from './useAppUpdate'
+import Announcement from './Announcement'
 
 // Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
 // d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
@@ -1586,6 +1587,7 @@ function App() {
         </div>
       )}
       </>)}
+      <Announcement userId={session?.user?.id} />
       {bonusNotice && (
         <div className="bonus-target-overlay" onClick={() => setBonusNotice(null)}>
           <div className="bonus-target-modal bonus-notice-modal" onClick={(e) => e.stopPropagation()}>
