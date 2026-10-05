@@ -32,6 +32,7 @@ export function useCurrentEvent(groupId: string | null | undefined, userId: stri
       const { data: latest } = await supabase
         .from('weekly_special_matches')
         .select('week_start')
+        .lte('week_start', currentWeekStart())
         .order('week_start', { ascending: false })
         .limit(1)
         .maybeSingle()
@@ -75,6 +76,14 @@ export function shortTeam(name: string) {
   return name
     .replace(/^(Racing Club de |Olympique de |Olympique |Stade |AS |OGC |FC |RC |AJ )/, '')
     .replace(/ (FC|AC|SCO|OSC|HAC|29|1901)$/, '')
+}
+
+// lundi (heure de Paris) de la semaine en cours, "2026-10-05" : un But en or
+// programmé pour une semaine future n'est pas encore « la semaine en cours »
+export function currentWeekStart() {
+  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function eventKickoffLabel(iso: string) {

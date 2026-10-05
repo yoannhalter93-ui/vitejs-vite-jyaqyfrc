@@ -132,12 +132,13 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
   const [notice, setNotice] = useState<string | null>(null)
   const [matchdays, setMatchdays] = useState<MatchdayRow[]>([])
   const [appEvents, setAppEvents] = useState<AppEventRow[]>([])
+  const [goldenAnnounce, setGoldenAnnounce] = useState<Record<string, string>>({})
   const [goldenDay, setGoldenDay] = useState<number | null>(null)
 
   const load = async () => {
     setLoading(true)
     setError(null)
-    const [fx, ev, bn, md, ae] = await Promise.all([
+    const [fx, ev, bn, md, ae, gw] = await Promise.all([
       supabase.rpc('admin_upcoming_fixtures'),
       supabase
         .from('weekly_special_matches')
@@ -148,7 +149,9 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
       supabase.from('weekly_bonus_matches').select('week_start, home_team, away_team, kickoff_at').order('week_start', { ascending: false }).limit(6),
       supabase.rpc('admin_upcoming_matchdays'),
       supabase.from('app_events').select('id, kind, matchday, first_kickoff, resolved_at, announce_at, announced_at').order('first_kickoff', { ascending: false }).limit(12),
+      supabase.from('golden_goal_weeks').select('week_start, announce_at').is('announced_at', null),
     ])
+    setGoldenAnnounce(Object.fromEntries(((gw.data ?? []) as { week_start: string; announce_at: string }[]).map((g) => [g.week_start, g.announce_at])))
     setMatchdays((md.data ?? []) as MatchdayRow[])
     setAppEvents((ae.data ?? []) as AppEventRow[])
     if (fx.error) setError(fx.error.message)
@@ -183,7 +186,7 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
     const x2 = bonus != null ? fixtures.find((f) => f.api_fixture_id === bonus) : null
     const msg = `Lancer l'événement But en or ?\n\n🎯 ${a.home_team} - ${a.away_team}\n🎯 ${b.home_team} - ${b.away_team}`
       + (x2 ? `\n✖️2 ${x2.home_team} - ${x2.away_team}` : '')
-      + '\n\nTous les joueurs recevront une notification.'
+      + '\n\nLes joueurs seront prévenus le lundi de cette semaine à 9 h (tout de suite si on y est déjà).'
     if (!window.confirm(msg)) return
     setBusy(true)
     setError(null)
@@ -284,7 +287,10 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
                 return (
                   <div className="admin-ev-card" key={w}>
                     <div className="admin-ev-card-head">
-                      <strong>🎯 But en or · {weekLabel(w).toLowerCase()}</strong>
+                      <strong>
+                        🎯 But en or · {weekLabel(w).toLowerCase()}
+                        {goldenAnnounce[w] && <small className="admin-ev-pending"> · 📣 annoncé {eventKickoffLabel(goldenAnnounce[w])}</small>}
+                      </strong>
                       {!started && (
                         <button className="admin-ev-cancel" onClick={() => cancel(w)}>Annuler</button>
                       )}

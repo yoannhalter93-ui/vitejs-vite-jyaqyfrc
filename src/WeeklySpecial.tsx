@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext'
 import TeamBadge from './TeamBadge'
 import Avatar from './Avatar'
 import LoadingSkeleton from './LoadingSkeleton'
+import { currentWeekStart } from './events'
 
 interface SpecialMatch {
   id: string
@@ -205,6 +206,7 @@ export default function WeeklySpecial({ groupId, groupName, autoApplyAllLeagues,
     const { data: latest, error: latestError } = await supabase
       .from('weekly_special_matches')
       .select('week_start')
+      .lte('week_start', currentWeekStart())
       .order('week_start', { ascending: false })
       .limit(1)
       .maybeSingle()
