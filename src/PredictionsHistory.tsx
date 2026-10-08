@@ -21,15 +21,18 @@ interface Props {
   onBack: () => void
 }
 
-// Mêmes règles que la page Règles du jeu : score exact 5 pts, bon écart de
-// buts + bon résultat 4 pts, juste le bon résultat 3 pts, sinon 0.
-function pointsFor(predHome: number, predAway: number, realHome: number, realAway: number): number {
+// Mêmes règles que la page Règles du jeu : score exact 5 pts, bon résultat
+// 3 pts, sinon 0. Avant le 8 octobre 2026, le « bon écart de buts » valait
+// 4 pts : on le garde pour les matchs déjà joués (points réellement gagnés).
+const ECART_RULE_END = new Date('2026-10-08T00:00:00+02:00').getTime()
+function pointsFor(predHome: number, predAway: number, realHome: number, realAway: number, kickoffAt?: string): number {
   if (predHome === realHome && predAway === realAway) return 5
   const predDiff = predHome - predAway
   const realDiff = realHome - realAway
   const sameOutcome = Math.sign(predDiff) === Math.sign(realDiff)
   if (!sameOutcome) return 0
-  return predDiff === realDiff ? 4 : 3
+  const oldRule = kickoffAt ? new Date(kickoffAt).getTime() < ECART_RULE_END : false
+  return oldRule && predDiff === realDiff ? 4 : 3
 }
 
 export default function PredictionsHistory({ onBack }: Props) {
@@ -124,7 +127,7 @@ export default function PredictionsHistory({ onBack }: Props) {
   }, [user])
 
   const totalPoints = rows.reduce(
-    (sum, r) => sum + pointsFor(r.predHomeScore, r.predAwayScore, r.realHomeScore, r.realAwayScore),
+    (sum, r) => sum + pointsFor(r.predHomeScore, r.predAwayScore, r.realHomeScore, r.realAwayScore, r.kickoffAt),
     0
   )
 
@@ -148,7 +151,7 @@ export default function PredictionsHistory({ onBack }: Props) {
           </p>
           <ul className="history-list">
             {rows.map((r) => {
-              const pts = pointsFor(r.predHomeScore, r.predAwayScore, r.realHomeScore, r.realAwayScore)
+              const pts = pointsFor(r.predHomeScore, r.predAwayScore, r.realHomeScore, r.realAwayScore, r.kickoffAt)
               const tier = pts === 5 ? 'exact' : pts > 0 ? 'partiel' : 'rate'
               return (
                 <li key={r.predictionId} className="history-row">

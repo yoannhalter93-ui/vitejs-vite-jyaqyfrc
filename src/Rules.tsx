@@ -23,7 +23,6 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
         </p>
         <ul className="rules-points">
           <li>Score exact — 5 points</li>
-          <li>Bon écart de buts et bon résultat — 4 points</li>
           <li>Juste le bon résultat, victoire/nul/défaite — 3 points</li>
           <li>Rien de bon — 0 point</li>
         </ul>
@@ -35,7 +34,7 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
           Le total de tous les points gagnés dans le groupe sur la période en cours, tous modes de jeu confondus. Chaque jeu a son onglet dans le classement ; voici ce que chacun rapporte :
         </p>
         <ul className="rules-points">
-          <li>⚽ Pronostics — score exact 5 pts, bon écart 4 pts, bon résultat 3 pts, sinon 0 (doublés avec un Joker ou sur un match ×2)</li>
+          <li>⚽ Pronostics — score exact 5 pts, bon résultat 3 pts, sinon 0 (doublés avec un Joker ou sur un match ×2)</li>
           <li>🎡 Mon équipe — à chacun de ses matchs : victoire +1, nul 0, défaite -1</li>
           <li>🥅 Duels (penaltys et quiz) — victoire 3 pts (+1 🪙), nul 1 pt, défaite 0</li>
           <li>🎮 Mini-jeux — podium du groupe au jeu de la semaine : 1er 3 pts (+2 🪙), 2e 2 pts (+1 🪙), 3e 1 pt</li>
@@ -133,7 +132,7 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
           Seul le meilleur total du groupe sur les 2 matchs remporte la récompense du classement général : 3 points et 2 🪙 jetons. En cas d'égalité, c'est le plus petit écart cumulé sur les minutes pronostiquées qui départage ; à égalité parfaite, la victoire est partagée entre tous les joueurs encore à égalité.
         </p>
         <p className="rules-section-text">
-          Un 3e match peut s'y ajouter : celui-là se parie normalement dans Pronostics (score exact, bon écart, bon résultat), rien ne change — sauf que les points qu'il rapporte comptent double au classement général. Il est repéré par un badge « x2 » dans Pronostics (pas de Joker possible dessus).
+          Un 3e match peut s'y ajouter : celui-là se parie normalement dans Pronostics (score exact, bon résultat), rien ne change — sauf que les points qu'il rapporte comptent double au classement général. Il est repéré par un badge « x2 » dans Pronostics (pas de Joker possible dessus).
         </p>
       </details>
 
