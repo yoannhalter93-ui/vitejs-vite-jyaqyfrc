@@ -985,7 +985,7 @@ export default function RondoGame({ groupId, groupName, autoApplyAllLeagues = fa
         <h2>{practice ? '🐂 Le toro (entraînement)' : `🐂 Le toro — ${groupName ?? ''}`}</h2>
       </div>
 
-      <div className="dribble-app">
+      <div className="dribble-app toro-app">
         <button type="button" className="dribble-rules-toggle" onClick={() => setShowRules((v) => !v)}>
           {showRules ? 'Masquer les règles ▲' : 'Voir les règles ▼'}
         </button>

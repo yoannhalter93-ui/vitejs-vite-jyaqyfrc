@@ -1164,6 +1164,15 @@ details.rules-section > :last-child {
   flex: none;
 }
 
+/* toro : le terrain a une hauteur fixe, inutile d'étirer le bloc jusqu'en
+   bas de l'écran — le bouton « Voir le classement » suit directement */
+.dribble-app.toro-app {
+  flex: none;
+}
+.dribble-app.toro-app + .dribble-rules-toggle {
+  margin-top: 14px;
+}
+
 /* Toro en direct : bouton pour déranger le joueur */
 .toro-wizz-btn {
   display: block;
