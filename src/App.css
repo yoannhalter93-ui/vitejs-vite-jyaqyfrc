@@ -1500,6 +1500,29 @@ textarea,
   font-weight: 600;
 }
 
+.roulette-inverted-note {
+  max-width: 320px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(229, 72, 77, 0.14);
+  border: 1px solid rgba(229, 72, 77, 0.5);
+  color: #F4EFE2;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.roulette-inverted-tag {
+  margin-right: 8px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(229, 72, 77, 0.18);
+  color: #ff9a9d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 /* Écran "team-reveal" : affiché une seule fois à la première entrée dans un
    groupe (voir TeamReveal.tsx), directement sur le fond vert foncé de
    l'appli (pas de carte du bottom-nav / group-nav autour) — d'où une carte

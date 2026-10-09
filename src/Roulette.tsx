@@ -11,6 +11,7 @@ interface Team {
 interface Assignment {
   profile_id: string
   team_name: string
+  inverted?: boolean
   pseudo?: string
 }
 
@@ -23,6 +24,8 @@ export default function Roulette({ groupId, groupName }: Props) {
   const { user } = useAuth()
   const [periodId, setPeriodId] = useState<string | null>(null)
   const [myTeam, setMyTeam] = useState<string | null>(null)
+  // bonus inversé posé sur mon équipe (par moi ou un adversaire)
+  const [myInverted, setMyInverted] = useState(false)
   const [teammates, setTeammates] = useState<Assignment[]>([])
   const [loading, setLoading] = useState(true)
   const [spinning, setSpinning] = useState(false)
@@ -50,7 +53,7 @@ export default function Roulette({ groupId, groupName }: Props) {
 
     const { data: assigns, error: aErr } = await supabase
       .from('team_assignments')
-      .select('profile_id, team_name')
+      .select('profile_id, team_name, inverted')
       .eq('group_id', groupId)
       .eq('period_id', period.id)
 
@@ -62,6 +65,7 @@ export default function Roulette({ groupId, groupName }: Props) {
 
     const mine = (assigns ?? []).find((a) => a.profile_id === user.id)
     setMyTeam(mine ? mine.team_name : null)
+    setMyInverted(!!mine?.inverted)
 
     const others = (assigns ?? []).filter((a) => a.profile_id !== user.id)
     const ids = others.map((a) => a.profile_id)
@@ -145,6 +149,12 @@ export default function Roulette({ groupId, groupName }: Props) {
         <div className="roulette-result">
           <p className="roulette-label">Ton équipe attitrée pour cette période :</p>
           <div className="roulette-team-badge">{myTeam}</div>
+          {myInverted && (
+            <p className="roulette-inverted-note">
+              🔄 <strong>Bonus inversé actif</strong> jusqu'à la fin de la période :
+              victoire de ton équipe = −1 point, défaite = +1 point.
+            </p>
+          )}
         </div>
       ) : (
         <div className="roulette-result">
@@ -165,7 +175,10 @@ export default function Roulette({ groupId, groupName }: Props) {
             {teammates.map((t) => (
               <li className="match-card roulette-teammate-card" key={t.profile_id}>
                 <span>{t.pseudo ?? '???'}</span>
-                <span className="roulette-teammate-team">{t.team_name}</span>
+                <span className="roulette-teammate-team">
+                  {t.inverted && <span className="roulette-inverted-tag" title="Bonus inversé actif">🔄 inversé</span>}
+                  {t.team_name}
+                </span>
               </li>
             ))}
           </ul>
