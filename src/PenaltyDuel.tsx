@@ -313,6 +313,10 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
   const nextKeepAttempt = myKeepAttempts.find((a) => a.shot_taken && !a.resolved) ?? null
   const shotsDone = myShotAttempts.filter((a) => a.shooter_zone !== null).length
   const savesDone = myKeepAttempts.filter((a) => a.resolved).length
+  // panenkas déjà tentées par l'adversaire contre moi dans ce duel (tirs
+  // déjà révélés), pour l'astuce du gardien
+  const opponentPanenkas = myKeepAttempts.filter((a) => a.resolved && a.shooter_zone === 'milieu').length
+  const opponentPseudo = duel ? pseudos[isPlayerA ? duel.player_b_id ?? '' : duel.player_a_id] : undefined
 
   const pickShotZone = async (zone: string) => {
     if (!selected || animBusy || !nextShotAttempt) return
@@ -506,7 +510,14 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
             ) : myTurnToShoot ? (
               <p className="predictions-period">Choisis où viser (tir {shotsDone + 1} / 3, l'adversaire ne le voit pas) :</p>
             ) : (
-              <p className="predictions-period">Devine où l'adversaire a tiré (arrêt {savesDone + 1} / 3) :</p>
+              <>
+                <p className="predictions-period">Devine où l'adversaire a tiré (arrêt {savesDone + 1} / 3) :</p>
+                <p className="penalty-keeper-tip">
+                  {opponentPanenkas > 0
+                    ? `👀 ${opponentPseudo ?? 'Ton adversaire'} a déjà tenté ${opponentPanenkas} panenka${opponentPanenkas > 1 ? 's' : ''} dans ce duel…`
+                    : '💡 Il tire souvent au milieu ? Reste au milieu pour arrêter la panenka !'}
+                </p>
+              </>
             )}
 
             <div className="penalty-zone-grid">

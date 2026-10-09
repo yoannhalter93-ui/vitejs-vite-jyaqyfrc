@@ -69,6 +69,9 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
           <li>Arrêté — 0 point du duel</li>
         </ul>
         <p className="rules-section-text">
+          💡 Astuce de gardien : si ton adversaire tire souvent au milieu, reste au milieu pour arrêter la panenka !
+        </p>
+        <p className="rules-section-text">
           Celui qui totalise le plus de points sur les 6 tirs gagne le duel — ces points ne servent qu'à ça. Au classement général, seul le résultat du duel compte :
         </p>
         <ul className="rules-points">

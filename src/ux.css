@@ -1286,3 +1286,11 @@ details.rules-section > :last-child {
 .announcement-more { margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(127, 127, 127, 0.4); font-size: 13px; }
 .announcement-more p { margin: 6px 0; }
 .announcement-cta { display: block; width: 100%; margin-top: 14px; padding: 12px; border: none; border-radius: 12px; background: #D9A82E; color: #1B1B1F; font-weight: 800; font-size: 16px; box-shadow: 0 3px 0 #8a6a1c; cursor: pointer; }
+
+/* duel penalty : astuce discrète sous la consigne du gardien */
+.penalty-keeper-tip {
+  margin: -4px 0 8px;
+  color: rgba(244, 239, 226, 0.6);
+  font-size: 12.5px;
+  text-align: center;
+}
