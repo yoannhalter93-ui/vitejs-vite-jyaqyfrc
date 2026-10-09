@@ -634,6 +634,12 @@ function App() {
     if (screen !== 'jonglages') setMinigamePlaying(false)
   }, [screen])
 
+  // chaque écran s'ouvre en haut : sinon il héritait du défilement de
+  // l'écran précédent (ex. Classement qui s'ouvrait à moitié descendu)
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [screen, selectedGroup?.id])
+
   // Historique de navigation : l'appli n'a qu'une seule URL, donc sans ça le
   // bouton "retour" d'Android (et de l'appli Play Store) quittait carrément
   // l'appli au lieu de revenir à l'écran précédent. Chaque changement
