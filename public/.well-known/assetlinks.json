@@ -4,7 +4,8 @@
     "namespace": "android_app",
     "package_name": "fr.entrenous.app",
     "sha256_cert_fingerprints": [
-      "E3:2A:7A:4A:BE:DA:7E:AA:FD:71:ED:13:58:28:FD:42:30:3B:8A:33:26:5D:AD:22:6F:3B:81:4B:BC:2A:F1:71"
+      "E3:2A:7A:4A:BE:DA:7E:AA:FD:71:ED:13:58:28:FD:42:30:3B:8A:33:26:5D:AD:22:6F:3B:81:4B:BC:2A:F1:71",
+      "DD:58:F6:61:5E:11:C9:5E:B7:A4:B2:D1:05:F4:B0:49:92:5B:2B:15:75:42:38:8B:81:8D:22:E2:20:74:D3:46"
     ]
   }
 }]
