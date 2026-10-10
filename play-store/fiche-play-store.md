@@ -17,7 +17,6 @@ Crée ton groupe, invite tes amis avec un simple lien, et chaque semaine, affron
 🎯 PRONOSTICS LIGUE 1
 • Donne ton score pour chaque match avant le coup d'envoi
 • Score exact = 5 points, bon résultat = 3 points
-• Trouve le buteur pour un point bonus
 • Utilise ton Joker pour doubler tes points sur un match
 
 🏆 UN CLASSEMENT ENTRE POTES
@@ -33,7 +32,7 @@ Crée ton groupe, invite tes amis avec un simple lien, et chaque semaine, affron
 • Quiz : des milliers de questions foot, sport, cinéma, culture générale et logique
 
 🤝 PARIS ET ÉVÉNEMENTS
-• Propose des paris libres au groupe (« Mbappé marque un doublé ? »)
+• Propose des paris libres au groupe (« Il y aura un penalty ce soir ? »)
 • Événements spéciaux : Journée x2, Duo du week-end, But en or, Total de buts
 • Gagne des jetons et utilise des bonus pour pimenter la compétition
 
