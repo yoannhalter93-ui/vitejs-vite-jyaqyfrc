@@ -35,7 +35,7 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
         </p>
         <ul className="rules-points">
           <li>⚽ Pronostics — score exact 5 pts, bon résultat 3 pts, sinon 0 (doublés avec un Joker ou sur un match ×2)</li>
-          <li>🎡 Mon équipe — à chacun de ses matchs : victoire +1, nul 0, défaite -1</li>
+          <li>🎡 Mon équipe — à chacun de ses matchs joués après ton tirage : victoire +1, nul 0, défaite -1</li>
           <li>🥅 Duels (penaltys et quiz) — victoire 3 pts (+1 🪙), nul 1 pt, défaite 0</li>
           <li>🎮 Mini-jeux — podium du groupe au jeu de la semaine : 1er 3 pts (+2 🪙), 2e 2 pts (+1 🪙), 3e 1 pt</li>
           <li>🤝 Paris libres — le bon camp gagne les points de la cote (plus il était minoritaire, plus ça rapporte)</li>
@@ -49,7 +49,7 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
       <details className="rules-section" name="regles">
         <summary className="rules-section-title">🎡 Mon équipe</summary>
         <p className="rules-section-text">
-          Dès que tu rejoins ou crées un groupe, une équipe de Ligue 1 t'est attribuée au hasard pour la période en cours — impossible d'y échapper. Seuls les matchs joués depuis le début de la période comptent :
+          Dès que tu rejoins ou crées un groupe, une équipe de Ligue 1 t'est attribuée au hasard pour la période en cours — impossible d'y échapper. Seuls les matchs joués après l'attribution de ton équipe comptent (pas ceux d'avant ton arrivée ou d'avant un échange) :
         </p>
         <ul className="rules-points">
           <li>Ton équipe gagne — +1 point</li>

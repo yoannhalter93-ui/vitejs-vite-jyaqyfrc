@@ -19,6 +19,10 @@
 // IMPORTANT : on ne compte que les matchs joués À PARTIR DU DÉBUT de la
 // période en cours du groupe (group_periods.starts_at) — un groupe créé en
 // pleine saison n'hérite pas des résultats passés de l'équipe tirée.
+// 2026-10-11 : et seulement ceux joués APRÈS l'attribution de l'équipe
+// (team_assignments.assigned_at) — un joueur qui tire son équipe en cours
+// de période (nouveau membre, échange, retirage) ne récupère plus d'un
+// coup les résultats passés.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -44,6 +48,7 @@ type Assignment = {
   group_id: string;
   profile_id: string;
   api_team_id: number;
+  assigned_at: string | null;
   group_periods: { starts_at: string } | { starts_at: string }[] | null;
 };
 
@@ -59,7 +64,7 @@ Deno.serve(async (_req) => {
   try {
     const { data: assignments, error } = await supabase
       .from("team_assignments")
-      .select("group_id, profile_id, api_team_id, group_periods(starts_at)");
+      .select("group_id, profile_id, api_team_id, assigned_at, group_periods(starts_at)");
     if (error) throw error;
     if (!assignments || assignments.length === 0) {
       return new Response(JSON.stringify({ message: "Aucune équipe attitrée" }), { status: 200 });
@@ -82,8 +87,10 @@ Deno.serve(async (_req) => {
 
     const rows = [];
     let skippedPastPeriod = 0;
+    let skippedBeforeDraw = 0;
     for (const a of assignments as Assignment[]) {
       const periodStart = periodStartOf(a);
+      const assignedAt = a.assigned_at ? new Date(a.assigned_at) : null;
       for (const fixture of fixtures) {
         const isHome = fixture.homeTeam?.id === a.api_team_id;
         const isAway = fixture.awayTeam?.id === a.api_team_id;
@@ -96,6 +103,10 @@ Deno.serve(async (_req) => {
         const fixtureDate = fixture.utcDate ? new Date(fixture.utcDate) : null;
         if (periodStart && fixtureDate && fixtureDate < periodStart) {
           skippedPastPeriod++;
+          continue;
+        }
+        if (assignedAt && fixtureDate && fixtureDate < assignedAt) {
+          skippedBeforeDraw++;
           continue;
         }
 
@@ -132,7 +143,7 @@ Deno.serve(async (_req) => {
     }
 
     return new Response(
-      JSON.stringify({ fixtures: fixtures.length, candidates: rows.length, inserted, failed, skippedPastPeriod }),
+      JSON.stringify({ fixtures: fixtures.length, candidates: rows.length, inserted, failed, skippedPastPeriod, skippedBeforeDraw }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
   } catch (err) {
