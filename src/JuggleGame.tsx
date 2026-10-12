@@ -1,5 +1,6 @@
 import { createElement, Fragment, useEffect, useRef, useState, type PointerEvent } from 'react'
 import { supabase } from './supabaseClient'
+import { previousGameWeek } from './minigameWeeks'
 import { useAuth } from './AuthContext'
 import { useWizzChannel, setPlayingPresence } from './wizzChannel'
 import { useFloatingReactions, FloatingReactions } from './ToroReactions'
@@ -36,12 +37,6 @@ function monday(): string {
     const day = now.getUTCDay()
     const diff = day === 0 ? 6 : day - 1
     const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - diff))
-    return d.toISOString().slice(0, 10)
-}
-
-function previousMonday(): string {
-    const d = new Date(monday() + 'T00:00:00Z')
-    d.setUTCDate(d.getUTCDate() - 7)
     return d.toISOString().slice(0, 10)
 }
 
@@ -173,7 +168,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
         // cette semaine étant reparti à zéro) et record absolu du groupe,
         // toutes semaines confondues
         const { data: lastWeekRows } = await supabase.from('juggle_scores').select('profile_id, score')
-          .eq('group_id', groupId).eq('week_start', previousMonday()).order('score', { ascending: false }).limit(1)
+          .eq('group_id', groupId).eq('week_start', await previousGameWeek('jonglage', monday())).order('score', { ascending: false }).limit(1)
         const { data: allTimeRows } = await supabase.from('juggle_scores').select('profile_id, score')
           .eq('group_id', groupId).order('score', { ascending: false }).limit(1)
 
@@ -638,7 +633,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
                       createElement(
                                   'p',
                         { className: 'juggle-palmares-row' },
-                                  'Semaine dernière : ',
+                                  'Édition précédente : ',
                                   createElement('b', null, lastWeekBest.score),
                                   ' (', lastWeekBest.pseudo, ')'
                                 )

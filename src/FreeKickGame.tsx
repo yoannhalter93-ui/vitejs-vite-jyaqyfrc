@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { supabase } from './supabaseClient'
+import { previousGameWeek } from './minigameWeeks'
 import { useAuth } from './AuthContext'
 import { useWizzChannel } from './wizzChannel'
 
@@ -58,12 +59,6 @@ function monday(): string {
   const day = now.getUTCDay()
   const diff = day === 0 ? 6 : day - 1
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - diff))
-  return d.toISOString().slice(0, 10)
-}
-
-function previousMonday(): string {
-  const d = new Date(monday() + 'T00:00:00Z')
-  d.setUTCDate(d.getUTCDate() - 7)
   return d.toISOString().slice(0, 10)
 }
 
@@ -277,7 +272,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const { data: s } = await supabase.from('freekick_scores').select('profile_id, score')
       .eq('group_id', groupId).eq('week_start', monday()).order('score', { ascending: false })
     const { data: lastWeekRows } = await supabase.from('freekick_scores').select('profile_id, score')
-      .eq('group_id', groupId).eq('week_start', previousMonday()).order('score', { ascending: false }).limit(1)
+      .eq('group_id', groupId).eq('week_start', await previousGameWeek('coup-franc', monday())).order('score', { ascending: false }).limit(1)
     const { data: allTimeRows } = await supabase.from('freekick_scores').select('profile_id, score')
       .eq('group_id', groupId).order('score', { ascending: false }).limit(1)
 
@@ -1214,7 +1209,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         <div className="juggle-palmares">
           <p className="predictions-period">🏆 Palmarès</p>
           {allTimeBest && <p className="juggle-palmares-row">Record du groupe : <b>{allTimeBest.score}</b> ({allTimeBest.pseudo})</p>}
-          {lastWeekBest && <p className="juggle-palmares-row">Semaine dernière : <b>{lastWeekBest.score}</b> ({lastWeekBest.pseudo})</p>}
+          {lastWeekBest && <p className="juggle-palmares-row">Édition précédente : <b>{lastWeekBest.score}</b> ({lastWeekBest.pseudo})</p>}
         </div>
       )}
       {showBoard && scores.length > 0 && (
