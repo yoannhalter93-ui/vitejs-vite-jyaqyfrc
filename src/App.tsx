@@ -22,6 +22,7 @@ import Rules from './Rules';
 import ToroSpectator from './ToroSpectator';
 import WeeklySpecial from './WeeklySpecial';
 import Avatar from './Avatar'
+import TeamBadge from './TeamBadge'
 import PredictionsHistory from './PredictionsHistory'
 import MyStats from './MyStats'
 import Recap from './Recap'
@@ -737,7 +738,8 @@ function App() {
   const [bonusCatalog, setBonusCatalog] = useState<any[]>([])
   const [showBonusPanel, setShowBonusPanel] = useState(false)
   const [bonusTargetPicker, setBonusTargetPicker] = useState<string | null>(null)
-  const [groupMembersForBonus, setGroupMembersForBonus] = useState<{ id: string; pseudo: string }[]>([])
+  const [groupMembersForBonus, setGroupMembersForBonus] = useState<{ id: string; pseudo: string; avatar_url: string | null; avatar_emoji: string | null; team: string | null; inverted: boolean }[]>([])
+  const [myBonusTeam, setMyBonusTeam] = useState<{ team: string | null; inverted: boolean }>({ team: null, inverted: false })
   const [bonusBusy, setBonusBusy] = useState(false)
   const [bonusError, setBonusError] = useState<string | null>(null)
   // message après un bonus (bouclier activé, bonus bloqué par un bouclier…)
@@ -826,13 +828,29 @@ function App() {
   const openBonusTargetPicker = async (code: string) => {
     if (!selectedGroup?.id || !session?.user?.id) return
     setBonusError(null)
-    const { data } = await supabase
-      .from('group_members')
-      .select('profile_id, profiles(pseudo)')
-      .eq('group_id', selectedGroup.id)
+    // joueurs + leur équipe attitrée de la période en cours : pour un
+    // échange / retirage / inversé, c'est l'équipe qu'on vise
+    const [{ data }, { data: period }] = await Promise.all([
+      supabase.from('group_members').select('profile_id, profiles(pseudo, avatar_url, avatar_emoji)').eq('group_id', selectedGroup.id),
+      supabase.from('group_periods').select('id').eq('group_id', selectedGroup.id).eq('is_current', true).maybeSingle(),
+    ])
+    const { data: teams } = period
+      ? await supabase.from('team_assignments').select('profile_id, team_name, inverted').eq('group_id', selectedGroup.id).eq('period_id', period.id)
+      : { data: [] as { profile_id: string; team_name: string; inverted: boolean }[] }
+    const teamOf = new Map((teams ?? []).map((t) => [t.profile_id, t]))
+    const mine = teamOf.get(session.user.id)
+    setMyBonusTeam({ team: mine?.team_name ?? null, inverted: !!mine?.inverted })
     const members = (data ?? [])
-      .map((m: any) => ({ id: m.profile_id, pseudo: m.profiles?.pseudo ?? '?' }))
+      .map((m: any) => ({
+        id: m.profile_id,
+        pseudo: m.profiles?.pseudo ?? '?',
+        avatar_url: m.profiles?.avatar_url ?? null,
+        avatar_emoji: m.profiles?.avatar_emoji ?? null,
+        team: teamOf.get(m.profile_id)?.team_name ?? null,
+        inverted: !!teamOf.get(m.profile_id)?.inverted,
+      }))
       .filter((m: any) => m.id !== session.user.id)
+      .sort((a: any, b: any) => (a.team ?? '~').localeCompare(b.team ?? '~'))
     setGroupMembersForBonus(members)
     if (code === 'carton_rouge') setRedCardsKey((k) => k + 1)
     setBonusTargetPicker(code)
@@ -1605,24 +1623,65 @@ function App() {
       {bonusTargetPicker && (
         <div className="bonus-target-overlay" onClick={() => setBonusTargetPicker(null)}>
           <div className="bonus-target-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{bonusTargetPicker === 'carton_rouge' ? '🟥 Qui reçoit le carton rouge ?' : 'Choisis une cible'}</h3>
-            {bonusError && <p className="bonus-error">{bonusError}</p>}
-            {bonusTargetPicker === 'bonus_inverse' && (
-              <button className="bonus-target-member" onClick={() => applyBonus('bonus_inverse', session!.user.id)} disabled={bonusBusy}>
-                Toi-même
-              </button>
+            <h3>
+              {bonusTargetPicker === 'carton_rouge' ? '🟥 Qui reçoit le carton rouge ?'
+                : bonusTargetPicker === 'echange_equipe' ? '🔄 Contre quelle équipe échanger ?'
+                : bonusTargetPicker === 'retirage_force' ? '🎰 Quelle équipe faire retirer ?'
+                : bonusTargetPicker === 'bonus_inverse' ? '🔃 Quelle équipe inverser ?'
+                : 'Choisis une cible'}
+            </h3>
+            {bonusTargetPicker !== 'carton_rouge' && myBonusTeam.team && (
+              <div className="bonus-target-mine">
+                <TeamBadge name={myBonusTeam.team} size={26} />
+                <span>Ton équipe : <b>{myBonusTeam.team}</b>{myBonusTeam.inverted ? ' · 🔄 inversée' : ''}</span>
+              </div>
             )}
-            {groupMembersForBonus.map((m) => (
-              <button
-                key={m.id}
-                className="bonus-target-member"
-                onClick={() => applyBonus(bonusTargetPicker, m.id)}
-                disabled={bonusBusy || (bonusTargetPicker === 'carton_rouge' && !!redCards[m.id])}
-              >
-                {m.pseudo}
-                {bonusTargetPicker === 'carton_rouge' && redCards[m.id] && ' — 🟥 déjà exclu'}
-              </button>
-           ))}
+            {bonusError && <p className="bonus-error">{bonusError}</p>}
+            <div className="bonus-target-list">
+              {bonusTargetPicker === 'bonus_inverse' && myBonusTeam.team && (
+                <button className="bonus-target-member bonus-target-card" onClick={() => applyBonus('bonus_inverse', session!.user.id)} disabled={bonusBusy || myBonusTeam.inverted}>
+                  <TeamBadge name={myBonusTeam.team} size={34} />
+                  <span className="bonus-target-text">
+                    <b>{myBonusTeam.team}</b>
+                    <small>Ta propre équipe{myBonusTeam.inverted ? ' · déjà inversée' : ''}</small>
+                  </span>
+                </button>
+              )}
+              {groupMembersForBonus.map((m) => {
+                const disabled = bonusBusy
+                  || (bonusTargetPicker === 'carton_rouge' && !!redCards[m.id])
+                  || (bonusTargetPicker !== 'carton_rouge' && !m.team)
+                  || (bonusTargetPicker === 'bonus_inverse' && m.inverted)
+                return (
+                  <button
+                    key={m.id}
+                    className="bonus-target-member bonus-target-card"
+                    onClick={() => applyBonus(bonusTargetPicker, m.id)}
+                    disabled={disabled}
+                  >
+                    {bonusTargetPicker === 'carton_rouge' || !m.team
+                      ? <Avatar pseudo={m.pseudo} avatarUrl={m.avatar_url} avatarEmoji={m.avatar_emoji} size={34} />
+                      : <TeamBadge name={m.team} size={34} />}
+                    <span className="bonus-target-text">
+                      {bonusTargetPicker === 'carton_rouge' ? (
+                        <>
+                          <b>{m.pseudo}</b>
+                          <small>{redCards[m.id] ? '🟥 déjà exclu' : m.team ?? 'pas encore d\'équipe'}</small>
+                        </>
+                      ) : (
+                        <>
+                          <b>{m.team ?? 'Pas encore d\'équipe'}</b>
+                          <small>
+                            <Avatar pseudo={m.pseudo} avatarUrl={m.avatar_url} avatarEmoji={m.avatar_emoji} size={16} /> {m.pseudo}
+                            {m.inverted ? ' · 🔄 inversée' : ''}
+                          </small>
+                        </>
+                      )}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
             <button className="bonus-target-cancel" onClick={() => setBonusTargetPicker(null)}>Annuler</button>
           </div>
         </div>
