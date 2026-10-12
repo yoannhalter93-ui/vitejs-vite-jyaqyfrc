@@ -34,6 +34,19 @@ const CATEGORIES: { key: string; label: string }[] = [
   { key: 'jeu_semaine', label: 'Événements' },
 ]
 
+// Palmarès : classement final de chaque championnat terminé du groupe
+// (RPC get_group_palmares)
+interface PastChampionship {
+  period_id: string
+  label: string
+  starts_at: string
+  ends_at: string
+  ranking: { profile_id: string; pseudo: string; avatar_url: string | null; avatar_emoji: string | null; points: number; rank: number }[]
+}
+
+const MEDALS = ['🥇', '🥈', '🥉']
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+
 // Le classement "Duels" fusionne deux catégories de points_ledger.source_type
 // (les quiz et les duels penalty) en un seul total par joueur.
 function mergeCategoryPoints(a?: Record<string, number>, b?: Record<string, number>): Record<string, number> {
@@ -53,6 +66,16 @@ export default function Classement({ groupId, groupName }: Props) {
   const [loading, setLoading] = useState(true)
   const redCards = useRedCards(groupId)
   const [error, setError] = useState<string | null>(null)
+  const [palmares, setPalmares] = useState<PastChampionship[] | null>(null)
+  const [openPeriod, setOpenPeriod] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (tab !== 'palmares' || palmares) return
+    supabase.rpc('get_group_palmares', { p_group_id: groupId }).then(({ data, error: err }) => {
+      if (err) setError(err.message)
+      else setPalmares((data ?? []) as PastChampionship[])
+    })
+  }, [tab, groupId, palmares])
 
   useEffect(() => {
     const load = async () => {
@@ -172,9 +195,48 @@ export default function Classement({ groupId, groupName }: Props) {
             {c.label}
           </button>
         ))}
+        <button className={"group-nav-tab" + (tab === 'palmares' ? ' group-nav-tab-active' : '')} onClick={() => setTab('palmares')}>
+          📜 Palmarès
+        </button>
       </div>
 
-      {loading ? (
+      {tab === 'palmares' ? (
+        !palmares ? (
+          <LoadingSkeleton rows={4} />
+        ) : palmares.length === 0 ? (
+          <p className="groups-empty">Aucun championnat terminé pour l'instant. Le palmarès se remplira à la fin du premier championnat !</p>
+        ) : (
+          <ul className="palmares-list">
+            {palmares.map((c) => {
+              const open = openPeriod === c.period_id
+              const shown = open ? c.ranking : c.ranking.filter((r) => r.rank <= 3 && r.points > 0)
+              return (
+                <li key={c.period_id} className="palmares-card">
+                  <button type="button" className="palmares-head" onClick={() => setOpenPeriod(open ? null : c.period_id)} aria-expanded={open}>
+                    <span className="palmares-title">🏆 {c.label}</span>
+                    <span className="palmares-dates">{fmtDate(c.starts_at)} → {fmtDate(c.ends_at)}</span>
+                  </button>
+                  <ul className="classement-board palmares-board">
+                    {shown.map((r) => (
+                      <li key={r.profile_id} className={"classement-board-row" + (r.profile_id === user?.id ? " classement-board-row-me" : "")}>
+                        <span className={"classement-board-rank" + (r.rank <= 3 ? ` classement-board-rank-${r.rank}` : '')}>
+                          {r.rank <= 3 && r.points > 0 ? MEDALS[r.rank - 1] : r.rank}
+                        </span>
+                        <Avatar pseudo={r.pseudo} avatarUrl={r.avatar_url} avatarEmoji={r.avatar_emoji} size={32} className="classement-board-avatar" />
+                        <span className="classement-board-name">{r.pseudo}{r.rank === 1 && r.points > 0 ? ' 👑' : ''}</span>
+                        <span className={"classement-board-points" + (r.rank <= 3 ? " classement-board-points-top" : "")}>{r.points} pts</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button type="button" className="palmares-more" onClick={() => setOpenPeriod(open ? null : c.period_id)}>
+                    {open ? 'Voir seulement le podium ▲' : 'Voir le classement final ▼'}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )
+      ) : loading ? (
         <LoadingSkeleton rows={6} />
       ) : members.length === 0 ? (
         <p className="groups-empty">Aucun membre dans ce groupe pour l'instant.</p>

@@ -48,6 +48,8 @@ interface GroupRow {
   period_custom_days: number | null
   created_by: string
   created_at: string
+  continue_after_period: boolean
+  ended_at: string | null
 }
 
 interface Membership {
@@ -131,7 +133,7 @@ export default function Groups({ onSelectGroup }: Props) {
 
     const { data, error: fetchError } = await supabase
       .from('group_members')
-      .select('role, joined_at, groups(id, name, validation_mode, invite_code, period_type, period_custom_days, created_by, created_at)')
+      .select('role, joined_at, groups(id, name, validation_mode, invite_code, period_type, period_custom_days, created_by, created_at, continue_after_period, ended_at)')
       .eq('profile_id', user.id)
       .order('joined_at', { ascending: false })
 
@@ -266,6 +268,27 @@ export default function Groups({ onSelectGroup }: Props) {
 
     setEditingGroupId(null)
     setSavingPeriod(false)
+    await fetchGroups()
+  }
+
+  // fin de championnat : le créateur choisit de continuer (nouveau
+  // championnat, tout le monde repart à 0) ou d'arrêter la ligue
+  const toggleContinue = async (group: GroupRow) => {
+    const next = !group.continue_after_period
+    if (!window.confirm(next
+      ? 'À la fin du championnat, un nouveau championnat repartira automatiquement (tout le monde à 0). OK ?'
+      : 'À la fin du championnat (fin de la journée en cours), la ligue s\'arrêtera : plus de nouveaux matchs ni de duels. Tu pourras la relancer plus tard. OK ?')) return
+    setError(null)
+    const { error: err } = await supabase.rpc('set_group_continue', { p_group_id: group.id, p_continue: next })
+    if (err) { setError(err.message); return }
+    await fetchGroups()
+  }
+
+  const restartChampionship = async (group: GroupRow) => {
+    if (!window.confirm(`Relancer un nouveau championnat dans « ${group.name} » ? Tout le monde repart à 0.`)) return
+    setError(null)
+    const { error: err } = await supabase.rpc('restart_group_championship', { p_group_id: group.id })
+    if (err) { setError(err.message); return }
     await fetchGroups()
   }
 
@@ -414,7 +437,9 @@ export default function Groups({ onSelectGroup }: Props) {
                     </div>
                   </div>
                   <div className="groups-card-meta">
-                    <span>📅 Période : {formatPeriod(m.groups.period_type, m.groups.period_custom_days)}</span>
+                    {m.groups.ended_at
+                      ? <span>🏁 Ligue arrêtée</span>
+                      : <span>📅 Période : {formatPeriod(m.groups.period_type, m.groups.period_custom_days)}</span>}
                     <span className="groups-card-meta-sep">·</span>
                     <span>👥 {memberCount ?? '…'} membre{memberCount === 1 ? '' : 's'}</span>
                   </div>
@@ -441,6 +466,24 @@ export default function Groups({ onSelectGroup }: Props) {
                   </div>
                   {m.role === 'owner' && (
                     <div className="groups-card-owner-actions" onClick={(e) => e.stopPropagation()}>
+                      {m.groups.ended_at ? (
+                        <button
+                          type="button"
+                          className="groups-card-action-btn groups-card-action-primary"
+                          onClick={() => restartChampionship(m.groups)}
+                        >
+                          ▶️ Relancer un championnat
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="groups-card-action-btn"
+                          onClick={() => toggleContinue(m.groups)}
+                          title="Ce qui se passe à la fin du championnat en cours"
+                        >
+                          {m.groups.continue_after_period ? '🔁 À la fin : on continue' : '⏹️ À la fin : on arrête'}
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="groups-card-action-btn"
