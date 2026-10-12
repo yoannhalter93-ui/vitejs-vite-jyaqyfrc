@@ -1491,13 +1491,31 @@ textarea,
 
 .roulette-teammate-card {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
+}
+
+.roulette-teammate-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.roulette-teammate-pseudo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .roulette-teammate-team {
   color: #D4A22C;
   font-weight: 600;
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .roulette-inverted-note {
@@ -1514,11 +1532,13 @@ textarea,
 }
 
 .roulette-inverted-tag {
-  margin-right: 8px;
-  padding: 2px 6px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 3px 8px;
   border-radius: 6px;
-  background: rgba(229, 72, 77, 0.18);
-  color: #ff9a9d;
+  background: rgba(229, 72, 77, 0.12);
+  border: 1px solid rgba(198, 47, 53, 0.45);
+  color: #b3262c;
   font-size: 11px;
   font-weight: 700;
 }

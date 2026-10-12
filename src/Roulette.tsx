@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import TeamBadge from './TeamBadge'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import LoadingSkeleton from './LoadingSkeleton'
@@ -175,11 +176,12 @@ export default function Roulette({ groupId, groupName }: Props) {
           <ul className="matches-list">
             {teammates.map((t) => (
               <li className="match-card roulette-teammate-card" key={t.profile_id}>
-                <span>{t.pseudo ?? '???'}</span>
-                <span className="roulette-teammate-team">
-                  {t.inverted && <span className="roulette-inverted-tag" title="Bonus inversé actif">🔄 inversé</span>}
-                  {t.team_name}
+                <TeamBadge name={t.team_name} size={34} />
+                <span className="roulette-teammate-info">
+                  <span className="roulette-teammate-pseudo">{t.pseudo ?? '???'}</span>
+                  <span className="roulette-teammate-team">{t.team_name}</span>
                 </span>
+                {t.inverted && <span className="roulette-inverted-tag" title="Bonus inversé actif">🔄 inversé</span>}
               </li>
             ))}
           </ul>
