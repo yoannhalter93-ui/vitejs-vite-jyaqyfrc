@@ -35,7 +35,7 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
         </p>
         <ul className="rules-points">
           <li>⚽ Pronostics — score exact 5 pts, bon résultat 3 pts, sinon 0 (doublés avec un Joker ou sur un match ×2)</li>
-          <li>🎡 Mon équipe — à chacun de ses matchs joués après ton tirage : victoire +1, nul 0, défaite -1</li>
+          <li>🎡 Mon équipe — à chacun de ses matchs joués après ton tirage : victoire +3, nul +1, défaite 0</li>
           <li>🥅 Duels (penaltys et quiz) — victoire 3 pts (+1 🪙), nul 1 pt, défaite 0</li>
           <li>🎮 Mini-jeux — podium du groupe au jeu de la semaine : 1er 3 pts (+2 🪙), 2e 2 pts (+1 🪙), 3e 1 pt</li>
           <li>🤝 Paris libres — le bon camp gagne les points de la cote (plus il était minoritaire, plus ça rapporte)</li>
@@ -55,9 +55,9 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
           Dès que tu rejoins ou crées un groupe, une équipe de Ligue 1 t'est attribuée au hasard pour la période en cours — impossible d'y échapper. Seuls les matchs joués après l'attribution de ton équipe comptent (pas ceux d'avant ton arrivée ou d'avant un échange) :
         </p>
         <ul className="rules-points">
-          <li>Ton équipe gagne — +1 point</li>
-          <li>Elle fait match nul — 0 point</li>
-          <li>Elle perd — -1 point</li>
+          <li>Ton équipe gagne — +3 points</li>
+          <li>Elle fait match nul — +1 point</li>
+          <li>Elle perd — 0 point</li>
         </ul>
       </details>
 
@@ -167,7 +167,7 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
         <ul className="rules-points">
           <li>Échange d'équipe (3🪙) — échange ton équipe attitrée avec celle d'un adversaire</li>
           <li>Retirage forcé (2🪙) — force un adversaire à retirer une nouvelle équipe au hasard</li>
-          <li>Bonus inversé (3🪙) — inverse les points de l'équipe attitrée d'un joueur pour le reste du championnat, victoire = points en moins et défaite = points en plus ; sur toi-même ou sur un adversaire. L'inversion reste sur le joueur, même s'il change d'équipe (échange, retirage). Tu es inversé ? Utilise le bonus sur toi-même pour l'annuler.</li>
+          <li>Bonus inversé (3🪙) — inverse les points de l'équipe attitrée d'un joueur pour le reste du championnat, victoire = 0 point, nul = +1, défaite = +3 ; sur toi-même ou sur un adversaire. L'inversion reste sur le joueur, même s'il change d'équipe (échange, retirage). Tu es inversé ? Utilise le bonus sur toi-même pour l'annuler.</li>
           <li>Double ou rien (2🪙) — double les points d'un pari libre si tu gagnes</li>
           <li>Joker ×2 (3🪙) — double les points d'un de tes pronos de match ; à poser avant le coup d'envoi, avec le bouton « Joker ×2 » sous le match dans Pronos (pas sur le match ×2 d'un événement, qui compte déjà double)</li>
           <li>Carton rouge (2🪙) — un adversaire affiche 🟥 à côté de son pseudo pendant 24 h et ne peut pas jouer au jeu de la semaine pendant ces 24 h</li>

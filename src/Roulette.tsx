@@ -152,7 +152,7 @@ export default function Roulette({ groupId, groupName }: Props) {
           {myInverted && (
             <p className="roulette-inverted-note">
               🔄 <strong>Tu es inversé</strong> jusqu'à la fin du championnat, même si tu changes d'équipe :
-              victoire de ton équipe = −1 point, défaite = +1 point.
+              victoire de ton équipe = 0 point, nul = +1, défaite = +3 points.
               <br />Pour l'annuler : utilise le bonus inversé sur toi-même (3 🪙).
             </p>
           )}
