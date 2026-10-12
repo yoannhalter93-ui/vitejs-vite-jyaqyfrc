@@ -1504,6 +1504,8 @@ textarea,
 }
 
 .roulette-teammate-pseudo {
+  font-size: 0.85em;
+  opacity: 0.75;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1511,8 +1513,7 @@ textarea,
 
 .roulette-teammate-team {
   color: #D4A22C;
-  font-weight: 600;
-  font-size: 0.85em;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

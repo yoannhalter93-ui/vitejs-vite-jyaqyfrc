@@ -178,8 +178,8 @@ export default function Roulette({ groupId, groupName }: Props) {
               <li className="match-card roulette-teammate-card" key={t.profile_id}>
                 <TeamBadge name={t.team_name} size={34} />
                 <span className="roulette-teammate-info">
-                  <span className="roulette-teammate-pseudo">{t.pseudo ?? '???'}</span>
                   <span className="roulette-teammate-team">{t.team_name}</span>
+                  <span className="roulette-teammate-pseudo">{t.pseudo ?? '???'}</span>
                 </span>
                 {t.inverted && <span className="roulette-inverted-tag" title="Bonus inversé actif">🔄 inversé</span>}
               </li>
