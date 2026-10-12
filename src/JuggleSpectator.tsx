@@ -171,7 +171,7 @@ export default function JuggleSpectator({ profileId, pseudo, onExit }: Props) {
   }, [sky])
 
   return (
-    <div className={`predictions-screen juggle-page${wizzing && status === 'live' ? ' juggle-wizz-shake' : ''}`}>
+    <div className={`predictions-screen juggle-page juggle-spectator${wizzing && status === 'live' ? ' juggle-wizz-shake' : ''}`}>
       <div className="predictions-header">
         <button className="predictions-back" onClick={onExit}>← Jeux</button>
         <h2>👀 {pseudo} jongle</h2>
@@ -221,7 +221,7 @@ export default function JuggleSpectator({ profileId, pseudo, onExit }: Props) {
         )}
       </div>
 
-      <div className="match-predict juggle-stats">
+      <div className="match-predict juggle-stats juggle-spectator-stats">
         <span>Score : {score}</span>
         <span>Ballons : {balls}</span>
         <span>{status === 'live' ? '🔴 En direct' : 'Direct'}</span>

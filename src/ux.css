@@ -1368,3 +1368,26 @@ details.rules-section > :last-child {
 .admin-votes h3 { margin: 0 0 6px; font-size: 15px; }
 .admin-votes p { margin: 4px 0; }
 .admin-votes-names { font-size: 12px; opacity: 0.75; }
+
+/* jonglage en direct (spectateur) : mêmes couleurs que les écrans du toro
+   (les variables sont définies sur .dribble-app, absent de cet écran) */
+.juggle-spectator {
+  --cream:#F4EFE2;
+  --ink:#1B1B1F;
+  --ink-soft:rgba(244,239,226,0.62);
+  --gold:#D4A22C;
+}
+.juggle-spectator .toro-wizz-btn {
+  width: 100%;
+  max-width: 360px;
+  padding: 14px 16px;
+  font-size: 16px;
+  box-shadow: 0 4px 14px rgba(212, 162, 44, 0.35);
+}
+.juggle-spectator-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  white-space: nowrap;
+  font-size: 15px;
+}
