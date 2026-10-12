@@ -20,6 +20,7 @@ import FreeKickGame from './FreeKickGame';
 import RondoGame from './RondoGame';
 import Rules from './Rules';
 import ToroSpectator from './ToroSpectator';
+import JuggleSpectator from './JuggleSpectator';
 import WeeklySpecial from './WeeklySpecial';
 import Avatar from './Avatar'
 import TeamBadge from './TeamBadge'
@@ -348,7 +349,7 @@ function App() {
   const [isRecovery, setIsRecovery] = useState(() => window.location.hash.includes('type=recovery'))
   const [juggleAlert, setJuggleAlert] = useState<{ profileId: string; pseudo: string; game: string } | null>(null)
   // pote qu'on regarde jouer au toro en direct (écran 'regarder')
-  const [watching, setWatching] = useState<{ profileId: string; pseudo: string } | null>(null)
+  const [watching, setWatching] = useState<{ profileId: string; pseudo: string; game?: 'toro' | 'jonglage' } | null>(null)
   const [myPseudo, setMyPseudo] = useState<string | null>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null)
@@ -579,17 +580,19 @@ function App() {
   const [playingToast, setPlayingToast] = useState<string | null>(null)
   const playingToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // potes en train de jouer au toro en ce moment (présence du canal du groupe)
-  const [liveToro, setLiveToro] = useState<{ profileId: string; pseudo: string }[]>([])
+  const [liveToro, setLiveToro] = useState<{ profileId: string; pseudo: string; game: 'toro' | 'jonglage' }[]>([])
   const [liveToroClosed, setLiveToroClosed] = useState<string[]>([])
   const sendOnWizzChannel = useWizzChannel(session?.user?.id ? selectedGroup?.id : null, {
     onPresence: (state: Record<string, { playing?: string; profileId?: string; pseudo?: string }[]>) => {
-      const seen = new Map<string, string>()
+      const seen = new Map<string, { pseudo: string; game: 'toro' | 'jonglage' }>()
       for (const metas of Object.values(state ?? {})) {
         for (const m of metas) {
-          if (m.playing === 'toro' && m.profileId && m.profileId !== session?.user?.id) seen.set(m.profileId, m.pseudo || 'Un coéquipier')
+          if ((m.playing === 'toro' || m.playing === 'jonglage') && m.profileId && m.profileId !== session?.user?.id) {
+            seen.set(m.profileId, { pseudo: m.pseudo || 'Un coéquipier', game: m.playing })
+          }
         }
       }
-      setLiveToro([...seen].map(([profileId, pseudo]) => ({ profileId, pseudo })))
+      setLiveToro([...seen].map(([profileId, v]) => ({ profileId, ...v })))
     },
     onPlaying: (payload) => {
       if (!payload || payload.profileId === session?.user?.id) return
@@ -1097,9 +1100,9 @@ function App() {
       // même ref_table 'groups') emmènent directement sur le Tchat du groupe
       if (n.type === 'message') setScreen('chat')
       // « X fait tourner le ballon au toro » : direction sa partie en direct
-      else if (n.type === 'toro' && n.related_profile_id) {
+      else if ((n.type === 'toro' || n.type === 'jongle') && n.related_profile_id) {
         const { data: p } = await supabase.from('profiles').select('pseudo').eq('id', n.related_profile_id).maybeSingle()
-        setWatching({ profileId: n.related_profile_id, pseudo: p?.pseudo ?? 'ton pote' })
+        setWatching({ profileId: n.related_profile_id, pseudo: p?.pseudo ?? 'ton pote', game: n.type === 'jongle' ? 'jonglage' : 'toro' })
         setScreen('regarder')
       }
       // récap du lundi (send_weekly_recaps) : direction le classement du groupe
@@ -1464,7 +1467,7 @@ function App() {
                         onClick={(e) => { e.stopPropagation(); sendWizzFromNotification(n) }}
                       >🧪 Envoyer un wizz</button>
                     )}
-                    {n.type === 'toro' && n.related_profile_id && (
+                    {(n.type === 'toro' || n.type === 'jongle') && n.related_profile_id && (
                       <button className="juggle-wizz-btn">👀 Regarder en direct</button>
                     )}
                   </div>
@@ -1578,26 +1581,26 @@ function App() {
         if (!p || showNotifPanel) return null
         return (
           <div className="wizz-alert-banner">
-            <span>🐂 {p.pseudo} joue au toro en direct !</span>
+            <span>{p.game === 'jonglage' ? `🤹 ${p.pseudo} jongle en direct !` : `🐂 ${p.pseudo} joue au toro en direct !`}</span>
             <button
               className="juggle-wizz-btn"
-              onClick={() => { setWatching({ profileId: p.profileId, pseudo: p.pseudo }); setScreen('regarder') }}
+              onClick={() => { setWatching({ profileId: p.profileId, pseudo: p.pseudo, game: p.game }); setScreen('regarder') }}
             >👀 Regarder</button>
             <button className="wizz-alert-close" onClick={() => setLiveToroClosed((c) => [...c, p.profileId])} aria-label="Fermer">✕</button>
           </div>
         )
       })()}
       {juggleAlert && !showNotifPanel && !(screen === 'regarder' && watching?.profileId === juggleAlert.profileId)
-        && !(juggleAlert.game === 'toro' && liveToro.some((x) => x.profileId === juggleAlert.profileId)) && (
+        && !((juggleAlert.game === 'toro' || juggleAlert.game === 'jonglage') && liveToro.some((x) => x.profileId === juggleAlert.profileId)) && (
         <div className="wizz-alert-banner">
           <span>{MINIGAME_INFO[juggleAlert.game as MinigameKey]?.icon ?? '🤹'} {juggleAlert.pseudo} joue au mini-jeu !</span>
           {juggleAlert.game === 'jonglage' && (
             <button className="juggle-wizz-btn" onClick={sendWizz}>🧪 Envoyer un wizz</button>
           )}
-          {juggleAlert.game === 'toro' && screen !== 'regarder' && (
+          {(juggleAlert.game === 'toro' || juggleAlert.game === 'jonglage') && screen !== 'regarder' && (
             <button
               className="juggle-wizz-btn"
-              onClick={() => { setWatching({ profileId: juggleAlert.profileId, pseudo: juggleAlert.pseudo }); setScreen('regarder') }}
+              onClick={() => { setWatching({ profileId: juggleAlert.profileId, pseudo: juggleAlert.pseudo, game: juggleAlert.game as 'toro' | 'jonglage' }); setScreen('regarder') }}
             >👀 Regarder</button>
           )}
           <button className="wizz-alert-close" onClick={() => setJuggleAlert(null)} aria-label="Fermer">✕</button>
@@ -1902,7 +1905,9 @@ function App() {
         ) : screen === 'aide' ? (
           <Help onBack={() => setScreen('profil')} />
         ) : screen === 'regarder' && watching ? (
-          <ToroSpectator key={watching.profileId} profileId={watching.profileId} pseudo={watching.pseudo} onExit={() => setScreen('jeux')} />
+          watching.game === 'jonglage'
+            ? <JuggleSpectator key={watching.profileId} profileId={watching.profileId} pseudo={watching.pseudo} onExit={() => setScreen('jeux')} />
+            : <ToroSpectator key={watching.profileId} profileId={watching.profileId} pseudo={watching.pseudo} onExit={() => setScreen('jeux')} />
         ) : screen === 'regles' ? (
           <Rules onBack={() => setScreen('profil')} backLabel="Profil" />
         ) : screen === 'admin-events' && isAdmin ? (

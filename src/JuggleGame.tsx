@@ -1,7 +1,8 @@
 import { createElement, Fragment, useEffect, useRef, useState, type PointerEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
-import { useWizzChannel } from './wizzChannel'
+import { useWizzChannel, setPlayingPresence } from './wizzChannel'
+import { useFloatingReactions, FloatingReactions } from './ToroReactions'
 
 interface ScoreRow {
     profile_id: string
@@ -70,6 +71,50 @@ const MAX_SCORE = 2000 // garde-fou de bon sens côté client (au-delà, score j
 // vraiment les joueurs : certains tiennent avec 2 ballons, d'autres avec 3.
 const BALL_SPAWN_INTERVAL = 30 // secondes entre deux nouveaux ballons
 const MAX_BALLS = 3 // on plafonne à 3 ballons (2e à 30s, 3e à 60s) : au-delà ça devient injouable, pas de 4e ballon
+
+// Dessin d'un ballon / de la scène, partagé avec JuggleSpectator (direct)
+export function drawJuggleBall(ctx: CanvasRenderingContext2D, x: number, y: number, miss: boolean) {
+  const r = BALL_RADIUS
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(x, y, r, 0, Math.PI * 2)
+  ctx.clip()
+  const grad = ctx.createRadialGradient(x - r * 0.4, y - r * 0.4, r * 0.15, x, y, r)
+  grad.addColorStop(0, '#ffffff')
+  grad.addColorStop(1, '#c7c7c7')
+  ctx.fillStyle = grad
+  ctx.fillRect(x - r, y - r, r * 2, r * 2)
+  ctx.fillStyle = miss ? '#e74c3c' : '#1b1b1f'
+  ctx.beginPath()
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + i * ((Math.PI * 2) / 5)
+    const px = x + Math.cos(a) * r * 0.42
+    const py = y + Math.sin(a) * r * 0.42
+    if (i === 0) ctx.moveTo(px, py)
+    else ctx.lineTo(px, py)
+  }
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+  ctx.beginPath()
+  ctx.arc(x, y, r, 0, Math.PI * 2)
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)'
+  ctx.lineWidth = 1
+  ctx.stroke()
+}
+
+export function paintJuggle(ctx: CanvasRenderingContext2D, width: number, height: number, sky: number, balls: { x: number; y: number; missed: boolean }[]) {
+  ctx.clearRect(0, 0, width, height)
+  ctx.fillStyle = '#171b24'
+  ctx.fillRect(0, 0, width, height)
+  ctx.save()
+  ctx.translate(0, sky)
+  for (const b of balls) drawJuggleBall(ctx, b.x, b.y, b.missed)
+  ctx.restore()
+}
+
+export const JUGGLE_W = CANVAS_W
+export const JUGGLE_H = CANVAS_H
 
 function spawnBall(): Ball {
   // Tombe du haut de l'écran (hors du canvas, y négatif) plutôt qu'au milieu
@@ -199,43 +244,65 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
   }, [groupId, user])
 
   const paint = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, balls: Ball[]) => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
-        ctx.fillStyle = '#171b24'
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-        ctx.save()
-        ctx.translate(0, skyRef.current)
-        for (const b of balls) drawBallGraphic(ctx, b.x, b.y, b.missed)
-        ctx.restore()
+        paintJuggle(ctx, canvas.width, canvas.height, skyRef.current, balls)
   }
-    const drawBallGraphic = (ctx: CanvasRenderingContext2D, x: number, y: number, miss: boolean) => {
-          const r = BALL_RADIUS
-          ctx.save()
-          ctx.beginPath()
-          ctx.arc(x, y, r, 0, Math.PI * 2)
-          ctx.clip()
-          const grad = ctx.createRadialGradient(x - r * 0.4, y - r * 0.4, r * 0.15, x, y, r)
-          grad.addColorStop(0, '#ffffff')
-          grad.addColorStop(1, '#c7c7c7')
-          ctx.fillStyle = grad
-          ctx.fillRect(x - r, y - r, r * 2, r * 2)
-          ctx.fillStyle = miss ? '#e74c3c' : '#1b1b1f'
-          ctx.beginPath()
-          for (let i = 0; i < 5; i++) {
-                  const a = -Math.PI / 2 + i * ((Math.PI * 2) / 5)
-                  const px = x + Math.cos(a) * r * 0.42
-                  const py = y + Math.sin(a) * r * 0.42
-                  if (i === 0) ctx.moveTo(px, py)
-                  else ctx.lineTo(px, py)
-          }
-          ctx.closePath()
-          ctx.fill()
-          ctx.restore()
-          ctx.beginPath()
-          ctx.arc(x, y, r, 0, Math.PI * 2)
-          ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)'
-          ctx.lineWidth = 1
-          ctx.stroke()
-    }
+
+  // --- direct : les potes peuvent regarder la partie (JuggleSpectator) ---
+  // Canal `juggle-live-<mon id>` : les spectateurs y signalent leur
+  // présence ; on n'envoie l'état (10 fois par seconde) que si quelqu'un
+  // regarde. Ils peuvent réagir (emoji) et envoyer un wizz.
+  const liveChanRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const viewersRef = useRef(0)
+  const [viewerNames, setViewerNames] = useState<string[]>([])
+  const reactions = useFloatingReactions()
+  const lastFrameRef = useRef(0)
+  const wizzShakeRef = useRef(false)
+  useEffect(() => { wizzShakeRef.current = wizzShake }, [wizzShake])
+  useEffect(() => {
+        if (!user) return
+        const ch = supabase.channel(`juggle-live-${user.id}`, { config: { broadcast: { self: false }, presence: { key: 'player' } } })
+        ch.on('broadcast', { event: 'react' }, ({ payload }) => {
+                reactions.add(String(payload?.emoji ?? ''), String(payload?.from ?? 'Un pote'))
+        })
+        ch.on('broadcast', { event: 'wizz' }, ({ payload }) => {
+                if (!stateRef.current.running || wizzCooldownRef.current > 0) return
+                triggerWizzEffect((payload?.from as string) || 'Un pote')
+        })
+        ch.on('presence', { event: 'sync' }, () => {
+                const st = ch.presenceState() as Record<string, { pseudo?: string | null }[]>
+                const keys = Object.keys(st).filter((k) => k !== 'player')
+                viewersRef.current = keys.length
+                setViewerNames(keys.map((k) => [...(st[k] ?? [])].reverse().find((m) => m.pseudo)?.pseudo || 'Un pote'))
+        }).subscribe()
+        liveChanRef.current = ch
+        return () => { liveChanRef.current = null; supabase.removeChannel(ch) }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+  const sendFrame = (ts: number, over = false) => {
+        const ch = liveChanRef.current
+        if (!ch || viewersRef.current === 0) return
+        if (!over && ts - lastFrameRef.current < 100) return
+        lastFrameRef.current = ts
+        const st = stateRef.current
+        const r = (v: number) => Math.round(v * 10) / 10
+        ch.send({
+                type: 'broadcast', event: 'frame',
+                payload: {
+                        ph: over ? 'over' : 'play',
+                        b: st.balls.map((b) => [r(b.x), r(b.y), b.missed ? 1 : 0]),
+                        s: st.score,
+                        n: st.balls.length,
+                        wz: wizzShakeRef.current,
+                },
+        })
+  }
+  // « en train de jouer » visible en continu par le groupe (bandeau 👀 Regarder)
+  useEffect(() => {
+        if (!user) return
+        if (playing) setPlayingPresence(groupId, { playing: 'jonglage', profileId: user.id, pseudo: myPseudo || 'Un coéquipier' })
+        else setPlayingPresence(groupId, null)
+  }, [playing, user, groupId, myPseudo])
+  useEffect(() => () => setPlayingPresence(groupId, null), [groupId])
 
   const drawIdle = () => {
         const canvas = canvasRef.current
@@ -393,6 +460,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
                 }
 
                 paint(ctx, canvas, st.balls)
+                sendFrame(timestamp)
                 for (const b of st.balls) b.missed = false
 
                 raf = requestAnimationFrame(loop)
@@ -470,6 +538,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
         const finalSc = Math.min(finalScRaw, MAX_SCORE)
         setPlaying(false)
         setFinalScore(finalSc)
+        sendFrame(performance.now(), true)
         if (!user) return
         sendOnWizzChannel('playing', { action: 'stop', profileId: user.id })
         // Réglage "Pronostics dans toutes mes ligues" actif : la RPC
@@ -514,6 +583,14 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
                           onPointerDown: handleCanvasTap,
                           style: { background: '#171b24', borderRadius: 12, border: '1px solid #2a2f3a', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', width: '100%', maxWidth: '100%', height: '100%', position: 'absolute', inset: 0, boxSizing: 'border-box' },
                 }),
+                createElement(FloatingReactions, { items: reactions.items }),
+                viewerNames.length > 0 &&
+                  createElement('div', { className: 'toro-viewers' },
+                    '👀 ',
+                    viewerNames.length <= 3
+                      ? viewerNames.join(', ').replace(/, ([^,]*)$/, ' et $1')
+                      : `${viewerNames.slice(0, 3).join(', ')} et ${viewerNames.length - 3} autre${viewerNames.length - 3 > 1 ? 's' : ''}`,
+                    viewerNames.length > 1 ? ' te regardent' : ' te regarde', ' en direct'),
                 wizzShake &&
                   createElement(
                               'div',
