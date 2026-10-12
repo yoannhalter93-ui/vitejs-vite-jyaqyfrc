@@ -1268,6 +1268,19 @@ details.rules-section > :last-child {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* jonglage : réactions fixes dans les coins du haut (pas de défilement) */
+.toro-reaction-corner { position: absolute; top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.toro-reaction-corner.is-left { left: 8px; align-items: flex-start; }
+.toro-reaction-corner.is-right { right: 8px; align-items: flex-end; }
+.toro-reaction-still { display: flex; flex-direction: column; align-items: center; animation: toro-reaction-still 2.4s ease-out forwards; }
+.toro-reaction-still .toro-reaction-emoji { font-size: 24px; }
+@keyframes toro-reaction-still {
+  0% { opacity: 0; transform: scale(0.6); }
+  10% { opacity: 1; transform: scale(1.1); }
+  18% { transform: scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
 @keyframes toro-reaction-up {
   0% { opacity: 0; transform: translate(-50%, 10px) scale(0.6); }
   12% { opacity: 1; transform: translate(-50%, 0) scale(1.1); }

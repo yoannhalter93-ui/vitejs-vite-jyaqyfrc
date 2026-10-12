@@ -25,7 +25,27 @@ export function useFloatingReactions() {
   return { items, add }
 }
 
-export function FloatingReactions({ items }: { items: FloatingReaction[] }) {
+export function FloatingReactions({ items, corners = false }: { items: FloatingReaction[]; corners?: boolean }) {
+  // variante « coins » (jonglage) : les réactions s'affichent en haut à
+  // gauche / en haut à droite, sans bouger, pour ne jamais passer devant
+  // un ballon en plein jeu
+  if (corners) {
+    const side = (left: boolean) => items.filter((r) => (r.id % 2 === 0) === left).slice(-2)
+    return (
+      <div className="toro-reactions-layer" aria-hidden>
+        {[true, false].map((left) => (
+          <div key={left ? 'g' : 'd'} className={`toro-reaction-corner ${left ? 'is-left' : 'is-right'}`}>
+            {side(left).map((r) => (
+              <div key={r.id} className="toro-reaction-still">
+                <span className="toro-reaction-emoji">{r.emoji}</span>
+                <span className="toro-reaction-from">{r.from}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    )
+  }
   return (
     <div className="toro-reactions-layer" aria-hidden>
       {items.map((r) => (

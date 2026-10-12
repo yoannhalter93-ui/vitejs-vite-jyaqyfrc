@@ -184,7 +184,7 @@ export default function JuggleSpectator({ profileId, pseudo, onExit }: Props) {
           height={JUGGLE_H + sky}
           style={{ background: '#171b24', borderRadius: 12, border: '1px solid #2a2f3a', width: '100%', maxWidth: '100%', height: '100%', position: 'absolute', inset: 0, boxSizing: 'border-box' }}
         />
-        <FloatingReactions items={reactions.items} />
+        <FloatingReactions items={reactions.items} corners />
         {others.length > 0 && (
           <div className="toro-viewers">
             👀 {others.length <= 3

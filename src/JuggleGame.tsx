@@ -583,7 +583,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
                           onPointerDown: handleCanvasTap,
                           style: { background: '#171b24', borderRadius: 12, border: '1px solid #2a2f3a', cursor: 'pointer', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', width: '100%', maxWidth: '100%', height: '100%', position: 'absolute', inset: 0, boxSizing: 'border-box' },
                 }),
-                createElement(FloatingReactions, { items: reactions.items }),
+                createElement(FloatingReactions, { items: reactions.items, corners: true }),
                 viewerNames.length > 0 &&
                   createElement('div', { className: 'toro-viewers' },
                     '👀 ',
