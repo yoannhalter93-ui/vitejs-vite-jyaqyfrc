@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import LoadingSkeleton from './LoadingSkeleton'
 import { eventKickoffLabel, APP_EVENT_INFO, type AppEventKind } from './events'
+import { EQUIPE_KEY } from './Announcement'
 
 interface Fixture {
   api_fixture_id: number
@@ -128,6 +129,11 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
   const [bonuses, setBonuses] = useState<BonusRow[]>([])
   const [golden, setGolden] = useState<number[]>([])
   const [bonus, setBonus] = useState<number | null>(null)
+  // avis 👍 / 👎 donnés sur l'annonce du nouveau barème « Mon équipe »
+  const [votes, setVotes] = useState<{ up: number; down: number; up_names: string[]; down_names: string[] } | null>(null)
+  useEffect(() => {
+    supabase.rpc('get_announcement_votes', { p_key: EQUIPE_KEY }).then(({ data }) => { if (data) setVotes(data) })
+  }, [])
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [matchdays, setMatchdays] = useState<MatchdayRow[]>([])
@@ -252,6 +258,15 @@ export default function AdminEvents({ onBack }: { onBack: () => void }) {
 
       {error && <p className="groups-error">{error}</p>}
       {notice && <p className="admin-ev-notice">{notice}</p>}
+
+      {votes && (
+        <section className="admin-ev-section admin-votes">
+          <h3>🗳️ Avis sur le barème « Mon équipe » +3 / +1 / 0</h3>
+          <p><b>👍 {votes.up}</b> · <b>👎 {votes.down}</b></p>
+          {votes.up_names.length > 0 && <p className="admin-votes-names">👍 {votes.up_names.join(', ')}</p>}
+          {votes.down_names.length > 0 && <p className="admin-votes-names">👎 {votes.down_names.join(', ')}</p>}
+        </section>
+      )}
 
       {loading ? (
         <LoadingSkeleton />

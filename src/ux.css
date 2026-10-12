@@ -1336,3 +1336,22 @@ details.rules-section > :last-child {
 .bonus-target-text { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
 .bonus-target-text b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bonus-target-text small { display: flex; align-items: center; gap: 4px; font-size: 12px; color: rgba(27, 27, 31, 0.6); }
+
+/* Annonce « Mon équipe » : tableau avant / maintenant + vote obligatoire */
+.announcement-compare { width: 100%; border-collapse: collapse; margin: 6px 0 4px; font-size: 14px; }
+.announcement-compare th, .announcement-compare td { padding: 6px 8px; text-align: center; border-bottom: 1px solid rgba(27, 27, 31, 0.1); }
+.announcement-compare th:first-child, .announcement-compare td:first-child { text-align: left; }
+.announcement-compare th { font-size: 12px; text-transform: uppercase; opacity: 0.65; }
+.announcement-compare td:nth-child(2) { opacity: 0.55; text-decoration: line-through; }
+.announcement-compare td:nth-child(3) b { color: #2F8F5B; font-size: 16px; }
+.announcement-vote-q { margin: 14px 0 8px; text-align: center; font-weight: 700; }
+.announcement-vote { display: flex; gap: 12px; justify-content: center; }
+.announcement-vote-btn {
+  flex: 1; max-width: 120px; padding: 12px 0; font-size: 30px; line-height: 1;
+  border-radius: 14px; border: 2px solid rgba(212, 162, 44, 0.6); background: #fff; cursor: pointer;
+}
+.announcement-vote-btn:active { transform: scale(0.94); background: rgba(212, 162, 44, 0.2); }
+
+.admin-votes h3 { margin: 0 0 6px; font-size: 15px; }
+.admin-votes p { margin: 4px 0; }
+.admin-votes-names { font-size: 12px; opacity: 0.75; }

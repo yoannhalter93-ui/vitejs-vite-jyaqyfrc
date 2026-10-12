@@ -7,6 +7,10 @@ import { supabase } from './supabaseClient'
 const PODIUM_KEY = 'podium-jeu-semaine-2026-10'
 const BAREME_KEY = 'bareme-pronos-2026-10'
 const SHOW_UNTIL = new Date('2026-10-26T00:00:00+01:00')
+// barème « Mon équipe » +3 / +1 / 0 : pour fermer, le joueur doit donner
+// son avis (👍 / 👎, colonne announcements_seen.vote)
+export const EQUIPE_KEY = 'equipe-3-1-0-2026-10'
+const EQUIPE_UNTIL = new Date('2026-11-16T00:00:00+01:00')
 
 function BaremeLine() {
   return (
@@ -18,22 +22,65 @@ function BaremeLine() {
 
 export default function Announcement({ userId }: { userId: string | null | undefined }) {
   // annonce à montrer : le podium (avec la ligne du barème) ou le barème seul
-  const [which, setWhich] = useState<'podium' | 'bareme' | null>(null)
+  const [which, setWhich] = useState<'equipe' | 'podium' | 'bareme' | null>(null)
 
   useEffect(() => {
-    if (!userId || Date.now() > SHOW_UNTIL.getTime()) return
+    if (!userId) return
     let cancelled = false
-    supabase.from('announcements_seen').select('key').eq('profile_id', userId).in('key', [PODIUM_KEY, BAREME_KEY])
+    supabase.from('announcements_seen').select('key').eq('profile_id', userId).in('key', [EQUIPE_KEY, PODIUM_KEY, BAREME_KEY])
       .then(({ data, error }) => {
         if (cancelled || error) return
         const seen = new Set((data ?? []).map((r: { key: string }) => r.key))
-        if (!seen.has(PODIUM_KEY)) setWhich('podium')
+        const now = Date.now()
+        if (!seen.has(EQUIPE_KEY) && now < EQUIPE_UNTIL.getTime()) setWhich('equipe')
+        else if (now > SHOW_UNTIL.getTime()) return
+        else if (!seen.has(PODIUM_KEY)) setWhich('podium')
         else if (!seen.has(BAREME_KEY)) setWhich('bareme')
       })
     return () => { cancelled = true }
   }, [userId])
 
   if (!which || !userId) return null
+
+  if (which === 'equipe') {
+    const vote = (v: 1 | -1) => {
+      setWhich(null)
+      supabase.from('announcements_seen')
+        .upsert({ profile_id: userId, key: EQUIPE_KEY, vote: v }, { onConflict: 'profile_id,key', ignoreDuplicates: true })
+        .then(() => {})
+    }
+    return (
+      <div className="bonus-target-overlay announcement-overlay">
+        <div className="bonus-target-modal announcement-modal" role="dialog" aria-modal="true">
+          <h3>🎡 Mon équipe : nouveau barème !</h3>
+          <p>Ton équipe de Ligue 1 tirée au sort rapporte maintenant <b>beaucoup plus</b>, comme au vrai foot :</p>
+          <table className="announcement-compare">
+            <thead>
+              <tr><th></th><th>Avant</th><th>Maintenant</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>✅ Victoire</td><td>+1</td><td><b>+3</b></td></tr>
+              <tr><td>🤝 Nul</td><td>0</td><td><b>+1</b></td></tr>
+              <tr><td>❌ Défaite</td><td>−1</td><td><b>0</b></td></tr>
+            </tbody>
+          </table>
+          <p className="announcement-small">À partir de la journée 7. Plus de points négatifs. Les points déjà gagnés ne changent pas.</p>
+          <div className="announcement-more">
+            <b>🪙 Tes jetons rebattent les cartes :</b>
+            <p>🔄 <b>Échange d'équipe</b> (3🪙) : ton équipe est nulle ? Pique celle d'un pote !</p>
+            <p>🎰 <b>Retirage forcé</b> (2🪙) : fais retirer au sort l'équipe d'un pote qui a trop de chance.</p>
+            <p>🔃 <b>Bonus inversé</b> (3🪙) : les victoires de son équipe ne lui rapportent plus rien et ses défaites lui donnent +3 😈 Ça le suit même s'il change d'équipe. Tu es inversé ? Mets-toi le bonus pour l'annuler.</p>
+            <p>🛡️ <b>Bouclier</b> (2🪙) : bloque le prochain bonus lancé contre toi.</p>
+          </div>
+          <p className="announcement-vote-q">Alors, cette nouvelle règle, t'en penses quoi ?</p>
+          <div className="announcement-vote">
+            <button className="announcement-vote-btn" onClick={() => vote(1)} aria-label="J'aime">👍</button>
+            <button className="announcement-vote-btn" onClick={() => vote(-1)} aria-label="Je n'aime pas">👎</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
   const close = () => {
     const keys = which === 'podium' ? [PODIUM_KEY, BAREME_KEY] : [BAREME_KEY]
     setWhich(null)
