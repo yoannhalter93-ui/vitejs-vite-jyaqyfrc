@@ -167,7 +167,7 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
         <ul className="rules-points">
           <li>Échange d'équipe (3🪙) — échange ton équipe attitrée avec celle d'un adversaire</li>
           <li>Retirage forcé (2🪙) — force un adversaire à retirer une nouvelle équipe au hasard</li>
-          <li>Bonus inversé (3🪙) — inverse les points d'une équipe attitrée pour le reste de la période, victoire = points en moins et défaite = points en plus ; sur toi-même ou sur un adversaire</li>
+          <li>Bonus inversé (3🪙) — inverse les points de l'équipe attitrée d'un joueur pour le reste du championnat, victoire = points en moins et défaite = points en plus ; sur toi-même ou sur un adversaire. L'inversion reste sur le joueur, même s'il change d'équipe (échange, retirage). Tu es inversé ? Utilise le bonus sur toi-même pour l'annuler.</li>
           <li>Double ou rien (2🪙) — double les points d'un pari libre si tu gagnes</li>
           <li>Joker ×2 (3🪙) — double les points d'un de tes pronos de match ; à poser avant le coup d'envoi, avec le bouton « Joker ×2 » sous le match dans Pronos (pas sur le match ×2 d'un événement, qui compte déjà double)</li>
           <li>Carton rouge (2🪙) — un adversaire affiche 🟥 à côté de son pseudo pendant 24 h et ne peut pas jouer au jeu de la semaine pendant ces 24 h</li>

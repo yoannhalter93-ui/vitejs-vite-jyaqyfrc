@@ -151,8 +151,9 @@ export default function Roulette({ groupId, groupName }: Props) {
           <div className="roulette-team-badge">{myTeam}</div>
           {myInverted && (
             <p className="roulette-inverted-note">
-              🔄 <strong>Bonus inversé actif</strong> jusqu'à la fin de la période :
+              🔄 <strong>Tu es inversé</strong> jusqu'à la fin du championnat, même si tu changes d'équipe :
               victoire de ton équipe = −1 point, défaite = +1 point.
+              <br />Pour l'annuler : utilise le bonus inversé sur toi-même (3 🪙).
             </p>
           )}
         </div>

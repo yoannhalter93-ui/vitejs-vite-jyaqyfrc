@@ -1633,17 +1633,17 @@ function App() {
             {bonusTargetPicker !== 'carton_rouge' && myBonusTeam.team && (
               <div className="bonus-target-mine">
                 <TeamBadge name={myBonusTeam.team} size={26} />
-                <span>Ton équipe : <b>{myBonusTeam.team}</b>{myBonusTeam.inverted ? ' · 🔄 inversée' : ''}</span>
+                <span>Ton équipe : <b>{myBonusTeam.team}</b>{myBonusTeam.inverted ? ' · 🔄 tu es inversé' : ''}</span>
               </div>
             )}
             {bonusError && <p className="bonus-error">{bonusError}</p>}
             <div className="bonus-target-list">
               {bonusTargetPicker === 'bonus_inverse' && myBonusTeam.team && (
-                <button className="bonus-target-member bonus-target-card" onClick={() => applyBonus('bonus_inverse', session!.user.id)} disabled={bonusBusy || myBonusTeam.inverted}>
+                <button className="bonus-target-member bonus-target-card" onClick={() => applyBonus('bonus_inverse', session!.user.id)} disabled={bonusBusy}>
                   <TeamBadge name={myBonusTeam.team} size={34} />
                   <span className="bonus-target-text">
-                    <b>{myBonusTeam.team}</b>
-                    <small>Ta propre équipe{myBonusTeam.inverted ? ' · déjà inversée' : ''}</small>
+                    <b>{myBonusTeam.inverted ? '↩️ Annuler ton inversion' : myBonusTeam.team}</b>
+                    <small>{myBonusTeam.inverted ? `${myBonusTeam.team} redevient normale` : 'Ta propre équipe'}</small>
                   </span>
                 </button>
               )}
@@ -1673,7 +1673,7 @@ function App() {
                           <b>{m.team ?? 'Pas encore d\'équipe'}</b>
                           <small>
                             <Avatar pseudo={m.pseudo} avatarUrl={m.avatar_url} avatarEmoji={m.avatar_emoji} size={16} /> {m.pseudo}
-                            {m.inverted ? ' · 🔄 inversée' : ''}
+                            {m.inverted ? ' · 🔄 inversé' : ''}
                           </small>
                         </>
                       )}
