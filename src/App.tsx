@@ -1324,13 +1324,6 @@ function App() {
             <span className="profil-v2-menu-chevron">›</span>
           </button>
         )}
-        {isAdmin && (
-          <button className="profil-v2-menu-row" onClick={() => setScreen('test-toro')}>
-            <span className="profil-v2-menu-icon">🐂</span>
-            <span className="profil-v2-menu-label">Entraînement : Le toro</span>
-            <span className="profil-v2-menu-chevron">›</span>
-          </button>
-        )}
         <button className="profil-v2-menu-row" onClick={() => setScreen('regles')}>
           <span className="profil-v2-menu-icon">📖</span>
           <span className="profil-v2-menu-label">Règles du jeu</span>
@@ -1914,8 +1907,6 @@ function App() {
           <Rules onBack={() => setScreen('profil')} backLabel="Profil" />
         ) : screen === 'admin-events' && isAdmin ? (
           <AdminEvents onBack={() => setScreen('profil')} />
-        ) : screen === 'test-toro' && isAdmin ? (
-          <RondoGame practice onExit={() => setScreen('profil')} />
         ) : selectedGroup ? (
           <>
             {screen !== 'team-reveal' && !isActionMinigame && !isFullChat && (
