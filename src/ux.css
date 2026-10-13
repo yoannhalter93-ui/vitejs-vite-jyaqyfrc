@@ -1391,3 +1391,17 @@ details.rules-section > :last-child {
   white-space: nowrap;
   font-size: 15px;
 }
+
+/* jonglage : score / temps / ballons au-dessus du terrain */
+.juggle-stats-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-size: 16px;
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+}

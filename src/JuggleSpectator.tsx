@@ -177,6 +177,12 @@ export default function JuggleSpectator({ profileId, pseudo, onExit }: Props) {
         <h2>👀 {pseudo} jongle</h2>
       </div>
 
+      <div className="match-predict juggle-stats juggle-spectator-stats juggle-stats-top">
+        <span>Score : {score}</span>
+        <span>Ballons : {balls}</span>
+        <span>{status === 'live' ? '🔴 Direct' : 'Direct'}</span>
+      </div>
+
       <div className="juggle-canvas-wrap" ref={wrapRef}>
         <canvas
           ref={canvasRef}
@@ -221,11 +227,6 @@ export default function JuggleSpectator({ profileId, pseudo, onExit }: Props) {
         )}
       </div>
 
-      <div className="match-predict juggle-stats juggle-spectator-stats">
-        <span>Score : {score}</span>
-        <span>Ballons : {balls}</span>
-        <span>{status === 'live' ? '🔴 En direct' : 'Direct'}</span>
-      </div>
       {status === 'live' && <ReactionBar onReact={sendReaction} />}
       {status === 'live' && (
         <button type="button" className="dribble-cta toro-wizz-btn" disabled={cooldown > 0} onClick={sendWizz}>
