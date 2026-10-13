@@ -1393,6 +1393,17 @@ details.rules-section > :last-child {
 }
 
 /* jonglage : score / temps / ballons au-dessus du terrain */
+.juggle-top-slot {
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+.juggle-top-slot > * { flex: 1; margin: 0; }
+.juggle-top-slot > .juggle-stats-top { margin: 0; padding: 0 12px; }
+.juggle-bottom-row { display: flex; align-items: center; gap: 10px; }
+.juggle-final { margin: 0; }
 .juggle-stats-top {
   display: flex;
   justify-content: space-between;

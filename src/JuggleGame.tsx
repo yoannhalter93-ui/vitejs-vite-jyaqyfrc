@@ -374,6 +374,7 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
 
   const startGame = () => {
         setFinalScore(null)
+        setShowRules(false)
         setScore(0)
         setElapsed(0)
         setBallCount(1)
@@ -562,21 +563,25 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
                 createElement('button', { className: 'predictions-back', onClick: onExit }, '← Accueil'),
                 createElement('h2', null, 'Jonglages — ', groupName)
               ),
-        !playing && createElement('button', { type: 'button', className: 'juggle-rules-toggle', onClick: () => setShowRules((v: boolean) => !v) }, showRules ? 'Masquer les règles ▲' : 'Voir les règles ▼'),
+        // emplacement du haut, hauteur FIXE (le terrain ne change jamais de
+        // taille) : règles hors partie, score / temps / ballons en partie
+        createElement(
+                'div',
+          { className: 'juggle-top-slot' },
+                playing
+                  ? createElement(
+                      'div',
+                      { className: 'match-predict juggle-stats juggle-stats-top' },
+                      createElement('span', null, 'Score : ', createElement('b', null, score)),
+                      createElement('span', { style: { color: '#C1443C', fontWeight: 800 } }, '⏱ ', elapsed, 's'),
+                      createElement('span', null, 'Ballons : ', createElement('b', null, ballCount))
+                    )
+                  : createElement('button', { type: 'button', className: 'juggle-rules-toggle', onClick: () => setShowRules((v: boolean) => !v) }, showRules ? 'Masquer les règles ▲' : 'Voir les règles ▼')
+              ),
         !playing && showRules && createElement(
                 'p',
           { className: 'predictions-period' },
                 "Tape sur le ballon pour commencer, puis tape bien dessus à chaque fois qu'il redescend pour le renvoyer en l'air. Un tap trop loin ne compte pas, et s'il te tape de travers il part sur le côté. Pas de chrono : un nouveau ballon entre en jeu toutes les 30 secondes (jusqu'à 3 ballons), et la partie s'arrête dès qu'un seul ballon touche le sol — tiens le plus longtemps possible !"
-              ),
-        // score / temps / ballons EN HAUT pendant la partie (on garde les
-        // yeux sur le terrain sans regarder sous le ballon)
-        playing &&
-          createElement(
-                'div',
-            { className: 'match-predict juggle-stats juggle-stats-top' },
-                createElement('span', null, 'Score : ', createElement('b', null, score)),
-                createElement('span', { style: { color: '#C1443C', fontWeight: 800 } }, '⏱ ', elapsed, 's'),
-                createElement('span', null, 'Ballons : ', createElement('b', null, ballCount))
               ),
         createElement(
                 'div',
@@ -603,19 +608,16 @@ export default function JuggleGame({ groupId, groupName, autoApplyAllLeagues, on
                               createElement('span', { className: 'juggle-wizz-overlay-text' }, `⚡ WIZZ de ${wizzFrom || 'un ami'} !`)
                             )
               ),
-        !playing &&
-          createElement(
+        createElement(
                 'div',
-            { className: 'match-predict juggle-stats' },
+          { className: 'match-predict juggle-stats juggle-bottom-row', style: playing ? { visibility: 'hidden' } : undefined },
+                finalScore !== null && createElement('span', { className: 'match-result juggle-final' }, 'Score final : ', finalScore),
                 createElement(
                                 'button',
                     { className: 'match-save-btn', onClick: startGame },
                                 finalScore !== null ? 'Rejouer' : 'Commencer'
                               )
               ),
-        finalScore !== null &&
-          !playing &&
-          createElement('p', { className: 'match-result' }, 'Score final : ', finalScore, ' jonglages'),
         (allTimeBest || lastWeekBest || scores.length > 0) &&
           createElement('button', { type: 'button', className: 'juggle-rules-toggle', onClick: () => setShowBoard((v: boolean) => !v) }, showBoard ? 'Masquer le classement ▲' : '🏆 Voir le classement ▼'),
         showBoard &&
