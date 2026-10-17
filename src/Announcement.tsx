@@ -11,6 +11,13 @@ const SHOW_UNTIL = new Date('2026-10-26T00:00:00+01:00')
 // son avis (👍 / 👎, colonne announcements_seen.vote)
 export const EQUIPE_KEY = 'equipe-3-1-0-2026-10'
 const EQUIPE_UNTIL = new Date('2026-11-16T00:00:00+01:00')
+// date de mise en ligne de chaque annonce : un compte créé après n'a pas
+// connu « l'avant », l'annonce d'un changement de règle ne le concerne pas
+const PUBLISHED: Record<string, Date> = {
+  [PODIUM_KEY]: new Date('2026-10-08T18:00:00Z'),
+  [BAREME_KEY]: new Date('2026-10-08T18:00:00Z'),
+  [EQUIPE_KEY]: new Date('2026-10-12T13:30:00Z'),
+}
 
 function BaremeLine() {
   return (
@@ -20,7 +27,7 @@ function BaremeLine() {
   )
 }
 
-export default function Announcement({ userId }: { userId: string | null | undefined }) {
+export default function Announcement({ userId, userCreatedAt }: { userId: string | null | undefined; userCreatedAt?: string | null }) {
   // annonce à montrer : le podium (avec la ligne du barème) ou le barème seul
   const [which, setWhich] = useState<'equipe' | 'podium' | 'bareme' | null>(null)
 
@@ -31,6 +38,8 @@ export default function Announcement({ userId }: { userId: string | null | undef
       .then(({ data, error }) => {
         if (cancelled || error) return
         const seen = new Set((data ?? []).map((r: { key: string }) => r.key))
+        const created = userCreatedAt ? new Date(userCreatedAt).getTime() : 0
+        for (const [key, at] of Object.entries(PUBLISHED)) if (created > at.getTime()) seen.add(key)
         const now = Date.now()
         if (!seen.has(EQUIPE_KEY) && now < EQUIPE_UNTIL.getTime()) setWhich('equipe')
         else if (now > SHOW_UNTIL.getTime()) return
@@ -38,7 +47,7 @@ export default function Announcement({ userId }: { userId: string | null | undef
         else if (!seen.has(BAREME_KEY)) setWhich('bareme')
       })
     return () => { cancelled = true }
-  }, [userId])
+  }, [userId, userCreatedAt])
 
   if (!which || !userId) return null
 

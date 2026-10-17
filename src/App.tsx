@@ -1607,7 +1607,7 @@ function App() {
         </div>
       )}
       </>)}
-      <Announcement userId={session?.user?.id} />
+      <Announcement userId={session?.user?.id} userCreatedAt={session?.user?.created_at} />
       {bonusNotice && (
         <div className="bonus-target-overlay" onClick={() => setBonusNotice(null)}>
           <div className="bonus-target-modal bonus-notice-modal" onClick={(e) => e.stopPropagation()}>
