@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import TeamBadge from './TeamBadge'
@@ -15,6 +15,7 @@ interface MatchRow {
   status: 'open' | 'resolved' | 'cancelled'
   real_home_score: number | null
   real_away_score: number | null
+  matchday: number | null
 }
 
 interface PredictionRow {
@@ -132,7 +133,7 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
 
     const { data: matchesData, error: matchesError } = await supabase
       .from('matches')
-      .select('id, api_fixture_id, home_team, away_team, home_team_api_id, away_team_api_id, kickoff_at, status, real_home_score, real_away_score')
+      .select('id, api_fixture_id, home_team, away_team, home_team_api_id, away_team_api_id, kickoff_at, status, real_home_score, real_away_score, matchday')
       .eq('group_id', groupId)
       .eq('period_id', period.id)
       .order('kickoff_at', { ascending: true })
@@ -330,15 +331,13 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
     setRevealLoading(null)
   }
 
-  // on n'affiche plus les vieux matchs : seulement à partir du lundi de la
-  // semaine dernière (les plus anciens restent comptés au classement)
-  const lastWeekStart = (() => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7)
-    return d.getTime()
-  })()
-  const dayGroups = groupByDay(matches.filter((m) => new Date(m.kickoff_at).getTime() >= lastWeekStart))
+  // on n'affiche que la journée de Ligue 1 en cours, la précédente et les
+  // suivantes : les plus anciennes disparaissent d'elles-mêmes chaque semaine
+  // (leurs points restent comptés au classement)
+  const openDays = matches.filter((m) => m.status === 'open' && m.matchday != null).map((m) => m.matchday as number)
+  const allDays = matches.filter((m) => m.matchday != null).map((m) => m.matchday as number)
+  const currentMatchday = openDays.length ? Math.min(...openDays) : allDays.length ? Math.max(...allDays) : null
+  const dayGroups = groupByDay(currentMatchday == null ? matches : matches.filter((m) => m.matchday != null && m.matchday >= currentMatchday - 1))
 
   return (
     <div className="predictions-screen">
@@ -362,12 +361,24 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
       ) : dayGroups.length === 0 ? (
         <p className="groups-empty">Pas de nouveau match pour l'instant : les prochains arrivent dès qu'ils sont programmés.</p>
       ) : (
-        dayGroups.map((group) => {
+        dayGroups.map((group, gi) => {
+          const md = group.matches[0]?.matchday ?? null
+          const prevMd = gi > 0 ? dayGroups[gi - 1].matches[0]?.matchday ?? null : undefined
+          const matchdayTitle = md != null && md !== prevMd ? (
+            <h3 className="matchday-title">
+              Journée {md}
+              {md === currentMatchday && <span className="matchday-tag">en cours</span>}
+              {currentMatchday != null && md < currentMatchday && <span className="matchday-tag is-past">terminée</span>}
+              {currentMatchday != null && md > currentMatchday && <span className="matchday-tag is-past">à venir</span>}
+            </h3>
+          ) : null
           const doneCount = group.matches.filter((m) => !!predictions[m.id]).length
           const dayPast = group.matches.every((m) => new Date(m.kickoff_at).getTime() <= Date.now())
           const open = dayOpen[group.key] ?? !dayPast
           return (
-            <div className={`match-day-group${open ? '' : ' is-collapsed'}`} key={group.key}>
+            <Fragment key={group.key}>
+            {matchdayTitle}
+            <div className={`match-day-group${open ? '' : ' is-collapsed'}`}>
               <button
                 type="button"
                 className="match-day-header"
@@ -557,6 +568,7 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
               </ul>
               )}
             </div>
+            </Fragment>
           )
         })
       )}

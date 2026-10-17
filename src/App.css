@@ -4070,3 +4070,29 @@ textarea,
   border-radius:3px;
   transition:width 0.25s ease;
 }
+
+/* Pronostics : titre de journée de Ligue 1 */
+.matchday-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 10px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #D4A22C;
+}
+.matchday-title:first-of-type { margin-top: 4px; }
+.matchday-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(212, 162, 44, 0.2);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #F4EFE2;
+}
+.matchday-tag.is-past { background: rgba(244, 239, 226, 0.1); color: rgba(244, 239, 226, 0.6); }
