@@ -914,6 +914,11 @@ textarea,
 }
 
 .match-day-header {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -935,6 +940,10 @@ textarea,
   font-size: 14px;
   color: #F4EFE2;
 }
+
+.match-day-chevron { font-size: 11px; color: rgba(244, 239, 226, 0.6); margin-left: 4px; }
+.match-day-group.is-collapsed { margin-bottom: 10px; }
+.match-day-group.is-collapsed .match-day-header { margin-bottom: 0; }
 
 .match-day-count {
   font-size: 12px;

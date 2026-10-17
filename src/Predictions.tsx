@@ -85,6 +85,9 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
   // Pour scroller automatiquement jusqu'au prochain match à jouer plutôt que
   // de rester sur le premier match de la période (qui peut être déjà passé).
   const matchRefs = useRef<Record<string, HTMLLIElement | null>>({})
+  // jours repliés / dépliés (un tap sur le titre du jour) ; par défaut les
+  // jours déjà joués sont repliés, les jours à venir dépliés
+  const [dayOpen, setDayOpen] = useState<Record<string, boolean>>({})
   const hasScrolledRef = useRef(false)
 
   // révélation des pronostics des autres, uniquement pour un match résolu —
@@ -351,14 +354,23 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
       ) : (
         dayGroups.map((group) => {
           const doneCount = group.matches.filter((m) => !!predictions[m.id]).length
+          const dayPast = group.matches.every((m) => new Date(m.kickoff_at).getTime() <= Date.now())
+          const open = dayOpen[group.key] ?? !dayPast
           return (
-            <div className="match-day-group" key={group.key}>
-              <div className="match-day-header">
+            <div className={`match-day-group${open ? '' : ' is-collapsed'}`} key={group.key}>
+              <button
+                type="button"
+                className="match-day-header"
+                aria-expanded={open}
+                onClick={() => setDayOpen((o) => ({ ...o, [group.key]: !open }))}
+              >
                 <span className="match-day-icon">⚽</span>
                 <span className="match-day-label">{group.label}</span>
                 <span className="match-day-count">{doneCount} / {group.matches.length}</span>
-              </div>
+                <span className="match-day-chevron">{open ? '▲' : '▼'}</span>
+              </button>
 
+              {open && (
               <ul className="matches-list matches-list-v2">
                 {group.matches.map((m) => {
                   const isOpen = m.status === 'open' && new Date(m.kickoff_at).getTime() > Date.now()
@@ -533,6 +545,7 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
                   )
                 })}
               </ul>
+              )}
             </div>
           )
         })
