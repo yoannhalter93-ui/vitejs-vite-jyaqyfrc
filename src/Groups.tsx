@@ -271,19 +271,8 @@ export default function Groups({ onSelectGroup }: Props) {
     await fetchGroups()
   }
 
-  // fin de championnat : le créateur choisit de continuer (nouveau
-  // championnat, tout le monde repart à 0) ou d'arrêter la ligue
-  const toggleContinue = async (group: GroupRow) => {
-    const next = !group.continue_after_period
-    if (!window.confirm(next
-      ? 'À la fin du championnat, un nouveau championnat repartira automatiquement (tout le monde à 0). OK ?'
-      : 'À la fin du championnat (fin de la journée en cours), la ligue s\'arrêtera : plus de nouveaux matchs ni de duels. Tu pourras la relancer plus tard. OK ?')) return
-    setError(null)
-    const { error: err } = await supabase.rpc('set_group_continue', { p_group_id: group.id, p_continue: next })
-    if (err) { setError(err.message); return }
-    await fetchGroups()
-  }
-
+  // fin de championnat : la ligue s'arrête toujours ; le créateur peut
+  // relancer un nouveau championnat (tout le monde repart à 0)
   const restartChampionship = async (group: GroupRow) => {
     if (!window.confirm(`Relancer un nouveau championnat dans « ${group.name} » ? Tout le monde repart à 0.`)) return
     setError(null)
@@ -474,16 +463,7 @@ export default function Groups({ onSelectGroup }: Props) {
                         >
                           ▶️ Relancer un championnat
                         </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="groups-card-action-btn"
-                          onClick={() => toggleContinue(m.groups)}
-                          title="Ce qui se passe à la fin du championnat en cours"
-                        >
-                          {m.groups.continue_after_period ? '🔁 À la fin : on continue' : '⏹️ À la fin : on arrête'}
-                        </button>
-                      )}
+                      ) : null}
                       <button
                         type="button"
                         className="groups-card-action-btn"

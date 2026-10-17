@@ -38,6 +38,7 @@ import { readPendingJoin, clearPendingJoin } from './invite'
 import { useRedCards, redCardUntilLabel } from './redCards'
 import { useAppUpdate } from './useAppUpdate'
 import Announcement from './Announcement'
+import ChampionshipEnd from './ChampionshipEnd'
 
 // Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
 // d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
@@ -407,6 +408,17 @@ function App() {
     id: string;
     name: string;
   } | null>(null);
+
+  // ligue arrêtée (fin de championnat) : page de fin à la place de l'accueil
+  const [groupEnded, setGroupEnded] = useState(false)
+  useEffect(() => {
+    setGroupEnded(false)
+    if (!selectedGroup?.id) return
+    let cancelled = false
+    supabase.from('groups').select('ended_at').eq('id', selectedGroup.id).maybeSingle()
+      .then(({ data }) => { if (!cancelled) setGroupEnded(!!data?.ended_at) })
+    return () => { cancelled = true }
+  }, [selectedGroup?.id])
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteBusy, setDeleteBusy] = useState(false)
@@ -1952,7 +1964,15 @@ function App() {
             {(screen === 'roulette' || screen === 'penalty' || screen === 'quiz' || screen === 'jonglages') && !isActionMinigame && (
               <button className="jeux-back-btn" onClick={() => setScreen('jeux')}>← Jeux</button>
             )}
-            {screen === 'accueil' && (
+            {screen === 'accueil' && groupEnded && (
+              <ChampionshipEnd
+                key={selectedGroup.id}
+                groupId={selectedGroup.id}
+                groupName={selectedGroup.name}
+                onRestarted={() => { setGroupEnded(false); setScreen('team-reveal') }}
+              />
+            )}
+            {screen === 'accueil' && !groupEnded && (
               <Home
                 groupId={selectedGroup.id}
                 groupName={selectedGroup.name}

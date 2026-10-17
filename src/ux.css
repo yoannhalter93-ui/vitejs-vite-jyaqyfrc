@@ -1416,3 +1416,31 @@ details.rules-section > :last-child {
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.22);
 }
+
+/* ===== Page de fin de championnat ===== */
+.champ-end-hero { gap: 4px; }
+.champ-end-flag { font-size: 40px; line-height: 1; }
+.champ-end-title { font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 700; text-transform: uppercase; text-align: center; }
+.champ-end-champion { margin-top: 6px; padding: 6px 14px; border-radius: 999px; background: rgba(212, 162, 44, 0.22); font-size: 15px; }
+.champ-end-podium { display: flex; align-items: flex-end; justify-content: center; gap: 8px; margin: 14px 0; }
+.champ-end-step { flex: 1; max-width: 120px; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.champ-end-step-name { font-weight: 700; font-size: 13px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #F4EFE2; }
+.champ-end-step-pts { font-family: 'Oswald', sans-serif; font-size: 13px; color: #D4A22C; }
+.champ-end-step-block { width: 100%; display: flex; align-items: flex-start; justify-content: center; padding-top: 6px; font-size: 26px; border-radius: 10px 10px 0 0; background: linear-gradient(180deg, rgba(212, 162, 44, 0.45), rgba(212, 162, 44, 0.12)); }
+.champ-end-step.step-1 .champ-end-step-block { height: 84px; }
+.champ-end-step.step-2 .champ-end-step-block { height: 60px; opacity: 0.85; }
+.champ-end-step.step-3 .champ-end-step-block { height: 44px; opacity: 0.75; }
+.champ-end-awards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.champ-end-awards li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: rgba(27, 27, 31, 0.05); }
+.champ-end-award-icon { font-size: 22px; }
+.champ-end-award-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.champ-end-award-title { font-size: 12px; opacity: 0.7; }
+.champ-end-award-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.champ-end-award-value { font-family: 'Oswald', sans-serif; font-weight: 700; white-space: nowrap; }
+.champ-end-figures { display: flex; justify-content: space-around; text-align: center; gap: 8px; }
+.champ-end-figures div { display: flex; flex-direction: column; }
+.champ-end-figures b { font-family: 'Oswald', sans-serif; font-size: 26px; }
+.champ-end-figures span { font-size: 12px; opacity: 0.7; }
+.champ-end-next { text-align: center; }
+.champ-end-next p { margin: 0 0 10px; line-height: 1.4; }
+.champ-end-restart { width: 100%; padding: 14px; font-size: 16px; background: #D4A22C; color: #1B1B1F; box-shadow: 0 4px 14px rgba(212, 162, 44, 0.35); }
