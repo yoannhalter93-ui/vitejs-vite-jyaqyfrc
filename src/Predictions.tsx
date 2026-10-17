@@ -330,7 +330,15 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
     setRevealLoading(null)
   }
 
-  const dayGroups = groupByDay(matches)
+  // on n'affiche plus les vieux matchs : seulement à partir du lundi de la
+  // semaine dernière (les plus anciens restent comptés au classement)
+  const lastWeekStart = (() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7)
+    return d.getTime()
+  })()
+  const dayGroups = groupByDay(matches.filter((m) => new Date(m.kickoff_at).getTime() >= lastWeekStart))
 
   return (
     <div className="predictions-screen">
@@ -351,6 +359,8 @@ export default function Predictions({ groupId, groupName, autoApplyAllLeagues, o
         <LoadingSkeleton rows={5} />
       ) : matches.length === 0 ? (
         <p className="groups-empty">Aucun match pour la période en cours.</p>
+      ) : dayGroups.length === 0 ? (
+        <p className="groups-empty">Pas de nouveau match pour l'instant : les prochains arrivent dès qu'ils sont programmés.</p>
       ) : (
         dayGroups.map((group) => {
           const doneCount = group.matches.filter((m) => !!predictions[m.id]).length
