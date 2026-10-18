@@ -129,6 +129,9 @@ textarea { min-height: 80px; resize: vertical; }
 .estimate li small { opacity: .8; }
 .estimate li b { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .estimate .empty { opacity: .85; }
+.masque { filter: blur(7px); user-select: none; }
+.cadenas { font-size: 13px; background: rgb(255 255 255 / .14); border-radius: 8px; padding: 8px 10px; }
+.cadenas a { color: inherit; font-weight: 700; }
 .disclaimer { font-size: 13px; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; margin: 0; }
 
 .mini-est { margin: 0; font-weight: 500; }
@@ -202,7 +205,7 @@ html { scroll-behavior: smooth; }
         <div id="postes" class="steps-inner"></div>
 
         <section class="card" id="contact">
-          <div class="card-head"><span class="chip" style="background: var(--sage-dark)"></span><h3>Vos coordonnées</h3></div>
+          <div class="card-head"><span class="chip" style="background: var(--sage-dark)"></span><h3>Vos coordonnées pour voir l'estimation</h3></div>
           <div class="grid2">
             <label class="field"><span>Nom</span><input type="text" id="nom" name="name" autocomplete="name" required></label>
             <label class="field"><span>Ville des travaux</span><input type="text" id="ville" autocomplete="address-level2"></label>
@@ -212,7 +215,7 @@ html { scroll-behavior: smooth; }
           <label class="field"><span>Précisions (facultatif)</span><textarea id="message" placeholder="Nombre de pièces, hauteur sous plafond, délais souhaités…"></textarea></label>
           <p class="mini-est" id="mini-est"></p>
           <div class="submit-row">
-            <button class="send" type="submit" id="send">Recevoir mon estimation</button>
+            <button class="send" type="submit" id="send">Voir mon estimation</button>
             <span class="status" id="status" role="status"></span>
           </div>
         </section>
@@ -227,6 +230,7 @@ html { scroll-behavior: smooth; }
       <aside class="aside" aria-label="Estimation">
         <div class="estimate">
           <span class="label">Votre estimation</span>
+          <p class="cadenas" id="cadenas">Votre estimation s'affiche dès que vous avez rempli <a href="#contact" id="vers-contact">vos coordonnées</a>.</p>
           <div class="range" id="range"></div>
           <ul id="detail"></ul>
         </div>
@@ -466,15 +470,24 @@ html { scroll-behavior: smooth; }
 
   const rangeText = e => `environ ${eur.format(e.normal)} HT (jusqu'à ${eur.format(e.max)} HT selon le chantier)`;
 
+  // Les montants restent floutés tant que le client n'a pas envoyé ses coordonnées
+  let debloque = false;
+  // Montant masqué : un faux chiffre flouté, le vrai n'est pas dans la page
+  const cache = n => `<span class="masque" aria-hidden="true">${'8'.repeat(String(Math.round(n)).length)} €</span>`;
+
   function render() {
     document.querySelectorAll('[data-poste]').forEach(c => c.classList.toggle('off', !$(c.dataset.poste + '-on').checked));
     const e = compute();
+    const prix = n => debloque ? eur.format(n) : cache(n);
+    $('cadenas').hidden = debloque;
     $('range').innerHTML = e.base
-      ? `≈ ${eur.format(e.normal)} HT<small>Jusqu'à ${eur.format(e.max)} HT selon l'état du chantier. TVA en plus.</small>`
+      ? `≈ ${prix(e.normal)} HT<small>Jusqu'à ${prix(e.max)} HT selon l'état du chantier. TVA en plus.</small>`
       : `—<small>Ajoutez une surface ou une quantité pour voir le prix</small>`;
-    $('mini-est').innerHTML = e.base ? `Votre estimation : <b>≈ ${eur.format(e.normal)} HT</b> (jusqu'à ${eur.format(e.max)} selon le chantier)` : '';
+    $('mini-est').innerHTML = !e.base ? ''
+      : debloque ? `Votre estimation : <b>≈ ${eur.format(e.normal)} HT</b> (jusqu'à ${eur.format(e.max)} selon le chantier)`
+      : 'Remplissez vos coordonnées pour voir votre estimation.';
     $('detail').innerHTML = e.lignes.length
-      ? e.lignes.map(l => `<li><span>${l.titre}<br><small>${l.info}</small></span><b>${l.t ? '≈ ' + eur.format(l.t[0]) : 'sur visite'}</b></li>`).join('')
+      ? e.lignes.map(l => `<li><span>${l.titre}<br><small>${l.info}</small></span><b>${l.t ? '≈ ' + prix(l.t[0]) : 'sur visite'}</b></li>`).join('')
       : '<li class="empty">Rien de sélectionné pour l\'instant.</li>';
   }
 
@@ -512,6 +525,7 @@ html { scroll-behavior: smooth; }
       status.classList.add('err'); return;
     }
     if (!ENTREPRISE.email || APERCU) {
+      debloque = true; render();
       status.textContent = `Aperçu : votre estimation est ${rangeText(e)}. Ceci est un aperçu : l'envoi fonctionnera sur la page mise en ligne.`;
       status.classList.add('err'); return;
     }
@@ -542,12 +556,20 @@ html { scroll-behavior: smooth; }
         });
         if (!res.ok) throw new Error(res.status);
       }
+      debloque = true; render();
       $('done-range').textContent = rangeText(e);
       $('contact').hidden = true; $('done').hidden = false; $('done').scrollIntoView({ block: 'center' });
     } catch {
+      debloque = true; render();
       status.textContent = `L'envoi n'a pas abouti. Votre estimation : ${rangeText(e)}. Vous pouvez nous joindre directement${ENTREPRISE.telephone ? ' au ' + ENTREPRISE.telephone : ''}.`;
       status.classList.add('err');
     } finally { $('send').disabled = false; }
+  });
+
+  $('vers-contact').addEventListener('click', ev => {
+    ev.preventDefault();
+    $('contact').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => $('nom').focus({ preventScroll: true }), 400);
   });
 
   renderPostes();
