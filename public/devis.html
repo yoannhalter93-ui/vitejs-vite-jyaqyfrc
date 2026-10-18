@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mon Devis en ligne</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Mise en page : atelier à gauche (formulaire), feuille A4 à droite qui se met à jour en direct */
+:root {
+  --bg: #e9ecf2;
+  --panel: #f7f8fb;
+  --fg: #1b2233;
+  --muted: #5d6578;
+  --line: #cfd5e1;
+  --accent: #2f4fd1;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2e8fb;
+  --danger: #b4322b;
+  --paper: #ffffff;
+  --paper-fg: #1b2233;
+  --paper-muted: #66708a;
+  --paper-line: #dde2ec;
+  --paper-accent: #2f4fd1;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151f; --panel: #181e2b; --fg: #e4e8f1; --muted: #98a1b5; --line: #2c3446;
+    --accent: #7d95ff; --accent-ink: #0d1220; --accent-soft: #232c49; --danger: #ff8a80;
+    --paper: #fbfbfd; --paper-fg: #1b2233; --paper-muted: #66708a; --paper-line: #dde2ec;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151f; --panel: #181e2b; --fg: #e4e8f1; --muted: #98a1b5; --line: #2c3446;
+  --accent: #7d95ff; --accent-ink: #0d1220; --accent-soft: #232c49; --danger: #ff8a80;
+  --paper: #fbfbfd; --paper-fg: #1b2233; --paper-muted: #66708a; --paper-line: #dde2ec;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.top h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 4vw, 36px); line-height: 1.1; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.top p { margin: 4px 0 0; color: var(--muted); max-width: 60ch; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 8px 14px; cursor: pointer; font-weight: 500; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { color: var(--danger); }
+.btn.ghost { background: transparent; border-color: transparent; padding: 6px 8px; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (min-width: 1040px) { .grid { grid-template-columns: minmax(0, 520px) minmax(0, 1fr); } .preview-col { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); } }
+
+.editor { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+fieldset { margin: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+legend { font-family: var(--font-display); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 6px; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
+input, select, textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 7px; padding: 8px 10px; color: var(--fg); font-size: 15px; }
+textarea { resize: vertical; min-height: 64px; }
+input[type="number"] { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.check { flex-direction: row; align-items: center; gap: 8px; color: var(--fg); font-size: 14px; }
+.check input { width: auto; }
+
+.lines { display: flex; flex-direction: column; gap: 10px; }
+.line { border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 8px; grid-template-columns: 1fr 1fr 1fr 1fr auto; background: var(--bg); }
+.line .designation { grid-column: 1 / -1; }
+.line .del { align-self: end; }
+@media (max-width: 480px) { .line { grid-template-columns: 1fr 1fr; } .line .del { grid-column: 1 / -1; justify-self: end; } }
+.add { align-self: flex-start; }
+
+.preview-col { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.preview-label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; color: var(--muted); font-size: 13px; }
+.sheet-scroll { overflow-x: auto; border-radius: 4px; }
+
+/* La feuille reste claire dans les deux thèmes : c'est le papier du devis */
+.sheet {
+  background: var(--paper); color: var(--paper-fg);
+  min-width: 600px; padding: 44px 48px; border-radius: 4px;
+  box-shadow: 0 1px 2px rgb(10 20 40 / 0.08), 0 12px 32px rgb(10 20 40 / 0.12);
+  font-size: 13px; line-height: 1.5;
+}
+.sheet .head { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
+.sheet .from strong { font-family: var(--font-display); font-size: 18px; display: block; margin-bottom: 2px; }
+.sheet .from, .sheet .to { white-space: pre-line; color: var(--paper-muted); }
+.sheet .from strong, .sheet .to strong { color: var(--paper-fg); }
+.sheet .title { text-align: right; }
+.sheet .title h2 { font-family: var(--font-display); font-weight: 700; font-size: 34px; letter-spacing: 0.04em; margin: 0; color: var(--paper-accent); line-height: 1; }
+.sheet .meta { font-family: var(--font-mono); font-size: 12px; color: var(--paper-muted); margin-top: 8px; display: grid; grid-template-columns: auto auto; gap: 2px 12px; justify-content: end; }
+.sheet .meta span:nth-child(odd) { text-align: right; }
+.sheet .meta span:nth-child(even) { color: var(--paper-fg); text-align: right; }
+.sheet .client { display: flex; justify-content: flex-end; margin-top: 28px; }
+.sheet .to { border: 1px solid var(--paper-line); border-radius: 6px; padding: 12px 16px; min-width: 240px; max-width: 320px; }
+.sheet .to small { display: block; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; color: var(--paper-muted); margin-bottom: 4px; }
+.sheet .objet { margin-top: 24px; }
+.sheet .objet b { color: var(--paper-fg); }
+.sheet table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+.sheet th { text-align: left; font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--paper-muted); border-bottom: 1.5px solid var(--paper-fg); padding: 6px 6px; }
+.sheet td { border-bottom: 1px solid var(--paper-line); padding: 8px 6px; vertical-align: top; }
+.sheet .num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sheet .empty td { color: var(--paper-muted); font-style: italic; text-align: center; }
+.sheet .totals { margin-left: auto; margin-top: 16px; width: 300px; display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; }
+.sheet .totals span:nth-child(even) { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.sheet .totals .ttc { font-weight: 700; font-size: 15px; border-top: 1.5px solid var(--paper-fg); padding-top: 6px; margin-top: 4px; }
+.sheet .totals .acompte { color: var(--paper-muted); }
+.sheet .notes { margin-top: 24px; white-space: pre-line; color: var(--paper-muted); }
+.sheet .notes b { color: var(--paper-fg); display: block; }
+.sheet .sign { margin-top: 28px; display: flex; justify-content: flex-end; }
+.sheet .sign div { border: 1px dashed var(--paper-line); border-radius: 6px; padding: 10px 14px; width: 260px; height: 110px; color: var(--paper-muted); font-size: 12px; }
+.sheet .legal { margin-top: 28px; border-top: 1px solid var(--paper-line); padding-top: 10px; font-size: 10.5px; color: var(--paper-muted); text-align: center; }
+
+.confirm { border: 1px solid var(--danger); border-radius: 10px; padding: 12px 14px; background: var(--panel); display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-weight: 500; }
+.example-note { font-size: 13px; color: var(--muted); background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; }
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body { background: #fff; padding: 0; }
+  .top, .editor, .preview-label, .confirm, .toast, .example-note { display: none !important; }
+  .grid { display: block; }
+  .sheet { box-shadow: none; min-width: 0; padding: 0; }
+  .sheet-scroll { overflow: visible; }
+}
+@media (prefers-reduced-motion: no-preference) { .btn { transition: border-color .15s; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Faites votre devis</h1>
+      <p>Remplissez vos informations, ajoutez vos prestations : le devis se calcule et se met en page tout seul. Votre brouillon reste enregistré dans ce navigateur.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btn-copy" type="button">Copier en texte</button>
+      <button class="btn primary" id="btn-print" type="button" hidden>Imprimer / PDF</button>
+      <button class="btn danger" id="btn-reset" type="button">Nouveau devis</button>
+    </div>
+  </header>
+
+  <div class="confirm" id="confirm" hidden>
+    <span>Effacer le devis en cours et repartir d'une page vierge ?</span>
+    <button class="btn danger" id="confirm-yes" type="button">Oui, effacer</button>
+    <button class="btn" id="confirm-no" type="button">Annuler</button>
+  </div>
+
+  <div class="example-note" id="example-note" hidden>Ce devis est un exemple. Remplacez les informations par les vôtres ou cliquez sur « Nouveau devis » pour partir de zéro.</div>
+
+  <div class="grid">
+    <form class="editor" id="editor" autocomplete="off">
+      <fieldset>
+        <legend>Votre entreprise</legend>
+        <label>Nom ou raison sociale<input id="e-nom" data-path="emetteur.nom"></label>
+        <label>Adresse<textarea id="e-adresse" data-path="emetteur.adresse" rows="2"></textarea></label>
+        <div class="row">
+          <label>SIRET<input id="e-siret" data-path="emetteur.siret" inputmode="numeric"></label>
+          <label>Téléphone<input id="e-tel" data-path="emetteur.tel" type="tel"></label>
+        </div>
+        <label>E-mail<input id="e-email" data-path="emetteur.email" type="email"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Client</legend>
+        <label>Nom du client<input id="c-nom" data-path="client.nom"></label>
+        <label>Adresse<textarea id="c-adresse" data-path="client.adresse" rows="2"></textarea></label>
+        <label>E-mail<input id="c-email" data-path="client.email" type="email"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Devis</legend>
+        <div class="row">
+          <label>Numéro<input id="d-numero" data-path="numero"></label>
+          <label>Date<input id="d-date" data-path="date" type="date"></label>
+          <label>Validité (jours)<input id="d-validite" data-path="validite" type="number" min="1" step="1"></label>
+        </div>
+        <label>Objet<input id="d-objet" data-path="objet"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Prestations</legend>
+        <div class="lines" id="lines"></div>
+        <button class="btn add" id="btn-add" type="button">+ Ajouter une ligne</button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Conditions</legend>
+        <div class="row">
+          <label>Remise globale (%)<input id="d-remise" data-path="remise" type="number" min="0" max="100" step="0.5"></label>
+          <label>Acompte demandé (%)<input id="d-acompte" data-path="acompte" type="number" min="0" max="100" step="5"></label>
+        </div>
+        <label class="check"><input id="d-franchise" data-path="franchise" type="checkbox"> TVA non applicable (auto-entrepreneur, art. 293 B du CGI)</label>
+        <label>Notes et conditions de paiement<textarea id="d-notes" data-path="notes" rows="3"></textarea></label>
+      </fieldset>
+    </form>
+
+    <section class="preview-col" aria-label="Aperçu du devis">
+      <div class="preview-label"><span>Aperçu</span><span id="ttc-mini"></span></div>
+      <div class="sheet-scroll"><article class="sheet" id="sheet"></article></div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const KEY = 'mon-devis-v1';
+  const TVA_RATES = [20, 10, 5.5, 2.1, 0];
+  const UNITS = ['u', 'h', 'jour', 'forfait', 'm²', 'ml', 'kg', 'lot'];
+  const eur = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+  const pct = n => String(n).replace('.', ',') + ' %';
+  const today = () => new Date().toISOString().slice(0, 10);
+  let uid = 0;
+  const line = (designation = '', qte = 1, unite = 'u', pu = 0, tva = 20) => ({ id: ++uid, designation, qte, unite, pu, tva });
+
+  const example = () => ({
+    exemple: true,
+    emetteur: { nom: 'Atelier Martin Rénovation', adresse: '12 rue des Lilas\n69003 Lyon', siret: '812 345 678 00021', tel: '06 12 34 56 78', email: 'contact@martin-renovation.fr' },
+    client: { nom: 'Mme Claire Dubois', adresse: '8 avenue Foch\n69006 Lyon', email: '' },
+    numero: 'D-' + new Date().getFullYear() + '-001', date: today(), validite: 30,
+    objet: 'Rénovation de la salle de bain',
+    lignes: [
+      line('Dépose de l\'ancienne baignoire et évacuation', 1, 'forfait', 280, 10),
+      line('Fourniture et pose de faïence murale', 14, 'm²', 62, 10),
+      line('Receveur de douche extra-plat 120 × 90', 1, 'u', 340, 10),
+      line('Main-d\'œuvre plomberie', 6, 'h', 48, 10),
+    ],
+    remise: 0, acompte: 30, franchise: false,
+    notes: 'Paiement : 30 % à la signature, le solde à la fin des travaux.\nRèglement par virement ou chèque.',
+  });
+  const blank = () => ({
+    exemple: false,
+    emetteur: { nom: '', adresse: '', siret: '', tel: '', email: '' },
+    client: { nom: '', adresse: '', email: '' },
+    numero: 'D-' + new Date().getFullYear() + '-001', date: today(), validite: 30, objet: '',
+    lignes: [line()], remise: 0, acompte: 0, franchise: false, notes: '',
+  });
+
+  let state;
+  try { state = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { state = null; }
+  if (!state || !Array.isArray(state.lignes)) state = example();
+  state.lignes.forEach(l => { l.id = ++uid; });
+
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const num = v => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
+  const round = n => Math.round(n * 100) / 100;
+  const fmtDate = iso => { const d = new Date(iso + 'T12:00:00'); return isNaN(d) ? '' : d.toLocaleDateString('fr-FR'); };
+  const addDays = (iso, n) => { const d = new Date(iso + 'T12:00:00'); if (isNaN(d)) return ''; d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+
+  const getPath = p => p.split('.').reduce((o, k) => o?.[k], state);
+  const setPath = (p, v) => { const ks = p.split('.'); const last = ks.pop(); ks.reduce((o, k) => o[k], state)[last] = v; };
+
+  function compute() {
+    const remise = Math.min(100, Math.max(0, num(state.remise))) / 100;
+    const bases = new Map();
+    let brut = 0;
+    for (const l of state.lignes) {
+      const ht = round(num(l.qte) * num(l.pu));
+      brut += ht;
+      const rate = state.franchise ? 0 : num(l.tva);
+      bases.set(rate, (bases.get(rate) || 0) + ht);
+    }
+    brut = round(brut);
+    const montantRemise = round(brut * remise);
+    const ht = round(brut - montantRemise);
+    const tvas = [...bases].filter(([r]) => r > 0).sort((a, b) => b[0] - a[0])
+      .map(([rate, base]) => { const b = round(base * (1 - remise)); return { rate, base: b, tva: round(b * rate / 100) }; });
+    const tva = round(tvas.reduce((s, t) => s + t.tva, 0));
+    const ttc = round(ht + tva);
+    const acompte = round(ttc * Math.min(100, Math.max(0, num(state.acompte))) / 100);
+    return { brut, montantRemise, ht, tvas, tva, ttc, acompte };
+  }
+
+  function renderLines() {
+    $('lines').innerHTML = state.lignes.map((l, i) => `
+      <div class="line" data-id="${l.id}">
+        <label class="designation">Désignation<input id="l${l.id}-designation" data-f="designation" value="${esc(l.designation)}" placeholder="Ex. : pose de parquet"></label>
+        <label>Quantité<input id="l${l.id}-qte" data-f="qte" type="number" min="0" step="any" value="${esc(l.qte)}"></label>
+        <label>Unité<select id="l${l.id}-unite" data-f="unite">${UNITS.map(u => `<option${u === l.unite ? ' selected' : ''}>${u}</option>`).join('')}</select></label>
+        <label>Prix unit. HT<input id="l${l.id}-pu" data-f="pu" type="number" min="0" step="0.01" value="${esc(l.pu)}"></label>
+        <label>TVA<select id="l${l.id}-tva" data-f="tva"${state.franchise ? ' disabled' : ''}>${TVA_RATES.map(r => `<option value="${r}"${r === num(l.tva) ? ' selected' : ''}>${pct(r)}</option>`).join('')}</select></label>
+        <button class="btn ghost danger del" type="button" data-del="${l.id}" aria-label="Supprimer la ligne ${i + 1}">Supprimer</button>
+      </div>`).join('');
+  }
+
+  function renderSheet() {
+    const t = compute();
+    const e = state.emetteur, c = state.client;
+    const rows = state.lignes.filter(l => l.designation.trim() || num(l.pu));
+    const fin = addDays(state.date, num(state.validite));
+    $('sheet').innerHTML = `
+      <div class="head">
+        <div class="from"><strong>${esc(e.nom) || 'Votre entreprise'}</strong>${esc(e.adresse)}${e.tel ? '\nTél. ' + esc(e.tel) : ''}${e.email ? '\n' + esc(e.email) : ''}</div>
+        <div class="title"><h2>DEVIS</h2>
+          <div class="meta"><span>N°</span><span>${esc(state.numero)}</span><span>Date</span><span>${fmtDate(state.date)}</span>${fin ? `<span>Valable jusqu'au</span><span>${fmtDate(fin)}</span>` : ''}</div>
+        </div>
+      </div>
+      <div class="client"><div class="to"><small>Client</small><strong>${esc(c.nom) || 'Nom du client'}</strong>${c.adresse ? '\n' + esc(c.adresse) : ''}${c.email ? '\n' + esc(c.email) : ''}</div></div>
+      ${state.objet ? `<div class="objet"><b>Objet :</b> ${esc(state.objet)}</div>` : ''}
+      <table>
+        <thead><tr><th>Désignation</th><th class="num">Qté</th><th>Unité</th><th class="num">P.U. HT</th>${state.franchise ? '' : '<th class="num">TVA</th>'}<th class="num">Total HT</th></tr></thead>
+        <tbody>${rows.length ? rows.map(l => `<tr><td>${esc(l.designation)}</td><td class="num">${String(num(l.qte)).replace('.', ',')}</td><td>${esc(l.unite)}</td><td class="num">${eur.format(num(l.pu))}</td>${state.franchise ? '' : `<td class="num">${pct(num(l.tva))}</td>`}<td class="num">${eur.format(round(num(l.qte) * num(l.pu)))}</td></tr>`).join('')
+          : `<tr class="empty"><td colspan="6">Ajoutez une prestation pour la voir apparaître ici.</td></tr>`}</tbody>
+      </table>
+      <div class="totals">
+        ${t.montantRemise ? `<span>Sous-total HT</span><span>${eur.format(t.brut)}</span><span>Remise ${pct(num(state.remise))}</span><span>− ${eur.format(t.montantRemise)}</span>` : ''}
+        <span>Total HT</span><span>${eur.format(t.ht)}</span>
+        ${state.franchise ? '' : t.tvas.map(v => `<span>TVA ${pct(v.rate)} sur ${eur.format(v.base)}</span><span>${eur.format(v.tva)}</span>`).join('')}
+        <span class="ttc">Total ${state.franchise ? 'net' : 'TTC'}</span><span class="ttc">${eur.format(t.ttc)}</span>
+        ${t.acompte ? `<span class="acompte">Acompte à la signature (${pct(num(state.acompte))})</span><span class="acompte">${eur.format(t.acompte)}</span>` : ''}
+      </div>
+      ${state.notes ? `<div class="notes"><b>Conditions</b>${esc(state.notes)}</div>` : ''}
+      <div class="sign"><div>Date et signature du client,<br>précédées de la mention « Bon pour accord »</div></div>
+      <div class="legal">${[e.nom, e.siret && 'SIRET ' + e.siret, state.franchise && 'TVA non applicable, art. 293 B du CGI'].filter(Boolean).map(esc).join(' · ')}</div>`;
+    $('ttc-mini').textContent = 'Total ' + (state.franchise ? 'net' : 'TTC') + ' : ' + eur.format(t.ttc);
+    $('example-note').hidden = !state.exemple;
+  }
+
+  function fillForm() {
+    document.querySelectorAll('[data-path]').forEach(el => {
+      const v = getPath(el.dataset.path);
+      if (el.type === 'checkbox') el.checked = !!v; else el.value = v ?? '';
+    });
+    renderLines();
+    renderSheet();
+  }
+
+  const touched = () => { if (state.exemple) state.exemple = false; save(); renderSheet(); };
+
+  $('editor').addEventListener('input', ev => {
+    const el = ev.target;
+    if (el.dataset.path) {
+      setPath(el.dataset.path, el.type === 'checkbox' ? el.checked : el.value);
+      if (el.dataset.path === 'franchise') renderLines();
+    } else if (el.dataset.f) {
+      const l = state.lignes.find(x => x.id === +el.closest('.line').dataset.id);
+      if (l) l[el.dataset.f] = el.dataset.f === 'designation' || el.dataset.f === 'unite' ? el.value : el.value === '' ? '' : num(el.value);
+    }
+    touched();
+  });
+  $('editor').addEventListener('submit', ev => ev.preventDefault());
+  $('lines').addEventListener('click', ev => {
+    const id = ev.target.dataset?.del; if (!id) return;
+    state.lignes = state.lignes.filter(l => l.id !== +id);
+    if (!state.lignes.length) state.lignes.push(line());
+    renderLines(); touched();
+  });
+  $('btn-add').addEventListener('click', () => {
+    const last = state.lignes[state.lignes.length - 1];
+    const l = line('', 1, 'u', 0, last ? last.tva : 20);
+    state.lignes.push(l); renderLines(); touched();
+    $(`l${l.id}-designation`).focus();
+  });
+
+  $('btn-reset').addEventListener('click', () => { $('confirm').hidden = false; $('confirm-yes').focus(); });
+  $('confirm-no').addEventListener('click', () => { $('confirm').hidden = true; });
+  $('confirm-yes').addEventListener('click', () => { state = blank(); save(); $('confirm').hidden = true; fillForm(); toast('Nouveau devis prêt'); });
+
+  function asText() {
+    const t = compute(), e = state.emetteur, c = state.client;
+    const out = [`DEVIS N° ${state.numero} du ${fmtDate(state.date)}`, '', `De : ${e.nom}`, e.adresse, e.siret && 'SIRET ' + e.siret, '', `Pour : ${c.nom}`, c.adresse, ''];
+    if (state.objet) out.push('Objet : ' + state.objet, '');
+    for (const l of state.lignes.filter(l => l.designation.trim() || num(l.pu)))
+      out.push(`- ${l.designation} : ${String(num(l.qte)).replace('.', ',')} ${l.unite} × ${eur.format(num(l.pu))} = ${eur.format(round(num(l.qte) * num(l.pu)))} HT`);
+    out.push('');
+    if (t.montantRemise) out.push(`Remise ${pct(num(state.remise))} : − ${eur.format(t.montantRemise)}`);
+    out.push(`Total HT : ${eur.format(t.ht)}`);
+    if (!state.franchise) t.tvas.forEach(v => out.push(`TVA ${pct(v.rate)} : ${eur.format(v.tva)}`));
+    out.push(`Total ${state.franchise ? 'net' : 'TTC'} : ${eur.format(t.ttc)}`);
+    if (t.acompte) out.push(`Acompte (${pct(num(state.acompte))}) : ${eur.format(t.acompte)}`);
+    if (state.franchise) out.push('TVA non applicable, art. 293 B du CGI');
+    if (state.notes) out.push('', state.notes);
+    return out.filter(x => x !== undefined && x !== false).join('\n').replace(/\n{3,}/g, '\n\n');
+  }
+  $('btn-copy').addEventListener('click', () => {
+    const text = asText();
+    navigator.clipboard?.writeText(text).then(() => toast('Devis copié'), () => fallbackCopy(text)) ?? fallbackCopy(text);
+  });
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); toast('Devis copié'); } catch { toast('Sélectionnez le texte puis copiez-le'); }
+    ta.remove();
+  }
+
+  // L'impression n'est possible que sur la page ouverte directement (pas dans un cadre)
+  let framed = true; try { framed = window.self !== window.top; } catch {}
+  if (!framed) { $('btn-print').hidden = false; $('btn-print').addEventListener('click', () => window.print()); }
+
+  let toastTimer;
+  function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2200); }
+
+  fillForm();
+})();
+</script>
+</body>
+</html>
