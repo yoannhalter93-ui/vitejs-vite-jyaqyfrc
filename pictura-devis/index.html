@@ -460,20 +460,21 @@ html { scroll-behavior: smooth; }
   function compute() {
     const lignes = POSTES.filter(p => $(p.id + '-on').checked).flatMap(p => p.lignes(valeurs(p)).filter(Boolean));
     const somme = i => Math.round(lignes.reduce((s, l) => s + (l.t ? l.t[i] : 0), 0) / 10) * 10;
-    return { lignes, min: somme(0), normal: somme(1), max: somme(2), base: somme(1) };
+    // Estimation affichée sur la colonne « minimum », fourchette haute sur la colonne « normal »
+    return { lignes, min: somme(0), normal: somme(0), max: somme(1), base: somme(0) };
   }
 
-  const rangeText = e => `environ ${eur.format(e.normal)} HT (entre ${eur.format(e.min)} et ${eur.format(e.max)} HT)`;
+  const rangeText = e => `environ ${eur.format(e.normal)} HT (jusqu'à ${eur.format(e.max)} HT selon le chantier)`;
 
   function render() {
     document.querySelectorAll('[data-poste]').forEach(c => c.classList.toggle('off', !$(c.dataset.poste + '-on').checked));
     const e = compute();
     $('range').innerHTML = e.base
-      ? `≈ ${eur.format(e.normal)} HT<small>Entre ${eur.format(e.min)} et ${eur.format(e.max)} HT selon le chantier. TVA en plus.</small>`
+      ? `≈ ${eur.format(e.normal)} HT<small>Jusqu'à ${eur.format(e.max)} HT selon l'état du chantier. TVA en plus.</small>`
       : `—<small>Ajoutez une surface ou une quantité pour voir le prix</small>`;
-    $('mini-est').innerHTML = e.base ? `Votre estimation : <b>≈ ${eur.format(e.normal)} HT</b> (entre ${eur.format(e.min)} et ${eur.format(e.max)})` : '';
+    $('mini-est').innerHTML = e.base ? `Votre estimation : <b>≈ ${eur.format(e.normal)} HT</b> (jusqu'à ${eur.format(e.max)} selon le chantier)` : '';
     $('detail').innerHTML = e.lignes.length
-      ? e.lignes.map(l => `<li><span>${l.titre}<br><small>${l.info}</small></span><b>${l.t ? '≈ ' + eur.format(l.t[1]) : 'sur visite'}</b></li>`).join('')
+      ? e.lignes.map(l => `<li><span>${l.titre}<br><small>${l.info}</small></span><b>${l.t ? '≈ ' + eur.format(l.t[0]) : 'sur visite'}</b></li>`).join('')
       : '<li class="empty">Rien de sélectionné pour l\'instant.</li>';
   }
 
@@ -488,7 +489,7 @@ html { scroll-behavior: smooth; }
   });
 
   function resume(e) {
-    const l = e.lignes.map(x => `- ${x.titre} (${x.info}) : ${x.t ? 'environ ' + eur.format(x.t[1]) + ' HT' : 'chiffré après visite'}`).join('\n');
+    const l = e.lignes.map(x => `- ${x.titre} (${x.info}) : ${x.t ? 'environ ' + eur.format(x.t[0]) + ' HT' : 'chiffré après visite'}`).join('\n');
     return `Estimation ${rangeText(e)}\n\n${l}`;
   }
 
@@ -522,7 +523,7 @@ html { scroll-behavior: smooth; }
         const res = await fetch(ENTREPRISE.envoiUrl, {
           method: 'POST',
           body: JSON.stringify({ nom, email, telephone: tel, ville, precisions, min: e.min, normal: e.normal, max: e.max,
-            lignes: e.lignes.map(l => ({ titre: l.titre, info: l.info, total: l.t ? l.t[1] : null })) }),
+            lignes: e.lignes.map(l => ({ titre: l.titre, info: l.info, total: l.t ? l.t[0] : null })) }),
         });
         const r = await res.json();
         if (!r.ok) throw new Error(r.erreur);
