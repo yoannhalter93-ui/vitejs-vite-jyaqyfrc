@@ -180,8 +180,7 @@ html { scroll-behavior: smooth; }
             </div>
             <fieldset class="choices"><legend>État du plafond</legend>
               <label><input type="radio" name="plafond-etat" value="bon" checked><span>Bon état</span></label>
-              <label><input type="radio" name="plafond-etat" value="moyen"><span>Petites fissures, trous</span></label>
-              <label><input type="radio" name="plafond-etat" value="abime"><span>Abîmé, écaillé</span></label>
+              <label><input type="radio" name="plafond-etat" value="reprise"><span>Imperfections à reprendre (trous, fissures, ponçage)</span></label>
             </fieldset>
             <fieldset class="choices"><legend>Finition</legend>
               <label><input type="radio" name="plafond-ratissage" value="non" checked><span>Peinture seule</span></label>
@@ -199,8 +198,7 @@ html { scroll-behavior: smooth; }
             </div>
             <fieldset class="choices"><legend>État des murs</legend>
               <label><input type="radio" name="murs-etat" value="bon" checked><span>Bon état</span></label>
-              <label><input type="radio" name="murs-etat" value="moyen"><span>Petites fissures, trous</span></label>
-              <label><input type="radio" name="murs-etat" value="abime"><span>Abîmé, écaillé</span></label>
+              <label><input type="radio" name="murs-etat" value="reprise"><span>Imperfections à reprendre (trous, fissures, ponçage)</span></label>
             </fieldset>
             <fieldset class="choices"><legend>Finition</legend>
               <label><input type="radio" name="murs-ratissage" value="non" checked><span>Peinture seule</span></label>
@@ -220,10 +218,11 @@ html { scroll-behavior: smooth; }
               <label><input type="radio" name="portes-faces" value="1"><span>Une face</span></label>
               <label><input type="radio" name="portes-faces" value="2" checked><span>Les deux faces</span></label>
             </fieldset>
-            <fieldset class="choices"><legend>Avec l'encadrement (huisserie) ?</legend>
-              <label><input type="radio" name="portes-huisserie" value="oui" checked><span>Oui</span></label>
-              <label><input type="radio" name="portes-huisserie" value="non"><span>Non</span></label>
+            <fieldset class="choices"><legend>Type de porte</legend>
+              <label><input type="radio" name="portes-type" value="lisse" checked><span>Porte lisse</span></label>
+              <label><input type="radio" name="portes-type" value="moulures"><span>Avec moulures ou motifs</span></label>
             </fieldset>
+            <small style="color: var(--muted)">L'encadrement (huisserie) est compris dans le prix.</small>
           </div>
         </section>
 
@@ -288,17 +287,17 @@ html { scroll-behavior: smooth; }
   const ENTREPRISE = {
     nom: 'Pictura peinture',
     email: 'pictura.halter@gmail.com', // adresse qui reçoit les demandes
-    telephone: '',    // ex. '06 12 34 56 78'
+    telephone: '06 45 56 38 97',
   };
   // Prix TTC provisoires, à remplacer par vos tarifs
   const TARIFS = {
-    plafond_m2: 25,            // peinture plafond (2 couches), par m²
-    murs_m2: 20,               // peinture murs (2 couches), par m²
-    etat_moyen_m2: 4,          // rebouchage, enduit partiel, par m²
-    etat_abime_m2: 9,          // grattage, enduit complet, par m²
-    ratissage_m2: 16,          // ratissage complet, par m²
-    porte_face: 70,            // par face de porte
-    huisserie: 40,             // par encadrement
+    plafond_m2: 20,            // plafond, peinture 2 couches, en bon état
+    plafond_reprise_m2: 25,    // plafond avec imperfections à reprendre (ponçage, rebouchage)
+    murs_m2: 15,               // murs, peinture 2 couches, en bon état
+    murs_reprise_m2: 18,       // murs avec imperfections à reprendre
+    ratissage_m2: 16,          // ratissage, en plus de la peinture
+    porte_lisse_face: 40,      // porte lisse, par face (huisserie comprise)
+    porte_moulures_face: 60,   // porte avec moulures ou motifs, par face (huisserie comprise)
     papier_m2: 22,             // pose de papier peint, par m²
     depose_papier_m2: 8,       // dépose de l'ancien papier, par m²
     minimum: 250,              // montant minimum d'intervention
@@ -313,21 +312,21 @@ html { scroll-behavior: smooth; }
   const num = id => Math.max(0, parseFloat(String($(id).value).replace(',', '.')) || 0);
   const radio = name => document.querySelector(`input[name="${name}"]:checked`)?.value;
   const on = poste => $(poste + '-on').checked;
-  const ETAT = { bon: 'bon état', moyen: 'petites réparations', abime: 'abîmé' };
+  const ETAT = { bon: 'bon état', reprise: 'imperfections à reprendre' };
 
-  function surface(poste, prixM2) {
+  function surface(poste) {
     const m2 = num(poste + '-m2'), etat = radio(poste + '-etat'), rat = radio(poste + '-ratissage') === 'oui';
-    const prep = etat === 'moyen' ? TARIFS.etat_moyen_m2 : etat === 'abime' ? TARIFS.etat_abime_m2 : 0;
-    return { m2, etat, rat, total: m2 * (prixM2 + prep + (rat ? TARIFS.ratissage_m2 : 0)) };
+    const prixM2 = TARIFS[poste + (etat === 'reprise' ? '_reprise_m2' : '_m2')];
+    return { m2, etat, rat, total: m2 * (prixM2 + (rat ? TARIFS.ratissage_m2 : 0)) };
   }
 
   function compute() {
     const lignes = [];
-    if (on('plafond')) { const s = surface('plafond', TARIFS.plafond_m2); if (s.m2) lignes.push({ titre: `Plafonds · ${s.m2} m²`, info: `${ETAT[s.etat]}${s.rat ? ', ratissage' : ''}`, total: s.total }); }
-    if (on('murs')) { const s = surface('murs', TARIFS.murs_m2); if (s.m2) lignes.push({ titre: `Murs · ${s.m2} m²`, info: `${ETAT[s.etat]}${s.rat ? ', ratissage' : ''}`, total: s.total }); }
+    if (on('plafond')) { const s = surface('plafond'); if (s.m2) lignes.push({ titre: `Plafonds · ${s.m2} m²`, info: `${ETAT[s.etat]}${s.rat ? ', ratissage' : ''}`, total: s.total }); }
+    if (on('murs')) { const s = surface('murs'); if (s.m2) lignes.push({ titre: `Murs · ${s.m2} m²`, info: `${ETAT[s.etat]}${s.rat ? ', ratissage' : ''}`, total: s.total }); }
     if (on('portes')) {
-      const nb = Math.round(num('portes-nb')), faces = +radio('portes-faces'), huis = radio('portes-huisserie') === 'oui';
-      if (nb) lignes.push({ titre: `Portes · ${nb}`, info: `${faces === 2 ? 'deux faces' : 'une face'}${huis ? ', avec encadrement' : ''}`, total: nb * (faces * TARIFS.porte_face + (huis ? TARIFS.huisserie : 0)) });
+      const nb = Math.round(num('portes-nb')), faces = +radio('portes-faces'), moulures = radio('portes-type') === 'moulures';
+      if (nb) lignes.push({ titre: `Portes · ${nb}`, info: `${moulures ? 'avec moulures' : 'lisses'}, ${faces === 2 ? 'deux faces' : 'une face'}, encadrement compris`, total: nb * faces * (moulures ? TARIFS.porte_moulures_face : TARIFS.porte_lisse_face) });
     }
     if (on('papier')) {
       const m2 = num('papier-m2'), dep = radio('papier-depose') === 'oui';
