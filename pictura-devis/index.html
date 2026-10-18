@@ -317,6 +317,9 @@ html { scroll-behavior: smooth; }
     nom: 'Pictura peinture',
     email: 'pictura.halter@gmail.com', // adresse qui reçoit les demandes
     telephone: '06 45 56 38 97',
+    // Adresse du script Google qui envoie les e-mails depuis le Gmail de l'entreprise
+    // (voir google-apps-script.gs). Vide : envoi par FormSubmit.
+    envoiUrl: '',
   };
   // Prix TTC provisoires, à remplacer par vos tarifs
   const TARIFS = {
@@ -421,19 +424,31 @@ html { scroll-behavior: smooth; }
     }
     $('send').disabled = true; status.textContent = 'Envoi en cours…';
     try {
-      const res = await fetch('https://formsubmit.co/ajax/' + encodeURIComponent(ENTREPRISE.email), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          _subject: `Demande de devis : ${nom} (${eur.format(e.min)} – ${eur.format(e.max)})`,
-          _template: 'box', _replyto: email,
-          // FormSubmit envoie _autoresponse au client, à l'adresse du champ « email »
-          _autoresponse: recapClient(nom, e),
-          Nom: nom, email, Telephone: tel, Ville: $('ville').value.trim(),
-          Estimation: resume(e), Precisions: $('message').value.trim(),
-        }),
-      });
-      if (!res.ok) throw new Error(res.status);
+      const ville = $('ville').value.trim(), precisions = $('message').value.trim();
+      if (ENTREPRISE.envoiUrl) {
+        // Corps en texte brut : évite la requête préalable CORS que Google refuse
+        const res = await fetch(ENTREPRISE.envoiUrl, {
+          method: 'POST',
+          body: JSON.stringify({ nom, email, telephone: tel, ville, precisions, min: e.min, max: e.max,
+            lignes: e.lignes.map(l => ({ titre: l.titre, info: l.info, total: Math.round(l.total) })) }),
+        });
+        const r = await res.json();
+        if (!r.ok) throw new Error(r.erreur);
+      } else {
+        const res = await fetch('https://formsubmit.co/ajax/' + encodeURIComponent(ENTREPRISE.email), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            _subject: `Demande de devis : ${nom} (${eur.format(e.min)} – ${eur.format(e.max)})`,
+            _template: 'box', _replyto: email,
+            // FormSubmit envoie _autoresponse au client, à l'adresse du champ « email »
+            _autoresponse: recapClient(nom, e),
+            Nom: nom, email, Telephone: tel, Ville: ville,
+            Estimation: resume(e), Precisions: precisions,
+          }),
+        });
+        if (!res.ok) throw new Error(res.status);
+      }
       $('done-range').textContent = rangeText(e);
       $('contact').hidden = true; $('done').hidden = false; $('done').scrollIntoView({ block: 'center' });
     } catch {
