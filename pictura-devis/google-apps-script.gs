@@ -28,22 +28,26 @@ function doPost(e) {
     if (!nom || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || tel.replace(/\D/g, '').length < 10) {
       return json({ ok: false, erreur: 'coordonnées incomplètes' });
     }
-    const lignes = (Array.isArray(d.lignes) ? d.lignes : []).slice(0, 10).map(l => ({
-      titre: texte(l.titre, 80), info: texte(l.info, 120), total: Math.max(0, Math.round(Number(l.total) || 0)),
+    const lignes = (Array.isArray(d.lignes) ? d.lignes : []).slice(0, 40).map(l => ({
+      titre: texte(l.titre, 80), info: texte(l.info, 120),
+      total: l.total == null ? null : Math.max(0, Math.round(Number(l.total) || 0)),
     }));
     const min = Math.max(0, Math.round(Number(d.min) || 0));
     const max = Math.max(0, Math.round(Number(d.max) || 0));
-    if (!lignes.length || !max) return json({ ok: false, erreur: 'estimation vide' });
+    const normal = Math.max(0, Math.round(Number(d.normal) || 0));
+    if (!lignes.length) return json({ ok: false, erreur: 'estimation vide' });
     const ville = texte(d.ville, 80);
     const precisions = texte(d.precisions, 1500);
-    const fourchette = `entre ${euros(min)} et ${euros(max)} TTC`;
+    const fourchette = normal
+      ? `environ ${euros(normal)} HT (entre ${euros(min)} et ${euros(max)} HT)`
+      : 'chiffrée après visite';
 
     // 1. À l'entreprise
     MailApp.sendEmail({
       to: ENTREPRISE.email,
       replyTo: email,
       name: 'Site ' + ENTREPRISE.nom,
-      subject: `Demande de devis : ${nom} (${euros(min)} – ${euros(max)})`,
+      subject: `Demande de devis : ${nom}${normal ? ` (≈ ${euros(normal)} HT)` : ''}`,
       htmlBody: cadre(`
         <h2 style="margin:0 0 12px;color:${SAUGE}">Nouvelle demande de devis</h2>
         <table style="border-collapse:collapse;font-size:15px">
@@ -65,7 +69,7 @@ function doPost(e) {
         <p style="margin:0 0 12px">Bonjour ${esc(nom)},</p>
         <p style="margin:0 0 12px">Merci pour votre demande. Voici le récapitulatif de votre estimation :</p>
         ${detail(lignes, fourchette)}
-        <p style="margin:16px 0 0;color:#676d60;font-size:13px">Cette estimation est indicative et non contractuelle : le prix définitif est fixé après visite.</p>
+        <p style="margin:16px 0 0;color:#676d60;font-size:13px">Cette estimation est indicative et non contractuelle, en prix HT (TVA en plus) : le prix définitif est fixé après visite.</p>
         <p style="margin:16px 0 0">Nous vous rappelons rapidement. Pour plus de détails, répondez simplement à cet e-mail ou appelez-nous au <b>${ENTREPRISE.telephone}</b>.</p>
         <p style="margin:16px 0 0">À bientôt,<br><b>${ENTREPRISE.nom}</b><br>Artisan peintre</p>`),
     });
@@ -86,7 +90,7 @@ function detail(lignes, fourchette) {
     <table style="border-collapse:collapse;width:100%;margin-top:16px;font-size:15px">
       ${lignes.map(l => `<tr>
         <td style="padding:8px 0;border-bottom:1px solid #dedcd3">${esc(l.titre)}<br><span style="color:#676d60;font-size:13px">${esc(l.info)}</span></td>
-        <td style="padding:8px 0;border-bottom:1px solid #dedcd3;text-align:right;white-space:nowrap">≈ ${euros(l.total)}</td></tr>`).join('')}
+        <td style="padding:8px 0;border-bottom:1px solid #dedcd3;text-align:right;white-space:nowrap">${l.total == null ? 'sur visite' : '≈ ' + euros(l.total)}</td></tr>`).join('')}
     </table>
     <p style="margin:14px 0 0;font-size:18px"><b>Estimation : <span style="color:${ORANGE}">${fourchette}</span></b></p>`;
 }

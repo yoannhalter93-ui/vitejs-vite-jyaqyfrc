@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Pictura peinture, artisan peintre dans l'Ain (01480) : peinture intérieure et extérieure, ravalement, revêtements. Estimez votre devis en ligne en 2 minutes.">
+<meta name="description" content="Pictura peinture, artisan peintre dans l'Ain (01480) : peinture intérieure et extérieure, ravalement, revêtements, pose de sols. Estimez votre devis en ligne en 2 minutes.">
 <title>Pictura peinture · Devis</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -199,74 +199,7 @@ html { scroll-behavior: smooth; }
     <form id="form" class="layout" novalidate autocomplete="on">
       <div class="steps">
 
-        <section class="card" data-poste="plafond">
-          <div class="card-head"><span class="chip" style="background: var(--orange)"></span><h3>Plafonds</h3>
-            <label class="switch"><input type="checkbox" id="plafond-on" checked> Inclure</label></div>
-          <div class="body">
-            <div class="grid2">
-              <label class="field"><span>Surface de plafond</span><span class="unit" data-unit="m²"><input type="number" id="plafond-m2" min="0" step="1" inputmode="decimal" value="20"></span><small>Pour une pièce, c'est la surface au sol.</small></label>
-            </div>
-            <fieldset class="choices"><legend>État du plafond</legend>
-              <label><input type="radio" name="plafond-etat" value="bon" checked><span>Bon état</span></label>
-              <label><input type="radio" name="plafond-etat" value="reprise"><span>Imperfections à reprendre (trous, fissures, ponçage)</span></label>
-            </fieldset>
-            <fieldset class="choices"><legend>Finition</legend>
-              <label><input type="radio" name="plafond-ratissage" value="non" checked><span>Peinture seule</span></label>
-              <label><input type="radio" name="plafond-ratissage" value="oui"><span>Ratissage + peinture</span></label>
-            </fieldset>
-          </div>
-        </section>
-
-        <section class="card" data-poste="murs">
-          <div class="card-head"><span class="chip" style="background: var(--sage)"></span><h3>Murs</h3>
-            <label class="switch"><input type="checkbox" id="murs-on" checked> Inclure</label></div>
-          <div class="body">
-            <div class="grid2">
-              <label class="field"><span>Surface de murs</span><span class="unit" data-unit="m²"><input type="number" id="murs-m2" min="0" step="1" inputmode="decimal" value="45"></span><small>Astuce : périmètre de la pièce × hauteur sous plafond.</small></label>
-            </div>
-            <fieldset class="choices"><legend>État des murs</legend>
-              <label><input type="radio" name="murs-etat" value="bon" checked><span>Bon état</span></label>
-              <label><input type="radio" name="murs-etat" value="reprise"><span>Imperfections à reprendre (trous, fissures, ponçage)</span></label>
-            </fieldset>
-            <fieldset class="choices"><legend>Finition</legend>
-              <label><input type="radio" name="murs-ratissage" value="non" checked><span>Peinture seule</span></label>
-              <label><input type="radio" name="murs-ratissage" value="oui"><span>Ratissage + peinture</span></label>
-            </fieldset>
-          </div>
-        </section>
-
-        <section class="card off" data-poste="portes">
-          <div class="card-head"><span class="chip" style="background: var(--orange)"></span><h3>Portes</h3>
-            <label class="switch"><input type="checkbox" id="portes-on"> Inclure</label></div>
-          <div class="body">
-            <div class="grid2">
-              <label class="field"><span>Nombre de portes</span><input type="number" id="portes-nb" min="0" step="1" inputmode="numeric" value="2"></label>
-            </div>
-            <fieldset class="choices"><legend>Faces à peindre</legend>
-              <label><input type="radio" name="portes-faces" value="1"><span>Une face</span></label>
-              <label><input type="radio" name="portes-faces" value="2" checked><span>Les deux faces</span></label>
-            </fieldset>
-            <fieldset class="choices"><legend>Type de porte</legend>
-              <label><input type="radio" name="portes-type" value="lisse" checked><span>Porte lisse</span></label>
-              <label><input type="radio" name="portes-type" value="moulures"><span>Avec moulures ou motifs</span></label>
-            </fieldset>
-            <small style="color: var(--muted)">L'encadrement (huisserie) est compris dans le prix.</small>
-          </div>
-        </section>
-
-        <section class="card off" data-poste="papier">
-          <div class="card-head"><span class="chip" style="background: var(--sage)"></span><h3>Pose de papier peint</h3>
-            <label class="switch"><input type="checkbox" id="papier-on"> Inclure</label></div>
-          <div class="body">
-            <div class="grid2">
-              <label class="field"><span>Surface à tapisser</span><span class="unit" data-unit="m²"><input type="number" id="papier-m2" min="0" step="1" inputmode="decimal" value="12"></span><small>Pose seule, papier peint fourni par vos soins.</small></label>
-            </div>
-            <fieldset class="choices"><legend>Faut-il retirer un ancien papier peint ?</legend>
-              <label><input type="radio" name="papier-depose" value="non" checked><span>Non</span></label>
-              <label><input type="radio" name="papier-depose" value="oui"><span>Oui</span></label>
-            </fieldset>
-          </div>
-        </section>
+        <div id="postes" class="steps-inner"></div>
 
         <section class="card" id="contact">
           <div class="card-head"><span class="chip" style="background: var(--sage-dark)"></span><h3>Vos coordonnées</h3></div>
@@ -297,7 +230,7 @@ html { scroll-behavior: smooth; }
           <div class="range" id="range"></div>
           <ul id="detail"></ul>
         </div>
-        <p class="disclaimer">Estimation indicative, non contractuelle. Le prix définitif est fixé après visite, selon l'accès, la hauteur et les matériaux choisis.</p>
+        <p class="disclaimer">Estimation indicative et non contractuelle, en prix HT. Le prix définitif est fixé après visite, selon l'état des supports, l'accès et les matériaux choisis.</p>
       </aside>
     </form>
   </div>
@@ -321,67 +254,226 @@ html { scroll-behavior: smooth; }
     // (voir google-apps-script.gs). Vide : envoi par FormSubmit.
     envoiUrl: 'https://script.google.com/macros/s/AKfycbzYISFPc18H61RfsukstbxuixaUVOd9OAykY2WPB4QcBYb6WV0ggTDF_5cEXp0yVO5Byw/exec',
   };
-  // Prix TTC provisoires, à remplacer par vos tarifs
+  // Tarifs HT : [minimum, normal, chantier compliqué]
   const TARIFS = {
-    plafond_m2: 20,            // plafond, peinture 2 couches, en bon état
-    plafond_reprise_m2: 25,    // plafond avec imperfections à reprendre (ponçage, rebouchage)
-    murs_m2: 15,               // murs, peinture 2 couches, en bon état
-    murs_reprise_m2: 18,       // murs avec imperfections à reprendre
-    ratissage_m2: 16,          // ratissage, ajouté au prix de base (reprise des imperfections comprise)
-    porte_lisse_face: 40,      // porte lisse, par face (huisserie comprise)
-    porte_moulures_face: 60,   // porte avec moulures ou motifs, par face (huisserie comprise)
-    papier_m2: 22,             // pose de papier peint, par m²
-    depose_papier_m2: 8,       // dépose de l'ancien papier, par m²
-    minimum: 250,              // montant minimum d'intervention
+    impression: [7, 8, 9],                       // €/m²
+    murs_pret: [20, 22, 25],                     // murs 2 couches, support prêt
+    plafonds_pret: [22, 25, 28],                 // plafonds 2 couches, support prêt
+    murs_prep: [23, 26, 30],                     // murs avec préparation légère
+    plafonds_prep: [26, 29, 33],                 // plafonds avec préparation légère
+    ratissage_seul: [14, 16, 18],
+    murs_ratissage: [36, 40, 45],                // ratissage + impression + 2 couches murs
+    plafonds_ratissage: [40, 45, 50],            // ratissage + impression + 2 couches plafonds
+    toile_verre: [36, 40, 45],                   // toile de verre + peinture
+    lessivage: [5, 6, 8],
+    poncage: [6, 8, 10],
+    depose_papier: [9, 11, 14],
+    depose_toile: [10, 12, 15],
+    papier_standard: [20, 24, 28],
+    papier_panoramique: [30, 35, 40],
+    reprises_h: [55, 60, 65],                    // €/h
+    porte: [95, 110, 130],                       // €/porte
+    bloc_porte: [140, 160, 190],
+    huisserie: [50, 60, 70],
+    plinthes_peinture: [10, 12, 14],             // €/ml
+    fenetre_bois: [110, 130, 150],               // €/fenêtre
+    volets_paire: [180, 210, 250],
+    garde_corps: [35, 40, 45],                   // €/ml
+    escalier: [1000, 1250, 1500],                // forfait (1 500 € et plus)
+    contremarche: [25, 30, 35],                  // €/unité
+    depose_pvc_moquette: [9, 11, 14],            // €/m²
+    depose_stratifie: [9, 11, 14],
+    depose_parquet_colle: [17, 20, 25],
+    sol_grattage: [9, 11, 14],
+    ragreage_autolissant: [19, 22, 25],
+    ragreage_fibre: [23, 26, 30],
+    sol_poncage: [10, 12, 15],
+    pvc_rouleau: [20, 23, 26],
+    lvt_clips: [19, 22, 25],
+    lvt_colle: [22, 25, 29],
+    moquette: [18, 21, 24],
+    stratifie: [20, 23, 26],
+    contrecolle_flottant: [24, 27, 30],
+    contrecolle_colle: [32, 36, 40],
+    parquet_massif: [45, 50, 55],
+    sous_couche: [8, 10, 12],
+    plinthes_mdf: [12, 14, 16],                  // €/ml
+    plinthes_bois: [15, 17, 20],
+    depose_plinthes: [5, 6, 8],
+    barre_seuil: [25, 30, 35],                   // €/unité
+    recoupe_porte: [25, 30, 35],
+    joint_acrylique: [4, 5, 6],                  // €/ml
+    protection: [120, 150, 200],                 // forfait
+    mobilier: [50, 70, 90],
+    dechets: [100, 130, 180],
+    taux_horaire: [55, 60, 65],
   };
-  const FOURCHETTE = [0.9, 1.15]; // l'estimation est affichée de -10 % à +15 %
   /* =========================== */
+
+  // Postes proposés au client : champs affichés et calcul des lignes
+  const qte = (id, label, unite, val, aide) => ({ type: 'qte', id, label, unite, val, aide });
+  const choix = (id, label, options, val) => ({ type: 'choix', id, label, options, val: val ?? options[0][0] });
+  const coche = (id, label) => ({ type: 'coche', id, label });
+
+  const POSTES = [
+    { id: 'murs', titre: 'Murs', couleur: 'var(--sage)', actif: true, champs: [
+      qte('m2', 'Surface de murs', 'm²', 45, 'Astuce : périmètre de la pièce × hauteur sous plafond.'),
+      choix('etat', 'État des murs', [['bon', 'Bon état, prêts à peindre'], ['prep', 'Petites imperfections (trous, fissures)']]),
+      choix('finition', 'Travaux souhaités', [['peinture', 'Peinture 2 couches'], ['ratissage', 'Ratissage + impression + 2 couches'], ['toile', 'Toile de verre + peinture']]),
+      coche('lessivage', 'Lessivage'), coche('poncage', 'Ponçage'),
+      coche('depose_papier', 'Retirer un ancien papier peint'), coche('depose_toile', 'Retirer une ancienne toile de verre'),
+    ], lignes: v => {
+      if (!v.m2) return [];
+      const base = v.finition === 'ratissage' ? ['murs_ratissage', 'ratissage + impression + 2 couches']
+        : v.finition === 'toile' ? ['toile_verre', 'toile de verre + peinture']
+        : v.etat === 'prep' ? ['murs_prep', '2 couches, préparation légère'] : ['murs_pret', '2 couches, support prêt'];
+      return [L(`Murs · ${v.m2} m²`, base[1], base[0], v.m2), ...options(v, v.m2, ['lessivage', 'poncage', 'depose_papier', 'depose_toile'])];
+    } },
+    { id: 'plafonds', titre: 'Plafonds', couleur: 'var(--orange)', actif: true, champs: [
+      qte('m2', 'Surface de plafond', 'm²', 20, 'Pour une pièce, c\'est la surface au sol.'),
+      choix('etat', 'État du plafond', [['bon', 'Bon état, prêt à peindre'], ['prep', 'Petites imperfections (trous, fissures)']]),
+      choix('finition', 'Travaux souhaités', [['peinture', 'Peinture 2 couches'], ['ratissage', 'Ratissage + impression + 2 couches']]),
+      coche('lessivage', 'Lessivage'), coche('poncage', 'Ponçage'),
+    ], lignes: v => {
+      if (!v.m2) return [];
+      const base = v.finition === 'ratissage' ? ['plafonds_ratissage', 'ratissage + impression + 2 couches']
+        : v.etat === 'prep' ? ['plafonds_prep', '2 couches, préparation légère'] : ['plafonds_pret', '2 couches, support prêt'];
+      return [L(`Plafonds · ${v.m2} m²`, base[1], base[0], v.m2), ...options(v, v.m2, ['lessivage', 'poncage'])];
+    } },
+    { id: 'papier', titre: 'Papier peint', couleur: 'var(--sage)', champs: [
+      qte('m2', 'Surface à tapisser', 'm²', 12, 'Pose seule, papier peint fourni par vos soins.'),
+      choix('type', 'Type de papier', [['standard', 'Papier peint standard'], ['panoramique', 'Panoramique']]),
+      coche('depose_papier', 'Retirer un ancien papier peint'),
+    ], lignes: v => v.m2 ? [
+      L(`Papier peint · ${v.m2} m²`, v.type === 'panoramique' ? 'pose de panoramique' : 'pose standard', 'papier_' + v.type, v.m2),
+      ...options(v, v.m2, ['depose_papier']),
+    ] : [] },
+    { id: 'menuiseries', titre: 'Portes et plinthes', couleur: 'var(--orange)', champs: [
+      qte('portes', 'Nombre de portes', 'u', 2),
+      choix('type', 'À peindre', [['porte', 'La porte seule'], ['bloc', 'Porte + encadrement (bloc-porte)']]),
+      qte('huisseries', 'Encadrements seuls (sans la porte)', 'u', 0),
+      qte('plinthes', 'Plinthes à peindre', 'ml', 0, 'En mètres linéaires.'),
+    ], lignes: v => [
+      v.portes && L(`Portes · ${v.portes}`, v.type === 'bloc' ? 'bloc-porte complet' : 'porte seule', v.type === 'bloc' ? 'bloc_porte' : 'porte', v.portes),
+      v.huisseries && L(`Encadrements · ${v.huisseries}`, 'huisserie seule', 'huisserie', v.huisseries),
+      v.plinthes && L(`Plinthes · ${v.plinthes} ml`, 'mise en peinture', 'plinthes_peinture', v.plinthes),
+    ] },
+    { id: 'escalier', titre: 'Escalier', couleur: 'var(--sage)', champs: [
+      coche('complet', 'Rénovation complète d\'un escalier bois'),
+      qte('contremarches', 'Contremarches à poncer et vernir', 'u', 0),
+      qte('garde_corps', 'Garde-corps / rampe à peindre', 'ml', 0),
+    ], lignes: v => [
+      v.complet && L('Escalier bois', 'rénovation complète', 'escalier', 1),
+      v.contremarches && L(`Contremarches · ${v.contremarches}`, 'ponçage + vernis', 'contremarche', v.contremarches),
+      v.garde_corps && L(`Garde-corps · ${v.garde_corps} ml`, 'mise en peinture', 'garde_corps', v.garde_corps),
+    ] },
+    { id: 'exterieur', titre: 'Travaux extérieurs', couleur: 'var(--orange)', champs: [
+      qte('volets', 'Paires de volets', 'u', 2),
+      qte('fenetres', 'Fenêtres bois', 'u', 0),
+      qte('garde_corps', 'Garde-corps de balcon ou terrasse', 'ml', 0),
+      coche('facade', 'Façade / ravalement (chiffré après visite)'),
+    ], lignes: v => [
+      v.volets && L(`Volets · ${v.volets} paire${v.volets > 1 ? 's' : ''}`, 'mise en peinture', 'volets_paire', v.volets),
+      v.fenetres && L(`Fenêtres bois · ${v.fenetres}`, 'mise en peinture', 'fenetre_bois', v.fenetres),
+      v.garde_corps && L(`Garde-corps · ${v.garde_corps} ml`, 'mise en peinture', 'garde_corps', v.garde_corps),
+      v.facade && { titre: 'Façade / ravalement', info: 'chiffré après visite', t: null },
+    ] },
+    { id: 'sols', titre: 'Pose de sol', couleur: 'var(--sage)', champs: [
+      qte('m2', 'Surface de sol', 'm²', 20, 'Prix de pose, revêtement non fourni.'),
+      choix('revetement', 'Revêtement à poser', [['stratifie', 'Stratifié flottant'], ['contrecolle_flottant', 'Parquet contrecollé flottant'], ['contrecolle_colle', 'Parquet contrecollé collé'], ['parquet_massif', 'Parquet massif collé'], ['lvt_clips', 'Lames vinyle (LVT) clipsables'], ['lvt_colle', 'Lames vinyle (LVT) collées'], ['pvc_rouleau', 'Sol PVC en rouleau'], ['moquette', 'Moquette']]),
+      choix('depose', 'Ancien revêtement à retirer', [['aucun', 'Aucun'], ['depose_pvc_moquette', 'PVC ou moquette'], ['depose_stratifie', 'Stratifié'], ['depose_parquet_colle', 'Parquet collé']]),
+      choix('prepa', 'Préparation du sol', [['aucune', 'Aucune'], ['sol_grattage', 'Grattage'], ['sol_poncage', 'Ponçage'], ['ragreage_autolissant', 'Ragréage autolissant'], ['ragreage_fibre', 'Ragréage fibré']]),
+      coche('sous_couche', 'Sous-couche acoustique'),
+      qte('plinthes', 'Plinthes à poser', 'ml', 0),
+      choix('plinthes_type', 'Type de plinthes', [['plinthes_mdf', 'MDF'], ['plinthes_bois', 'Bois']]),
+      coche('depose_plinthes', 'Retirer les anciennes plinthes'),
+      qte('seuils', 'Barres de seuil', 'u', 0),
+      qte('recoupes', 'Portes à recouper', 'u', 0),
+    ], lignes: v => {
+      const nom = POSTES.find(p => p.id === 'sols').champs[1].options.find(o => o[0] === v.revetement)[1];
+      return [
+        v.m2 && L(`Pose de sol · ${v.m2} m²`, nom.toLowerCase(), v.revetement, v.m2),
+        v.m2 && v.depose !== 'aucun' && L('Dépose ancien sol', `${v.m2} m²`, v.depose, v.m2),
+        v.m2 && v.prepa !== 'aucune' && L('Préparation du sol', `${v.m2} m²`, v.prepa, v.m2),
+        v.m2 && v.sous_couche && L('Sous-couche acoustique', `${v.m2} m²`, 'sous_couche', v.m2),
+        v.plinthes && L(`Plinthes · ${v.plinthes} ml`, v.plinthes_type === 'plinthes_bois' ? 'bois, pose' : 'MDF, pose', v.plinthes_type, v.plinthes),
+        v.plinthes && v.depose_plinthes && L('Dépose plinthes', `${v.plinthes} ml`, 'depose_plinthes', v.plinthes),
+        v.seuils && L(`Barres de seuil · ${v.seuils}`, 'pose', 'barre_seuil', v.seuils),
+        v.recoupes && L(`Recoupe de portes · ${v.recoupes}`, 'après pose du sol', 'recoupe_porte', v.recoupes),
+      ];
+    } },
+    { id: 'chantier', titre: 'Services en plus', couleur: 'var(--orange)', champs: [
+      coche('protection', 'Protection du chantier (bâches, sols, meubles)'),
+      coche('mobilier', 'Déplacement du mobilier'),
+      coche('dechets', 'Évacuation des déchets'),
+    ], lignes: v => [
+      v.protection && L('Protection chantier', 'forfait', 'protection', 1),
+      v.mobilier && L('Déplacement du mobilier', 'forfait', 'mobilier', 1),
+      v.dechets && L('Évacuation des déchets', 'forfait', 'dechets', 1),
+    ] },
+  ];
+
+  const LIBELLES = { lessivage: 'Lessivage', poncage: 'Ponçage', depose_papier: 'Dépose papier peint', depose_toile: 'Dépose toile de verre' };
+  // Une ligne d'estimation : t = [minimum, normal, compliqué] × quantité
+  function L(titre, info, cle, q) { return { titre, info, t: TARIFS[cle].map(p => p * q) }; }
+  function options(v, m2, cles) { return cles.filter(c => v[c]).map(c => L(LIBELLES[c], `${m2} m²`, c, m2)); }
 
   // Dans un aperçu encadré (ex. lien claude.ai), l'envoi est désactivé
   let APERCU = true; try { APERCU = window.self !== window.top; } catch {}
   const $ = id => document.getElementById(id);
   const eur = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-  const num = id => Math.max(0, parseFloat(String($(id).value).replace(',', '.')) || 0);
-  const radio = name => document.querySelector(`input[name="${name}"]:checked`)?.value;
-  const on = poste => $(poste + '-on').checked;
-  const ETAT = { bon: 'bon état', reprise: 'imperfections à reprendre' };
 
-  function surface(poste) {
-    const m2 = num(poste + '-m2'), etat = radio(poste + '-etat'), rat = radio(poste + '-ratissage') === 'oui';
-    // le ratissage couvre déjà la reprise des imperfections : prix de base + ratissage
-    const prixM2 = rat ? TARIFS[poste + '_m2'] + TARIFS.ratissage_m2 : TARIFS[poste + (etat === 'reprise' ? '_reprise_m2' : '_m2')];
-    return { m2, etat, rat, total: m2 * prixM2 };
+  function renderPostes() {
+    $('postes').innerHTML = POSTES.map(p => `
+      <section class="card${p.actif ? '' : ' off'}" data-poste="${p.id}">
+        <div class="card-head"><span class="chip" style="background: ${p.couleur}"></span><h3>${p.titre}</h3>
+          <label class="switch"><input type="checkbox" id="${p.id}-on"${p.actif ? ' checked' : ''}> Inclure</label></div>
+        <div class="body">
+          ${champsHtml(p)}
+        </div>
+      </section>`).join('');
+  }
+  function champsHtml(p) {
+    const qtes = p.champs.filter(c => c.type === 'qte'), coches = p.champs.filter(c => c.type === 'coche');
+    const html = [];
+    if (qtes.length) html.push(`<div class="grid2">${qtes.map(c => `
+      <label class="field"><span>${c.label}</span><span class="unit" data-unit="${c.unite}"><input type="number" id="${p.id}-${c.id}" min="0" step="1" inputmode="decimal" value="${c.val}"></span>${c.aide ? `<small>${c.aide}</small>` : ''}</label>`).join('')}</div>`);
+    p.champs.filter(c => c.type === 'choix').forEach(c => html.push(`
+      <fieldset class="choices"><legend>${c.label}</legend>${c.options.map(([v, l]) => `
+        <label><input type="radio" name="${p.id}-${c.id}" value="${v}"${v === c.val ? ' checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>`));
+    if (coches.length) html.push(`<fieldset class="choices"><legend>${p.id === 'chantier' ? 'Cochez ce qui vous intéresse' : 'En plus'}</legend>${coches.map(c => `
+      <label><input type="checkbox" id="${p.id}-${c.id}"><span>${c.label}</span></label>`).join('')}</fieldset>`);
+    return html.join('');
+  }
+
+  function valeurs(p) {
+    const v = {};
+    for (const c of p.champs) {
+      const id = `${p.id}-${c.id}`;
+      if (c.type === 'qte') v[c.id] = Math.max(0, Math.round(parseFloat(String($(id).value).replace(',', '.')) || 0));
+      else if (c.type === 'coche') v[c.id] = $(id).checked;
+      else v[c.id] = document.querySelector(`input[name="${id}"]:checked`)?.value;
+    }
+    return v;
   }
 
   function compute() {
-    const lignes = [];
-    if (on('plafond')) { const s = surface('plafond'); if (s.m2) lignes.push({ titre: `Plafonds · ${s.m2} m²`, info: s.rat ? 'ratissage + peinture' : ETAT[s.etat], total: s.total }); }
-    if (on('murs')) { const s = surface('murs'); if (s.m2) lignes.push({ titre: `Murs · ${s.m2} m²`, info: s.rat ? 'ratissage + peinture' : ETAT[s.etat], total: s.total }); }
-    if (on('portes')) {
-      const nb = Math.round(num('portes-nb')), faces = +radio('portes-faces'), moulures = radio('portes-type') === 'moulures';
-      if (nb) lignes.push({ titre: `Portes · ${nb}`, info: `${moulures ? 'avec moulures' : 'lisses'}, ${faces === 2 ? 'deux faces' : 'une face'}, encadrement compris`, total: nb * faces * (moulures ? TARIFS.porte_moulures_face : TARIFS.porte_lisse_face) });
-    }
-    if (on('papier')) {
-      const m2 = num('papier-m2'), dep = radio('papier-depose') === 'oui';
-      if (m2) lignes.push({ titre: `Papier peint · ${m2} m²`, info: dep ? 'avec dépose de l\'ancien' : 'pose seule', total: m2 * (TARIFS.papier_m2 + (dep ? TARIFS.depose_papier_m2 : 0)) });
-    }
-    const brut = lignes.reduce((s, l) => s + l.total, 0);
-    const base = brut ? Math.max(brut, TARIFS.minimum) : 0;
-    const r10 = n => Math.round(n / 10) * 10;
-    return { lignes, base, min: r10(base * FOURCHETTE[0]), max: r10(base * FOURCHETTE[1]) };
+    const lignes = POSTES.filter(p => $(p.id + '-on').checked).flatMap(p => p.lignes(valeurs(p)).filter(Boolean));
+    const somme = i => Math.round(lignes.reduce((s, l) => s + (l.t ? l.t[i] : 0), 0) / 10) * 10;
+    return { lignes, min: somme(0), normal: somme(1), max: somme(2), base: somme(1) };
   }
 
-  const rangeText = e => `entre ${eur.format(e.min)} et ${eur.format(e.max)} TTC`;
+  const rangeText = e => `environ ${eur.format(e.normal)} HT (entre ${eur.format(e.min)} et ${eur.format(e.max)} HT)`;
 
   function render() {
-    document.querySelectorAll('[data-poste]').forEach(c => c.classList.toggle('off', !on(c.dataset.poste)));
+    document.querySelectorAll('[data-poste]').forEach(c => c.classList.toggle('off', !$(c.dataset.poste + '-on').checked));
     const e = compute();
     $('range').innerHTML = e.base
-      ? `${eur.format(e.min)} – ${eur.format(e.max)}<small>TTC, main-d'œuvre et peinture comprises</small>`
-      : `—<small>Ajoutez une surface pour voir le prix</small>`;
-    $('mini-est').innerHTML = e.base ? `Votre estimation : <b>${eur.format(e.min)} – ${eur.format(e.max)}</b> TTC` : '';
+      ? `≈ ${eur.format(e.normal)} HT<small>Entre ${eur.format(e.min)} et ${eur.format(e.max)} HT selon le chantier. TVA en plus.</small>`
+      : `—<small>Ajoutez une surface ou une quantité pour voir le prix</small>`;
+    $('mini-est').innerHTML = e.base ? `Votre estimation : <b>≈ ${eur.format(e.normal)} HT</b> (entre ${eur.format(e.min)} et ${eur.format(e.max)})` : '';
     $('detail').innerHTML = e.lignes.length
-      ? e.lignes.map(l => `<li><span>${l.titre}<br><small>${l.info}</small></span><b>≈ ${eur.format(Math.round(l.total))}</b></li>`).join('')
+      ? e.lignes.map(l => `<li><span>${l.titre}<br><small>${l.info}</small></span><b>${l.t ? '≈ ' + eur.format(l.t[1]) : 'sur visite'}</b></li>`).join('')
       : '<li class="empty">Rien de sélectionné pour l\'instant.</li>';
   }
 
@@ -392,11 +484,11 @@ html { scroll-behavior: smooth; }
   $('cta').addEventListener('click', ev => {
     ev.preventDefault();
     $('devis').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-    setTimeout(() => $('plafond-m2').focus({ preventScroll: true }), 400);
+    setTimeout(() => $('murs-m2').focus({ preventScroll: true }), 400);
   });
 
   function resume(e) {
-    const l = e.lignes.map(x => `- ${x.titre} (${x.info}) : environ ${eur.format(Math.round(x.total))}`).join('\n');
+    const l = e.lignes.map(x => `- ${x.titre} (${x.info}) : ${x.t ? 'environ ' + eur.format(x.t[1]) + ' HT' : 'chiffré après visite'}`).join('\n');
     return `Estimation ${rangeText(e)}\n\n${l}`;
   }
 
@@ -413,7 +505,7 @@ html { scroll-behavior: smooth; }
     status.className = 'status';
     const e = compute();
     const nom = $('nom').value.trim(), email = $('email').value.trim(), tel = $('tel').value.trim();
-    if (!e.base) { status.textContent = 'Indiquez au moins une surface ou un nombre de portes.'; status.classList.add('err'); return; }
+    if (!e.base && !e.lignes.length) { status.textContent = 'Choisissez au moins un type de travaux.'; status.classList.add('err'); return; }
     if (!nom || !/^\S+@\S+\.\S+$/.test(email) || tel.replace(/\D/g, '').length < 10) {
       status.textContent = 'Indiquez votre nom, un e-mail valide et un numéro de téléphone (10 chiffres).';
       status.classList.add('err'); return;
@@ -429,8 +521,8 @@ html { scroll-behavior: smooth; }
         // Corps en texte brut : évite la requête préalable CORS que Google refuse
         const res = await fetch(ENTREPRISE.envoiUrl, {
           method: 'POST',
-          body: JSON.stringify({ nom, email, telephone: tel, ville, precisions, min: e.min, max: e.max,
-            lignes: e.lignes.map(l => ({ titre: l.titre, info: l.info, total: Math.round(l.total) })) }),
+          body: JSON.stringify({ nom, email, telephone: tel, ville, precisions, min: e.min, normal: e.normal, max: e.max,
+            lignes: e.lignes.map(l => ({ titre: l.titre, info: l.info, total: l.t ? l.t[1] : null })) }),
         });
         const r = await res.json();
         if (!r.ok) throw new Error(r.erreur);
@@ -439,7 +531,7 @@ html { scroll-behavior: smooth; }
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({
-            _subject: `Demande de devis : ${nom} (${eur.format(e.min)} – ${eur.format(e.max)})`,
+            _subject: `Demande de devis : ${nom} (≈ ${eur.format(e.normal)} HT)`,
             _template: 'box', _replyto: email,
             // FormSubmit envoie _autoresponse au client, à l'adresse du champ « email »
             _autoresponse: recapClient(nom, e),
@@ -457,6 +549,7 @@ html { scroll-behavior: smooth; }
     } finally { $('send').disabled = false; }
   });
 
+  renderPostes();
   $('foot-name').textContent = ENTREPRISE.nom;
   $('foot-contact').textContent = [ENTREPRISE.telephone, ENTREPRISE.email].filter(Boolean).join(' · ');
   render();
