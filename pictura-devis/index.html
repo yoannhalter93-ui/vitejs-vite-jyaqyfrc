@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Pictura peinture, artisan peintre dans l'Ain (01480) : peinture intérieure et extérieure, ravalement, revêtements. Estimez votre devis en ligne en 2 minutes.">
 <title>Pictura peinture · Devis</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,9 +58,19 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .cta { display: inline-flex; align-items: center; gap: 12px; background: var(--orange); color: var(--ink-on); border: 0; border-radius: 999px; padding: 16px 30px; font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .02em; cursor: pointer; text-decoration: none; box-shadow: 0 6px 0 var(--orange-dark); transition: transform .15s, box-shadow .15s; }
 .cta:hover { transform: translateY(2px); box-shadow: 0 4px 0 var(--orange-dark); }
 .cta span { font-size: 22px; line-height: 1; }
+.cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; }
+.call { display: inline-flex; align-items: center; gap: 6px; color: var(--fg); text-decoration: none; border: 2px solid var(--sage); border-radius: 999px; padding: 12px 22px; font-weight: 500; background: var(--surface); }
+.call b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.call:hover { border-color: var(--sage-dark); }
+.services-band { background: var(--sage); color: var(--ink-on); padding-block: 26px; }
+.service-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px 24px; }
+.service-list li { display: flex; flex-direction: column; gap: 2px; border-left: 3px solid var(--orange); padding-left: 12px; }
+.service-list b { font-family: var(--font-display); font-weight: 600; font-size: 18px; }
+.service-list span { font-size: 14px; opacity: .9; }
+.zone { margin: 18px 0 0; font-size: 14px; opacity: .95; }
 .hero .seal { width: 200px; aspect-ratio: 1; justify-self: center; background: var(--surface); border-radius: 50%; position: relative; box-shadow: 0 10px 30px rgb(60 60 40 / .12); }
 .hero .seal .mark { position: absolute; inset: 0; }
-@media (max-width: 819px) { .hero .seal { display: none; } }
+@media (max-width: 819px) { .hero .seal { display: none; } .hero { padding-bottom: 110px; } .waves { top: auto; height: 90px; } }
 @media (prefers-reduced-motion: no-preference) { .hero .seal .mark { animation: spin 40s linear infinite; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -120,6 +131,8 @@ textarea { min-height: 80px; resize: vertical; }
 .estimate .empty { opacity: .85; }
 .disclaimer { font-size: 13px; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; margin: 0; }
 
+.mini-est { margin: 0; font-weight: 500; }
+.mini-est b { color: var(--orange-dark); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .submit-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .send { background: var(--orange); color: var(--ink-on); border: 0; border-radius: 999px; padding: 14px 26px; font-family: var(--font-display); font-weight: 600; font-size: 17px; cursor: pointer; box-shadow: 0 4px 0 var(--orange-dark); }
 .send[disabled] { opacity: .6; cursor: progress; }
@@ -154,12 +167,27 @@ html { scroll-behavior: smooth; }
       <div>
         <h1>Votre devis peinture <em>en 2 minutes</em></h1>
         <p>Indiquez vos surfaces et l'état de vos murs et plafonds : vous obtenez tout de suite un ordre de prix, et nous vous rappelons pour affiner.</p>
-        <a class="cta" href="#devis" id="cta">Faire mon devis <span aria-hidden="true">→</span></a>
+        <div class="cta-row">
+          <a class="cta" href="#devis" id="cta">Faire mon devis <span aria-hidden="true">→</span></a>
+          <a class="call" href="tel:+33645563897" id="call">Appeler le <b>06 45 56 38 97</b></a>
+        </div>
       </div>
       <div class="seal"><span class="mark badge" role="img" aria-label="Pictura peinture, artisan peintre"></span></div>
     </div>
   </div>
 </header>
+
+<section class="gutter services-band" aria-label="Nos services">
+  <div class="inner">
+    <ul class="service-list">
+      <li><b>Peinture intérieure</b><span>Plafonds, murs, portes, boiseries</span></li>
+      <li><b>Peinture extérieure</b><span>Façades, volets, portails</span></li>
+      <li><b>Ravalement</b><span>Nettoyage et remise en peinture des façades</span></li>
+      <li><b>Revêtements</b><span>Ratissage, papier peint, toile de verre</span></li>
+    </ul>
+    <p class="zone">Artisan peintre dans l'Ain (01480) et ses environs · Devis gratuit</p>
+  </div>
+</section>
 
 <main class="gutter" id="devis">
   <div class="inner">
@@ -249,6 +277,7 @@ html { scroll-behavior: smooth; }
             <label class="field"><span>Téléphone</span><input type="tel" id="tel" autocomplete="tel" required></label>
           </div>
           <label class="field"><span>Précisions (facultatif)</span><textarea id="message" placeholder="Nombre de pièces, hauteur sous plafond, délais souhaités…"></textarea></label>
+          <p class="mini-est" id="mini-est"></p>
           <div class="submit-row">
             <button class="send" type="submit" id="send">Recevoir mon estimation</button>
             <span class="status" id="status" role="status"></span>
@@ -276,7 +305,7 @@ html { scroll-behavior: smooth; }
 
 <footer class="gutter">
   <div class="inner">
-    <span><b id="foot-name">Pictura peinture</b> · Artisan peintre</span>
+    <span><b id="foot-name">Pictura peinture</b> · Artisan peintre · Ain (01480)</span>
     <span id="foot-contact"></span>
   </div>
 </footer>
@@ -347,6 +376,7 @@ html { scroll-behavior: smooth; }
     $('range').innerHTML = e.base
       ? `${eur.format(e.min)} – ${eur.format(e.max)}<small>TTC, main-d'œuvre et peinture comprises</small>`
       : `—<small>Ajoutez une surface pour voir le prix</small>`;
+    $('mini-est').innerHTML = e.base ? `Votre estimation : <b>${eur.format(e.min)} – ${eur.format(e.max)}</b> TTC` : '';
     $('detail').innerHTML = e.lignes.length
       ? e.lignes.map(l => `<li><span>${l.titre}<br><small>${l.info}</small></span><b>≈ ${eur.format(Math.round(l.total))}</b></li>`).join('')
       : '<li class="empty">Rien de sélectionné pour l\'instant.</li>';
