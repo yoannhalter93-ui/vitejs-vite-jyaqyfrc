@@ -341,11 +341,11 @@ html { scroll-behavior: smooth; }
       return [L(`Plafonds · ${v.m2} m²`, base[1], base[0], v.m2), ...options(v, v.m2, ['lessivage', 'poncage'])];
     } },
     { id: 'papier', titre: 'Papier peint', couleur: 'var(--sage)', champs: [
-      qte('m2', 'Surface à tapisser', 'm²', 12, 'Pose seule, papier peint fourni par vos soins.'),
+      qte('m2', 'Surface à tapisser', 'm²', 12, 'Pose seule, hors fourniture du papier peint.'),
       choix('type', 'Type de papier', [['standard', 'Papier peint standard'], ['panoramique', 'Panoramique']]),
       coche('depose_papier', 'Retirer un ancien papier peint'),
     ], lignes: v => v.m2 ? [
-      L(`Papier peint · ${v.m2} m²`, v.type === 'panoramique' ? 'pose de panoramique' : 'pose standard', 'papier_' + v.type, v.m2),
+      L(`Papier peint · ${v.m2} m²`, v.type === 'panoramique' ? 'panoramique, pose hors fourniture' : 'standard, pose hors fourniture', 'papier_' + v.type, v.m2),
       ...options(v, v.m2, ['depose_papier']),
     ] : [] },
     { id: 'menuiseries', titre: 'Portes et plinthes', couleur: 'var(--orange)', champs: [
