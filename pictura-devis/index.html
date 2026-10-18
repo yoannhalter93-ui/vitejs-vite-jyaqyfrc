@@ -287,7 +287,7 @@ html { scroll-behavior: smooth; }
         <div class="done" id="done" hidden>
           <h3>Merci, votre demande est bien envoyée.</h3>
           <p>Votre estimation : <b id="done-range"></b>.</p>
-          <p>Nous vous rappelons rapidement pour en parler. Pour plus de détails tout de suite, appelez-nous ou écrivez-nous (coordonnées en bas de page).</p>
+          <p>Un récapitulatif vous a été envoyé par e-mail (pensez à regarder dans les indésirables). Nous vous rappelons rapidement pour en parler. Pour plus de détails tout de suite, appelez-nous ou écrivez-nous (coordonnées en bas de page).</p>
         </div>
       </div>
 
@@ -397,6 +397,13 @@ html { scroll-behavior: smooth; }
     return `Estimation ${rangeText(e)}\n\n${l}`;
   }
 
+  function recapClient(nom, e) {
+    const contact = [ENTREPRISE.telephone && 'Tél. ' + ENTREPRISE.telephone, ENTREPRISE.email].filter(Boolean).join(' · ');
+    return `Bonjour ${nom},\n\nMerci pour votre demande. Voici le récapitulatif de votre estimation :\n\n${resume(e)}\n\n`
+      + `Cette estimation est indicative et non contractuelle : le prix définitif est fixé après visite.\n`
+      + `Nous vous rappelons rapidement. Pour plus de détails, vous pouvez aussi nous contacter : ${contact}\n\n${ENTREPRISE.nom}`;
+  }
+
   $('form').addEventListener('submit', async ev => {
     ev.preventDefault();
     const status = $('status');
@@ -420,7 +427,9 @@ html { scroll-behavior: smooth; }
         body: JSON.stringify({
           _subject: `Demande de devis : ${nom} (${eur.format(e.min)} – ${eur.format(e.max)})`,
           _template: 'box', _replyto: email,
-          Nom: nom, Email: email, Telephone: tel, Ville: $('ville').value.trim(),
+          // FormSubmit envoie _autoresponse au client, à l'adresse du champ « email »
+          _autoresponse: recapClient(nom, e),
+          Nom: nom, email, Telephone: tel, Ville: $('ville').value.trim(),
           Estimation: resume(e), Precisions: $('message').value.trim(),
         }),
       });
