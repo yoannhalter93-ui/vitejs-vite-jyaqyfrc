@@ -492,7 +492,12 @@ html { scroll-behavior: smooth; }
   }
 
   $('form').addEventListener('input', render);
-  $('form').addEventListener('change', render);
+  $('form').addEventListener('change', ev => {
+    // Murs ou plafonds avec imperfections : le ponçage est coché d'office (décochable)
+    const m = /^(murs|plafonds)-etat$/.exec(ev.target.name || '');
+    if (m) $(m[1] + '-poncage').checked = ev.target.value === 'prep';
+    render();
+  });
 
   // Le bouton du bandeau ouvre directement le formulaire
   $('cta').addEventListener('click', ev => {
