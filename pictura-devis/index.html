@@ -295,7 +295,7 @@ html { scroll-behavior: smooth; }
     plafond_reprise_m2: 25,    // plafond avec imperfections à reprendre (ponçage, rebouchage)
     murs_m2: 15,               // murs, peinture 2 couches, en bon état
     murs_reprise_m2: 18,       // murs avec imperfections à reprendre
-    ratissage_m2: 16,          // ratissage, en plus de la peinture
+    ratissage_m2: 16,          // ratissage, ajouté au prix de base (reprise des imperfections comprise)
     porte_lisse_face: 40,      // porte lisse, par face (huisserie comprise)
     porte_moulures_face: 60,   // porte avec moulures ou motifs, par face (huisserie comprise)
     papier_m2: 22,             // pose de papier peint, par m²
@@ -316,14 +316,15 @@ html { scroll-behavior: smooth; }
 
   function surface(poste) {
     const m2 = num(poste + '-m2'), etat = radio(poste + '-etat'), rat = radio(poste + '-ratissage') === 'oui';
-    const prixM2 = TARIFS[poste + (etat === 'reprise' ? '_reprise_m2' : '_m2')];
-    return { m2, etat, rat, total: m2 * (prixM2 + (rat ? TARIFS.ratissage_m2 : 0)) };
+    // le ratissage couvre déjà la reprise des imperfections : prix de base + ratissage
+    const prixM2 = rat ? TARIFS[poste + '_m2'] + TARIFS.ratissage_m2 : TARIFS[poste + (etat === 'reprise' ? '_reprise_m2' : '_m2')];
+    return { m2, etat, rat, total: m2 * prixM2 };
   }
 
   function compute() {
     const lignes = [];
-    if (on('plafond')) { const s = surface('plafond'); if (s.m2) lignes.push({ titre: `Plafonds · ${s.m2} m²`, info: `${ETAT[s.etat]}${s.rat ? ', ratissage' : ''}`, total: s.total }); }
-    if (on('murs')) { const s = surface('murs'); if (s.m2) lignes.push({ titre: `Murs · ${s.m2} m²`, info: `${ETAT[s.etat]}${s.rat ? ', ratissage' : ''}`, total: s.total }); }
+    if (on('plafond')) { const s = surface('plafond'); if (s.m2) lignes.push({ titre: `Plafonds · ${s.m2} m²`, info: s.rat ? 'ratissage + peinture' : ETAT[s.etat], total: s.total }); }
+    if (on('murs')) { const s = surface('murs'); if (s.m2) lignes.push({ titre: `Murs · ${s.m2} m²`, info: s.rat ? 'ratissage + peinture' : ETAT[s.etat], total: s.total }); }
     if (on('portes')) {
       const nb = Math.round(num('portes-nb')), faces = +radio('portes-faces'), moulures = radio('portes-type') === 'moulures';
       if (nb) lignes.push({ titre: `Portes · ${nb}`, info: `${moulures ? 'avec moulures' : 'lisses'}, ${faces === 2 ? 'deux faces' : 'une face'}, encadrement compris`, total: nb * faces * (moulures ? TARIFS.porte_moulures_face : TARIFS.porte_lisse_face) });
