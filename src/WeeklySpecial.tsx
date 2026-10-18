@@ -182,6 +182,65 @@ function scoreForPrediction(
   return pts
 }
 
+// Petit classement du But en or dans la ligue, dès qu'un match est validé
+// (même barème que l'affichage individuel et que le serveur)
+function GoldenGoalRanking({ groupId, matches }: { groupId: string; matches: SpecialMatch[] }) {
+  const { user } = useAuth()
+  const resolved = matches.filter((m) => m.resolved)
+  const [rows, setRows] = useState<{ profile_id: string; pseudo: string; avatar_url: string | null; avatar_emoji: string | null; total: number; perMatch: number[] }[] | null>(null)
+  const key = resolved.map((m) => m.id).join(',')
+
+  useEffect(() => {
+    if (resolved.length === 0) return
+    supabase
+      .from('weekly_special_predictions')
+      .select('profile_id, match_id, pred_team, pred_minute, profiles(pseudo, avatar_url, avatar_emoji)')
+      .eq('group_id', groupId)
+      .in('match_id', resolved.map((m) => m.id))
+      .then(({ data }) => {
+        const by: Record<string, { profile_id: string; pseudo: string; avatar_url: string | null; avatar_emoji: string | null; total: number; perMatch: number[] }> = {}
+        for (const r of (data ?? []) as unknown as { profile_id: string; match_id: string; pred_team: 'domicile' | 'exterieur' | 'aucun_but'; pred_minute: number | null; profiles: { pseudo: string; avatar_url: string | null; avatar_emoji: string | null } | { pseudo: string; avatar_url: string | null; avatar_emoji: string | null }[] | null }[]) {
+          const prof = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
+          const idx = resolved.findIndex((m) => m.id === r.match_id)
+          const m = resolved[idx]
+          const pts = scoreForPrediction(r.pred_team, r.pred_minute, m.real_first_scorer_team, m.real_first_goal_minute)
+          by[r.profile_id] = by[r.profile_id] ?? { profile_id: r.profile_id, pseudo: prof?.pseudo ?? '???', avatar_url: prof?.avatar_url ?? null, avatar_emoji: prof?.avatar_emoji ?? null, total: 0, perMatch: resolved.map(() => 0) }
+          by[r.profile_id].perMatch[idx] = pts
+          by[r.profile_id].total += pts
+        }
+        setRows(Object.values(by).sort((a, b) => b.total - a.total || a.pseudo.localeCompare(b.pseudo)))
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId, key])
+
+  if (resolved.length === 0 || !rows) return null
+  const done = resolved.length === matches.length
+  const best = rows[0]?.total ?? 0
+  return (
+    <div className="stats-card golden-ranking">
+      <h3 className="stats-card-title">🏆 Classement du But en or{done ? '' : ' (provisoire)'}</h3>
+      {rows.length === 0 ? (
+        <p className="groups-empty">Personne n'a joué cette semaine.</p>
+      ) : (
+        <ul className="recap-podium">
+          {rows.map((r) => {
+            const rank = rows.findIndex((x) => x.total === r.total) + 1
+            return (
+              <li key={r.profile_id} className={r.profile_id === user?.id ? 'is-me' : undefined}>
+                <span className="recap-medal">{rank <= 3 && r.total > 0 ? ['🥇', '🥈', '🥉'][rank - 1] : rank}</span>
+                <Avatar pseudo={r.pseudo} avatarUrl={r.avatar_url} avatarEmoji={r.avatar_emoji} size={28} />
+                <span className="recap-name">{r.pseudo}{done && r.total === best && best > 0 ? ' · +3 pts 🎉' : ''}</span>
+                <span className="golden-ranking-detail">{r.perMatch.join(' + ')}</span>
+                <b>{r.total} pts</b>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export default function WeeklySpecial({ groupId, groupName, autoApplyAllLeagues, onGoToBonusMatch, onExit }: Props) {
   const { user } = useAuth()
   const [matches, setMatches] = useState<SpecialMatch[]>([])
@@ -518,6 +577,7 @@ export default function WeeklySpecial({ groupId, groupName, autoApplyAllLeagues,
           })}
         </ul>
       )}
+      {!loading && matches.length > 0 && <GoldenGoalRanking groupId={groupId} matches={matches} />}
     </div>
   )
 }

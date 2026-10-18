@@ -1444,3 +1444,7 @@ details.rules-section > :last-child {
 .champ-end-next { text-align: center; }
 .champ-end-next p { margin: 0 0 10px; line-height: 1.4; }
 .champ-end-restart { width: 100%; padding: 14px; font-size: 16px; background: #D4A22C; color: #1B1B1F; box-shadow: 0 4px 14px rgba(212, 162, 44, 0.35); }
+
+/* But en or : petit classement de la ligue */
+.golden-ranking { margin-top: 14px; }
+.golden-ranking-detail { font-size: 11px; opacity: 0.6; white-space: nowrap; }
