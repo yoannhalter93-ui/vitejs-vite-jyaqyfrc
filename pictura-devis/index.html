@@ -379,7 +379,7 @@ html { scroll-behavior: smooth; }
       v.facade && { titre: 'Façade / ravalement', info: 'chiffré après visite', t: null },
     ] },
     { id: 'sols', titre: 'Pose de sol', couleur: 'var(--sage)', champs: [
-      qte('m2', 'Surface de sol', 'm²', 20, 'Prix de pose, revêtement non fourni.'),
+      qte('m2', 'Surface de sol', 'm²', 20, 'Pose seule, hors fourniture du revêtement et des plinthes.'),
       choix('revetement', 'Revêtement à poser', [['stratifie', 'Stratifié flottant'], ['contrecolle_flottant', 'Parquet contrecollé flottant'], ['contrecolle_colle', 'Parquet contrecollé collé'], ['parquet_massif', 'Parquet massif collé'], ['lvt_clips', 'Lames vinyle (LVT) clipsables'], ['lvt_colle', 'Lames vinyle (LVT) collées'], ['pvc_rouleau', 'Sol PVC en rouleau'], ['moquette', 'Moquette']]),
       choix('depose', 'Ancien revêtement à retirer', [['aucun', 'Aucun'], ['depose_pvc_moquette', 'PVC ou moquette'], ['depose_stratifie', 'Stratifié'], ['depose_parquet_colle', 'Parquet collé']]),
       choix('prepa', 'Préparation du sol', [['aucune', 'Aucune'], ['sol_grattage', 'Grattage'], ['sol_poncage', 'Ponçage'], ['ragreage_autolissant', 'Ragréage autolissant'], ['ragreage_fibre', 'Ragréage fibré']]),
@@ -392,11 +392,11 @@ html { scroll-behavior: smooth; }
     ], lignes: v => {
       const nom = POSTES.find(p => p.id === 'sols').champs[1].options.find(o => o[0] === v.revetement)[1];
       return [
-        v.m2 && L(`Pose de sol · ${v.m2} m²`, nom.toLowerCase(), v.revetement, v.m2),
+        v.m2 && L(`Pose de sol · ${v.m2} m²`, `${nom.toLowerCase()}, hors fourniture`, v.revetement, v.m2),
         v.m2 && v.depose !== 'aucun' && L('Dépose ancien sol', `${v.m2} m²`, v.depose, v.m2),
         v.m2 && v.prepa !== 'aucune' && L('Préparation du sol', `${v.m2} m²`, v.prepa, v.m2),
         v.m2 && v.sous_couche && L('Sous-couche acoustique', `${v.m2} m²`, 'sous_couche', v.m2),
-        v.plinthes && L(`Plinthes · ${v.plinthes} ml`, v.plinthes_type === 'plinthes_bois' ? 'bois, pose' : 'MDF, pose', v.plinthes_type, v.plinthes),
+        v.plinthes && L(`Plinthes · ${v.plinthes} ml`, v.plinthes_type === 'plinthes_bois' ? 'bois, pose hors fourniture' : 'MDF, pose hors fourniture', v.plinthes_type, v.plinthes),
         v.plinthes && v.depose_plinthes && L('Dépose plinthes', `${v.plinthes} ml`, 'depose_plinthes', v.plinthes),
         v.seuils && L(`Barres de seuil · ${v.seuils}`, 'pose', 'barre_seuil', v.seuils),
         v.recoupes && L(`Recoupe de portes · ${v.recoupes}`, 'après pose du sol', 'recoupe_porte', v.recoupes),
