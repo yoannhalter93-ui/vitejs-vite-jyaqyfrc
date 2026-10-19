@@ -2127,7 +2127,7 @@ function App() {
                             {isActive
                               ? tile.subActive
                               : lastResult
-                              ? `Semaine dernière : ${lastResult.winners.join(', ')} — ${lastResult.score}`
+                              ? `Dernière édition : ${lastResult.winners.join(', ')} — ${lastResult.score}`
                               : tile.subDisabled}
                           </span>
                         </div>
