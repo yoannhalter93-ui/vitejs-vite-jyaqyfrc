@@ -14,7 +14,7 @@ const ENTREPRISE = {
   nom: 'Pictura peinture',
   email: 'pictura.halter@gmail.com',
   telephone: '06 45 56 38 97',
-  site: 'https://yoannhalter93-ui.github.io/pictura-peinture/',
+  site: 'https://picturapeinture.fr/',
 };
 const ORANGE = '#fd6941';
 const SAUGE = '#56614a';
