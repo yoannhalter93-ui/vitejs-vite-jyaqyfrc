@@ -1448,3 +1448,14 @@ details.rules-section > :last-child {
 /* But en or : petit classement de la ligue */
 .golden-ranking { margin-top: 14px; }
 .golden-ranking-detail { font-size: 11px; opacity: 0.6; white-space: nowrap; }
+
+/* Menu Jeux : podium de la dernière édition sur les tuiles grisées */
+.minigame-tile-podium { display: flex; flex-direction: column; gap: 1px; text-transform: none; }
+.minigame-tile-podium-title { font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.8; }
+.minigame-tile-podium-row { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.minigame-tile-podium-row b { margin-left: 2px; }
+.minigame-tile-text { flex: 1; min-width: 0; }
+.minigame-tile-tag { flex-shrink: 0; }
+.minigame-tile-text .minigame-tile-podium-row { text-transform: none; letter-spacing: 0; font-size: 12px; color: rgba(27, 27, 31, 0.7); }
+.minigame-tile-text .minigame-tile-podium-row b { color: #1B1B1F; font-size: 12px; }
+.minigame-tile-text .minigame-tile-podium span { font-size: inherit; }

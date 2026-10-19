@@ -383,7 +383,7 @@ function App() {
   // une fois la semaine passée (la vignette n'étant alors plus cliquable, on
   // ne peut plus rentrer dans l'écran du jeu pour y voir son Palmarès).
   const [lastMinigameResults, setLastMinigameResults] = useState<
-    Record<string, { weekStart: string; winners: string[]; score: number } | null>
+    Record<string, { weekStart: string; podium: { rank: number; pseudo: string; score: number }[] } | null>
   >({})
 
   useEffect(() => {
@@ -693,12 +693,11 @@ function App() {
     if (screen !== 'jonglages' || !selectedGroup?.id) return
     const groupId = selectedGroup.id
     ;(['jonglage', 'dribble', 'coup-franc', 'toro', 'jeu-semaine'] as const).forEach((key) => {
-      supabase.rpc('get_last_minigame_result', { p_group_id: groupId, p_game_key: key }).then(({ data, error }: any) => {
+      supabase.rpc('get_last_minigame_podium', { p_group_id: groupId, p_game_key: key }).then(({ data, error }: any) => {
         if (error) return
-        const row = Array.isArray(data) ? data[0] : data
         setLastMinigameResults((prev) => ({
           ...prev,
-          [key]: row ? { weekStart: row.week_start, winners: row.winners ?? [], score: row.score } : null,
+          [key]: data && data.podium?.length ? { weekStart: data.week_start, podium: data.podium } : null,
         }))
       })
     })
@@ -2123,13 +2122,18 @@ function App() {
                         <span className="minigame-tile-icon">{tile.icon}</span>
                         <div className="minigame-tile-text">
                           <b>{tile.label}</b>
-                          <span>
-                            {isActive
-                              ? tile.subActive
-                              : lastResult
-                              ? `Dernière édition : ${lastResult.winners.join(', ')} — ${lastResult.score}`
-                              : tile.subDisabled}
-                          </span>
+                          {isActive || !lastResult ? (
+                            <span>{isActive ? tile.subActive : tile.subDisabled}</span>
+                          ) : (
+                            <span className="minigame-tile-podium">
+                              <span className="minigame-tile-podium-title">Dernière édition</span>
+                              {lastResult.podium.map((p) => (
+                                <span key={p.pseudo} className="minigame-tile-podium-row">
+                                  {['🥇', '🥈', '🥉'][p.rank - 1]} {p.pseudo} <b>{p.score}</b>
+                                </span>
+                              ))}
+                            </span>
+                          )}
                         </div>
                         <span className="minigame-tile-tag">{isActive ? 'Cette semaine' : 'Bientôt disponible'}</span>
                       </button>
