@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { previousGameWeek } from './minigameWeeks'
 import { useAuth } from './AuthContext'
@@ -542,6 +542,36 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     if (next !== eng.playerLane) setPlayerLane(next)
   }
 
+  // bande de contrôle : tiers gauche = ◀, milieu = 🌀, droite = ▶
+  const flashButton = (btn: HTMLButtonElement | null) => {
+    if (!btn) return
+    btn.classList.remove('is-pressed')
+    void btn.offsetWidth
+    btn.classList.add('is-pressed')
+    setTimeout(() => btn.classList.remove('is-pressed'), 120)
+  }
+  const onControlsPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!engineRef.current.playing) return
+    e.preventDefault()
+    const rect = e.currentTarget.getBoundingClientRect()
+    const third = (e.clientX - rect.left) / rect.width
+    if (third < 1 / 3) { flashButton(leftBtnRef.current); onDirTap(-1) }
+    else if (third > 2 / 3) { flashButton(rightBtnRef.current); onDirTap(1) }
+    else { flashButton(dribbleBtnRef.current); onDribbleTap() }
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!engineRef.current.playing) return
+      if (e.key === 'ArrowLeft') { e.preventDefault(); flashButton(leftBtnRef.current); onDirTap(-1) }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); flashButton(rightBtnRef.current); onDirTap(1) }
+      else if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); flashButton(dribbleBtnRef.current); onDribbleTap() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const resolveTripleSuccess = () => {
     const eng = engineRef.current
     const wave = eng.tripleWave
@@ -764,10 +794,14 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
           </div>
         </div>
 
-        <div className="dribble-lanes-ctl">
-          <button ref={leftBtnRef} className="dribble-lane-btn" disabled onPointerDown={() => onDirTap(-1)}>◀</button>
-          <button ref={dribbleBtnRef} className="dribble-lane-btn dribble-roulette-btn" disabled onPointerDown={onDribbleTap}>🌀</button>
-          <button ref={rightBtnRef} className="dribble-lane-btn" disabled onPointerDown={() => onDirTap(1)}>▶</button>
+        {/* Toute la bande est une seule zone tactile coupée en 3 tiers : un
+            doigt qui tombe entre deux boutons ou sur un bord compte quand
+            même (avant, les espaces entre boutons étaient des zones mortes et
+            pointerdown n'a pas la correction de visée d'Android). */}
+        <div className="dribble-lanes-ctl" onPointerDown={onControlsPointerDown}>
+          <button ref={leftBtnRef} className="dribble-lane-btn" disabled tabIndex={-1}>◀</button>
+          <button ref={dribbleBtnRef} className="dribble-lane-btn dribble-roulette-btn" disabled tabIndex={-1}>🌀</button>
+          <button ref={rightBtnRef} className="dribble-lane-btn" disabled tabIndex={-1}>▶</button>
         </div>
 
         <div className="dribble-difficulty">
