@@ -42,7 +42,7 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
           <li>🎉 Événements — le gagnant du Total de buts, du Duo du week-end ou du But en or : 3 pts (+2 🪙) ; la Journée x2 double tes pronos</li>
         </ul>
         <p className="rules-section-text">
-          🏁 Fin du championnat : à la date prévue par le créateur (1 mois, 3 mois…), mais jamais au milieu d'une journée de Ligue 1 — si une journée est en cours, le championnat se termine après son dernier match. Le champion est annoncé à tout le groupe et entre au 📜 Palmarès (onglet du Classement). La ligue s'arrête alors et tout le monde voit la page de fin (podium, classement, trophées, stats). Le créateur peut ensuite relancer un nouveau championnat : tout le monde repart à 0 et retire son équipe à la roue.
+          ⚽ Début du championnat : une nouvelle ligue démarre en salle d'attente. On invite ses potes, et c'est le créateur qui lance le championnat quand tout le monde est là : chacun tire alors son équipe en même temps. 🏁 Fin du championnat : à la date prévue par le créateur (1 mois, 3 mois…), mais jamais au milieu d'une journée de Ligue 1 — si une journée est en cours, le championnat se termine après son dernier match. Le champion est annoncé à tout le groupe et entre au 📜 Palmarès (onglet du Classement). La ligue s'arrête alors et tout le monde voit la page de fin (podium, classement, trophées, stats). Le créateur peut ensuite relancer un nouveau championnat : tout le monde repart à 0 et retire son équipe à la roue.
         </p>
         <p className="rules-section-text">
           Le détail de chaque jeu est dans sa règle ci-dessous.

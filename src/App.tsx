@@ -39,6 +39,7 @@ import { useRedCards, redCardUntilLabel } from './redCards'
 import { useAppUpdate } from './useAppUpdate'
 import Announcement from './Announcement'
 import ChampionshipEnd from './ChampionshipEnd'
+import WaitingRoom from './WaitingRoom'
 
 // Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
 // d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
@@ -411,12 +412,19 @@ function App() {
 
   // ligue arrêtée (fin de championnat) : page de fin à la place de l'accueil
   const [groupEnded, setGroupEnded] = useState(false)
+  // nouvelle ligue pas encore lancée par son créateur : salle d'attente
+  const [groupWaiting, setGroupWaiting] = useState(false)
   useEffect(() => {
     setGroupEnded(false)
+    setGroupWaiting(false)
     if (!selectedGroup?.id) return
     let cancelled = false
-    supabase.from('groups').select('ended_at').eq('id', selectedGroup.id).maybeSingle()
-      .then(({ data }) => { if (!cancelled) setGroupEnded(!!data?.ended_at) })
+    supabase.from('groups').select('ended_at, awaiting_kickoff').eq('id', selectedGroup.id).maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        setGroupEnded(!!data?.ended_at)
+        setGroupWaiting(!!data?.awaiting_kickoff)
+      })
     return () => { cancelled = true }
   }, [selectedGroup?.id])
 
@@ -1253,7 +1261,10 @@ function App() {
         .eq('group_id', id)
         .eq('profile_id', session.user.id)
         .maybeSingle()
-      if (data?.team_reveal_seen === false) next = 'team-reveal'
+      if (data?.team_reveal_seen === false) {
+        const { data: g } = await supabase.from('groups').select('awaiting_kickoff').eq('id', id).maybeSingle()
+        if (!g?.awaiting_kickoff) next = 'team-reveal'
+      }
     }
     setSelectedGroup({ id, name })
     setScreen(next)
@@ -1971,7 +1982,15 @@ function App() {
                 onRestarted={() => { setGroupEnded(false); setScreen('team-reveal') }}
               />
             )}
-            {screen === 'accueil' && !groupEnded && (
+            {screen === 'accueil' && groupWaiting && !groupEnded && (
+              <WaitingRoom
+                key={selectedGroup.id}
+                groupId={selectedGroup.id}
+                groupName={selectedGroup.name}
+                onStarted={() => { setGroupWaiting(false); setScreen('team-reveal') }}
+              />
+            )}
+            {screen === 'accueil' && !groupEnded && !groupWaiting && (
               <Home
                 groupId={selectedGroup.id}
                 groupName={selectedGroup.name}

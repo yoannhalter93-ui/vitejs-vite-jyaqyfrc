@@ -50,6 +50,7 @@ interface GroupRow {
   created_at: string
   continue_after_period: boolean
   ended_at: string | null
+  awaiting_kickoff?: boolean
 }
 
 interface Membership {
@@ -133,7 +134,7 @@ export default function Groups({ onSelectGroup }: Props) {
 
     const { data, error: fetchError } = await supabase
       .from('group_members')
-      .select('role, joined_at, groups(id, name, validation_mode, invite_code, period_type, period_custom_days, created_by, created_at, continue_after_period, ended_at)')
+      .select('role, joined_at, groups(id, name, validation_mode, invite_code, period_type, period_custom_days, created_by, created_at, continue_after_period, ended_at, awaiting_kickoff)')
       .eq('profile_id', user.id)
       .order('joined_at', { ascending: false })
 
@@ -428,6 +429,8 @@ export default function Groups({ onSelectGroup }: Props) {
                   <div className="groups-card-meta">
                     {m.groups.ended_at
                       ? <span>🏁 Ligue arrêtée</span>
+                      : m.groups.awaiting_kickoff
+                      ? <span>⏳ En attente du coup d'envoi</span>
                       : <span>📅 Période : {formatPeriod(m.groups.period_type, m.groups.period_custom_days)}</span>}
                     <span className="groups-card-meta-sep">·</span>
                     <span>👥 {memberCount ?? '…'} membre{memberCount === 1 ? '' : 's'}</span>

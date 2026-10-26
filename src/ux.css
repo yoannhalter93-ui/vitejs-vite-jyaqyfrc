@@ -1474,3 +1474,14 @@ details.rules-section > :last-child {
 .dribble-lanes-ctl .dribble-lane-btn { pointer-events: none; }
 .dribble-lanes-ctl .dribble-lane-btn.is-pressed { transform: scale(0.92); background: rgba(244, 239, 226, 0.18); }
 .dribble-lanes-ctl .dribble-roulette-btn.is-pressed { background: rgba(212, 162, 44, 0.45); }
+
+/* Salle d'attente d'une nouvelle ligue */
+.waiting-hero { gap: 4px; text-align: center; }
+.waiting-icon { font-size: 38px; line-height: 1; }
+.waiting-title { font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 700; text-transform: uppercase; }
+.waiting-owner { font-size: 11px; opacity: 0.7; white-space: nowrap; }
+.waiting-invite { display: block; width: 100%; margin-top: 12px; padding: 10px; }
+.waiting-code { margin: 8px 0 0; font-size: 12px; text-align: center; opacity: 0.75; }
+.waiting-start { text-align: center; }
+.waiting-start p { margin: 10px 0 0; font-size: 13px; line-height: 1.4; }
+.waiting-start-btn { width: 100%; padding: 14px; font-size: 16px; background: #D4A22C; color: #1B1B1F; box-shadow: 0 4px 14px rgba(212, 162, 44, 0.35); }
