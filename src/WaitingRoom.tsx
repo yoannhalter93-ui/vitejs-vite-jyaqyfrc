@@ -117,7 +117,7 @@ export default function WaitingRoom({ groupId, groupName, onStarted }: {
           <button type="button" className="dribble-cta waiting-start-btn" disabled={busy} onClick={start}>
             {busy ? 'Lancement…' : '⚽ Lancer le championnat'}
           </button>
-          <p>Au lancement : chacun tire son équipe à la roue 🎡, les pronos s'ouvrent et les duels démarrent dans les jours qui suivent.</p>
+          <p>Au lancement : chacun tire son équipe à la roue 🎡, les pronos s'ouvrent et les premiers duels quiz et penalty sont tirés tout de suite.</p>
         </div>
       )}
     </div>
