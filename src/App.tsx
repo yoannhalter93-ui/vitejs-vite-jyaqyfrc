@@ -662,13 +662,8 @@ function App() {
 
   const sendWizz = () => {
     if (!juggleAlert) return
+    // effet en direct seulement : plus de notification à chaque wizz (trop de notifs)
     sendOnWizzChannel('wizz', { targetProfileId: juggleAlert.profileId, fromPseudo: myPseudo || 'Un ami' })
-    // notification persistée + push, au cas où le destinataire ne serait
-    // plus sur l'écran Jonglages (ou plus dans l'appli) pour voir l'effet
-    // temps réel
-    if (selectedGroup?.id) {
-      supabase.rpc('notify_wizz', { p_target_profile_id: juggleAlert.profileId, p_group_id: selectedGroup.id }).then(() => {})
-    }
   }
 
   const [screen, setScreen] = useState<Screen>('accueil');
@@ -1108,16 +1103,6 @@ function App() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
   }
 
-  // Envoyer un wizz directement depuis une notif "X joue aux Jonglages" dans
-  // la cloche : marche même si on a raté le bandeau temps réel (pas connecté
-  // au bon moment) puisque ça passe par la même RPC que le wizz "live", qui
-  // enregistre une notif + push pour le destinataire.
-  const sendWizzFromNotification = (n: any) => {
-    if (!n.related_profile_id || !n.ref_id) return
-    supabase.rpc('notify_wizz', { p_target_profile_id: n.related_profile_id, p_group_id: n.ref_id }).then(() => {})
-    markNotifRead(n.id)
-  }
-
   // Clique sur une notif de duel (quiz ou penalty) : avant, ça se contentait
   // de la marquer comme lue, donc avec plusieurs groupes ayant chacun leur
   // propre duel de la semaine, impossible de savoir lequel la notif
@@ -1504,12 +1489,6 @@ function App() {
                   <div key={n.id} className={`notif-row ${n.read ? '' : 'notif-unread'}`} onClick={() => goToNotification(n)}>
                     <div className="notif-text">{n.text}</div>
                     <div className="notif-date">{friendlyDate(n.created_at)}</div>
-                    {n.type === 'jongle' && n.related_profile_id && (
-                      <button
-                        className="juggle-wizz-btn"
-                        onClick={(e) => { e.stopPropagation(); sendWizzFromNotification(n) }}
-                      >🧪 Envoyer un wizz</button>
-                    )}
                     {(n.type === 'toro' || n.type === 'jongle') && n.related_profile_id && (
                       <button className="juggle-wizz-btn">👀 Regarder en direct</button>
                     )}
