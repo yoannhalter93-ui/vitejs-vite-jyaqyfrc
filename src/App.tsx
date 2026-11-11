@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import { useAuth } from './AuthContext';
 import Login from './Login';
@@ -44,6 +44,9 @@ import WaitingRoom from './WaitingRoom'
 // Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
 // d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
 // que la personne peut choisir sans avoir à importer sa propre photo.
+// un pote « en direct » reste affiché ce temps-là après la fin de sa partie
+const LIVE_GRACE_MS = 25000
+
 const AVATAR_PRESETS = Array.from({ length: 46 }, (_, i) => `preset-${i + 1}.jpg`)
 
 // Recadre l'image importée en carré (centré) et la redimensionne, pour que
@@ -602,6 +605,18 @@ function App() {
   // potes en train de jouer au toro en ce moment (présence du canal du groupe)
   const [liveToro, setLiveToro] = useState<{ profileId: string; pseudo: string; game: 'toro' | 'jonglage' }[]>([])
   const [liveToroClosed, setLiveToroClosed] = useState<string[]>([])
+  const liveSeenRef = useRef(new Map<string, { pseudo: string; game: 'toro' | 'jonglage'; at: number }>())
+  const liveGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const refreshLiveToro = useCallback(() => {
+    const now = Date.now()
+    for (const [id, v] of liveSeenRef.current) if (now - v.at > LIVE_GRACE_MS) liveSeenRef.current.delete(id)
+    setLiveToro((prev) => {
+      const next = [...liveSeenRef.current].map(([profileId, v]) => ({ profileId, pseudo: v.pseudo, game: v.game }))
+      return next.length === prev.length && next.every((x, i) => x.profileId === prev[i].profileId && x.game === prev[i].game) ? prev : next
+    })
+    if (liveGraceTimerRef.current) clearTimeout(liveGraceTimerRef.current)
+    if (liveSeenRef.current.size) liveGraceTimerRef.current = setTimeout(refreshLiveToro, 5000)
+  }, [])
   const sendOnWizzChannel = useWizzChannel(session?.user?.id ? selectedGroup?.id : null, {
     onPresence: (state: Record<string, { playing?: string; profileId?: string; pseudo?: string }[]>) => {
       const seen = new Map<string, { pseudo: string; game: 'toro' | 'jonglage' }>()
@@ -612,7 +627,11 @@ function App() {
           }
         }
       }
-      setLiveToro([...seen].map(([profileId, v]) => ({ profileId, ...v })))
+      // un pote qui rate et relance tout de suite ne doit pas faire clignoter
+      // le bandeau : on le garde encore LIVE_GRACE_MS après la fin de sa partie
+      const now = Date.now()
+      for (const [id, v] of seen) liveSeenRef.current.set(id, { ...v, at: now })
+      refreshLiveToro()
     },
     onPlaying: (payload) => {
       if (!payload || payload.profileId === session?.user?.id) return
@@ -624,8 +643,9 @@ function App() {
         if (juggleAlertTimerRef.current) clearTimeout(juggleAlertTimerRef.current)
         juggleAlertTimerRef.current = setTimeout(() => setJuggleAlert(null), 35000)
       } else if (payload.action === 'stop') {
-        setJuggleAlert(null)
-        if (juggleAlertTimerRef.current) { clearTimeout(juggleAlertTimerRef.current); juggleAlertTimerRef.current = null }
+        // pas tout de suite : il relance souvent une partie dans la foulée
+        if (juggleAlertTimerRef.current) clearTimeout(juggleAlertTimerRef.current)
+        juggleAlertTimerRef.current = setTimeout(() => setJuggleAlert(null), LIVE_GRACE_MS)
       }
     },
   })
@@ -633,6 +653,7 @@ function App() {
   useEffect(() => {
     // changement de groupe : le bandeau de l'ancien groupe n'a plus de sens
     setJuggleAlert(null)
+    liveSeenRef.current.clear()
     setLiveToro([])
     return () => {
       if (juggleAlertTimerRef.current) { clearTimeout(juggleAlertTimerRef.current); juggleAlertTimerRef.current = null }
@@ -1598,6 +1619,7 @@ function App() {
           <button className="juggle-wizz-btn" onClick={() => window.location.reload()}>Mettre à jour</button>
         </div>
       )}
+      <div className="live-float">
       {(() => {
         const p = liveToro.find((x) => !liveToroClosed.includes(x.profileId) && !(screen === 'regarder' && watching?.profileId === x.profileId))
         if (!p || showNotifPanel) return null
@@ -1628,6 +1650,7 @@ function App() {
           <button className="wizz-alert-close" onClick={() => setJuggleAlert(null)} aria-label="Fermer">✕</button>
         </div>
       )}
+      </div>
       </>)}
       <Announcement userId={session?.user?.id} userCreatedAt={session?.user?.created_at} />
       {bonusNotice && (

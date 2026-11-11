@@ -4096,3 +4096,30 @@ textarea,
   color: #F4EFE2;
 }
 .matchday-tag.is-past { background: rgba(244, 239, 226, 0.1); color: rgba(244, 239, 226, 0.6); }
+
+/* Bandeaux « X joue / jongle en direct » : flottants au-dessus de la barre du
+   bas, pour ne plus pousser (et faire sauter) tout l'écran d'accueil à
+   chaque partie qui commence ou s'arrête. */
+.live-float {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+.live-float:empty { display: none; }
+.live-float .wizz-alert-banner {
+  position: static;
+  margin: 0 12px;
+  padding: 8px 10px;
+  font-size: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  pointer-events: auto;
+  animation: live-float-in .25s ease-out;
+}
+.live-float .wizz-alert-banner .juggle-wizz-btn { padding: 6px 10px; font-size: 13px; }
+@keyframes live-float-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
