@@ -131,7 +131,7 @@ const BOTTOM_TABS: { key: Screen; label: string; icon: string }[] = [
 const JEUX_HUB: { key: Screen; label: string; icon: string; sub: string; color: 'cream' | 'red' | 'green' | 'gold' }[] = [
   { key: 'roulette', label: 'Mon équipe', icon: '🎡', sub: 'Ton équipe tirée au sort', color: 'cream' },
   { key: 'penalty', label: 'Duel penalty', icon: '🥅', sub: 'Défie un membre du groupe', color: 'red' },
-  { key: 'quiz', label: 'Quiz', icon: '🧠', sub: 'Duel de questions foot', color: 'green' },
+  { key: 'quiz', label: 'Quiz', icon: '🧠', sub: 'Duel de culture générale', color: 'green' },
   { key: 'jonglages', label: 'Mini-jeu', icon: '🤹', sub: 'Le défi de la semaine', color: 'gold' },
 ]
 

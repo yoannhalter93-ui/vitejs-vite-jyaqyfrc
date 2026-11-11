@@ -1485,3 +1485,7 @@ details.rules-section > :last-child {
 .waiting-start { text-align: center; }
 .waiting-start p { margin: 10px 0 0; font-size: 13px; line-height: 1.4; }
 .waiting-start-btn { width: 100%; padding: 14px; font-size: 16px; background: #D4A22C; color: #1B1B1F; box-shadow: 0 4px 14px rgba(212, 162, 44, 0.35); }
+
+/* Quiz / penalty : ton duel de la semaine, toujours en haut */
+.my-duel-card { border: 2px solid #D4A22E !important; box-shadow: 0 4px 16px rgba(212,162,46,.25); }
+.duel-history-toggle { display: block; width: 100%; margin: 4px 0 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(244,239,226,.25); background: transparent; color: inherit; font: inherit; font-weight: 700; text-align: left; cursor: pointer; }

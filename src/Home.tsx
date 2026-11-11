@@ -500,7 +500,7 @@ export default function Home({ groupId, groupName, onNavigate, onOpenEvent }: Pr
             {weekDuels?.quiz.state === 'to_play' && <span className="dash-action-todo-dot" aria-label="À toi de jouer" />}
             <span className="dash-v2-action-icon" aria-hidden="true">🧠</span>
             <span className="dash-v2-action-title">Quiz</span>
-            <DuelSub lines={duelSubtitle(weekDuels?.quiz, 'Duel de questions foot')} />
+            <DuelSub lines={duelSubtitle(weekDuels?.quiz, 'Duel de culture générale')} />
             <span className="dash-v3-action-arrow">›</span>
           </button>
           {/* 4e case, qui dépasse du bord droit : la rangée se fait défiler */}

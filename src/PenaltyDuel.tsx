@@ -591,70 +591,67 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
       {error && <p className="groups-error">{error}</p>}
 
       {(() => {
-        const currentDuels = duels.filter((d) => d.phase !== 'done')
-        const historyDuels = duels.filter((d) => d.phase === 'done')
-        const shown = tab === 'current' ? currentDuels : historyDuels
+        // ton duel de la semaine (et un éventuel duel pas fini d'avant) :
+        // toujours en haut, même terminé, on touche pour voir le résultat
+        const weekIds = new Set(allDuels.map((d) => d.id))
+        const mine = duels.filter((d) => weekIds.has(d.id) || d.phase !== 'done')
+        const historyDuels = duels.filter((d) => !mine.includes(d))
+        const card = (d: (typeof duels)[number], highlight: boolean) => {
+          const opponentId = d.player_a_id === user?.id ? d.player_b_id : d.player_a_id
+          const [me, opp] = d.player_a_id === user?.id ? [d.score_a, d.score_b] : [d.score_b, d.score_a]
+          const verdict = me > opp ? '✅ Gagné' : me < opp ? '❌ Perdu' : '🤝 Égalité'
+          return (
+            <li className={'match-card groups-card-clickable' + (highlight ? ' my-duel-card' : '')} key={d.id} onClick={() => openDuel(d.id)}>
+              {d.phase === 'waiting_opponent' ? (
+                <>
+                  <div className="match-teams"><span>⏳ En attente d'un adversaire</span></div>
+                  <div className="match-kickoff">Duel créé dès qu'un nouveau joueur rejoint</div>
+                </>
+              ) : (
+                <>
+                  <div className="match-teams">
+                    <span>Toi vs {opponentId ? pseudos[opponentId] ?? '???' : '???'}</span>
+                  </div>
+                  {d.phase === 'done' ? (
+                    <div className="match-result">
+                      {verdict} {me} - {opp}
+                      <span className="match-kickoff"> · {highlight ? 'touche pour voir le détail' : new Date(d.finished_at ?? d.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
+                    </div>
+                  ) : (
+                    <div className="match-kickoff">{myDuelStatusLabel(d)}</div>
+                  )}
+                </>
+              )}
+            </li>
+          )
+        }
+        if (loading) return <LoadingSkeleton rows={3} />
+        if (duels.length === 0) return <p className="groups-empty">Ton premier duel de penaltys arrive au prochain tirage au sort hebdomadaire.</p>
         return (
           <>
-            {duels.length > 0 && (
-              <div className="group-nav-tabs bet-tabs">
-                <button className={"group-nav-tab" + (tab === 'current' ? ' group-nav-tab-active' : '')} onClick={() => setTab('current')}>
-                  En cours{currentDuels.length > 0 ? ` (${currentDuels.length})` : ''}
-                </button>
-                <button className={"group-nav-tab" + (tab === 'history' ? ' group-nav-tab-active' : '')} onClick={() => setTab('history')}>
-                  Historique
-                </button>
-              </div>
-            )}
-
-            {loading ? (
-              <LoadingSkeleton rows={3} />
-            ) : duels.length === 0 ? (
-              <p className="groups-empty">Ton premier duel de penaltys arrive au prochain tirage au sort hebdomadaire.</p>
-            ) : shown.length === 0 ? (
-              <p className="groups-empty">{tab === 'current' ? 'Aucun duel en cours.' : "Aucun duel terminé pour l'instant."}</p>
+            <h3 className="rules-section-title">🎯 Ton duel de la semaine</h3>
+            {mine.length === 0 ? (
+              <p className="groups-empty">Pas de duel pour toi cette semaine.</p>
             ) : (
-              <ul className="matches-list">
-                {shown.map((d) => {
-                  const opponentId = d.player_a_id === user?.id ? d.player_b_id : d.player_a_id
-                  return (
-                    <li className="match-card groups-card-clickable" key={d.id} onClick={() => openDuel(d.id)}>
-                      {d.phase === 'waiting_opponent' ? (
-                        <>
-                          <div className="match-teams"><span>⏳ En attente d'un adversaire</span></div>
-                          <div className="match-kickoff">Duel créé dès qu'un nouveau joueur rejoint</div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="match-teams">
-                            <span>vs {opponentId ? pseudos[opponentId] ?? '???' : '???'}</span>
-                          </div>
-                          {d.phase === 'done' ? (
-                            <div className="match-result">
-                              Terminé : {d.score_a} - {d.score_b}
-                              {(d.finished_at ?? d.created_at) && (
-                                <span className="match-kickoff"> · {new Date(d.finished_at ?? d.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="match-kickoff">{myDuelStatusLabel(d)}</div>
-                          )}
-                        </>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
+              <ul className="matches-list">{mine.map((d) => card(d, true))}</ul>
+            )}
+            {historyDuels.length > 0 && (
+              <>
+                <button type="button" className="duel-history-toggle" onClick={() => setTab(tab === 'history' ? 'current' : 'history')} aria-expanded={tab === 'history'}>
+                  📜 Mes anciens duels ({historyDuels.length}) {tab === 'history' ? '▲' : '▼'}
+                </button>
+                {tab === 'history' && <ul className="matches-list">{historyDuels.map((d) => card(d, false))}</ul>}
+              </>
             )}
           </>
         )
       })()}
 
-      {allDuels.length > 0 && (
+      {allDuels.some((d) => d.player_a_id !== user?.id && d.player_b_id !== user?.id) && (
         <>
-          <h3 className="rules-section-title">Tous les duels de la semaine</h3>
+          <h3 className="rules-section-title">Les autres duels de la semaine</h3>
           <ul className="matches-list">
-            {allDuels.map((d) => (
+            {allDuels.filter((d) => d.player_a_id !== user?.id && d.player_b_id !== user?.id).map((d) => (
               <li
                 className={'match-card' + (d.phase === 'done' ? ' groups-card-clickable' : '')}
                 key={d.id}
