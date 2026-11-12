@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import LoadingSkeleton from './LoadingSkeleton'
+import PenaltyScene from './PenaltyScene'
 
 const ZONES: { value: string; label: string }[] = [
   { value: 'haut-gauche', label: 'Haut gauche' },
@@ -424,37 +425,9 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
     await loadList()
   }
 
-  const zoneBtn = (value: string) => {
-    const z = ZONES.find((zz) => zz.value === value)!
-    return (
-      <button
-        key={value}
-        className="groups-action-btn groups-action-btn-secondary"
-        disabled={animBusy}
-        onClick={() => (myTurnToShoot ? pickShotZone(value) : pickSaveZone(value))}
-      >{z.label}</button>
-    )
-  }
-
   if (selected) {
     const opponentId = duel && (duel.player_a_id === user?.id ? duel.player_b_id : duel.player_a_id)
 
-    // pendant l'animation : ballon/gardien vers la zone choisie ; sinon,
-    // ballon posé au point de départ (bas de la cage) et gardien au centre
-    const ballTarget = animMode === 'shoot'
-      ? (animStage === 'start' ? { left: '50%', top: '96%' } : ZONE_POS[animZone!])
-      : (animStage === 'result' && animResult ? ZONE_POS[animResult.shooterZone] : { left: '50%', top: '96%' })
-    const keeperTarget = animMode === 'keep' && animZone && (animStage === 'flying' || animStage === 'reveal' || animStage === 'result')
-      ? ZONE_POS[animZone]
-      : { left: '50%', top: '50%' }
-    // en tir : le ballon est visible dès le départ. En arrêt : il ne
-    // "sort" qu'à la phase reveal (une fois le gardien déjà plongé sur sa
-    // zone devinée), puis on le laisse visiblement voler jusqu'à sa vraie
-    // zone à la phase result — sinon il apparaît directement dans le coin
-    // et on ne voit jamais où l'adversaire a réellement tiré
-    const showBall = animMode === 'shoot'
-      ? animStage !== null
-      : (animStage === 'reveal' || animStage === 'result')
     const netShake = animStage === 'result' && animResult?.scored
 
     return (
@@ -483,17 +456,17 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
           </div>
         ) : myTurnToShoot || myTurnToSave ? (
           <div className="roulette-result">
-            <div className={"penalty-cage" + (netShake ? ' penalty-cage-shake' : '')}>
-              {animMode === 'keep' && (
-                <div className="penalty-keeper" style={{ left: keeperTarget.left, top: keeperTarget.top }}>🧤</div>
-              )}
-              {showBall && (
-                <div className="penalty-ball" style={{ left: ballTarget.left, top: ballTarget.top }}>⚽</div>
-              )}
-              {animStage === 'result' && animResult && (
-                <div className={"penalty-flash " + (animResult.scored ? 'penalty-flash-goal' : 'penalty-flash-save')} />
-              )}
-            </div>
+            <PenaltyScene
+              choosing={!animBusy}
+              onPick={(z) => (myTurnToShoot ? pickShotZone(z) : pickSaveZone(z))}
+              ballZone={animMode === 'shoot' ? animZone : animStage === 'result' && animResult ? animResult.shooterZone : null}
+              ballFlying={animMode === 'shoot' ? (animStage === 'flying' || animStage === 'sent') : animStage === 'result'}
+              showBall
+              keeperZone={animMode === 'keep' && (animStage === 'flying' || animStage === 'reveal' || animStage === 'result') ? animZone : null}
+              kicking={animMode === 'shoot' ? (animStage === 'start' || animStage === 'flying') : (animStage === 'reveal' || animStage === 'result')}
+              result={animStage === 'result' && animResult ? (animResult.scored ? 'goal' : 'save') : null}
+              netShake={!!netShake}
+            />
 
             {animStage === 'result' && animResult ? (
               <p className={"penalty-anim-caption " + (animResult.scored ? 'penalty-caption-goal' : 'penalty-caption-save')}>
@@ -508,10 +481,10 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
             ) : animMode === 'shoot' && animStage ? (
               <p className="penalty-anim-caption">⚽ Tir envoyé, à l'aveugle...</p>
             ) : myTurnToShoot ? (
-              <p className="predictions-period">Choisis où viser (tir {shotsDone + 1} / 3, l'adversaire ne le voit pas) :</p>
+              <p className="predictions-period">👆 Touche la cage là où tu veux tirer (tir {shotsDone + 1} / 3, l'adversaire ne le voit pas)</p>
             ) : (
               <>
-                <p className="predictions-period">Devine où l'adversaire a tiré (arrêt {savesDone + 1} / 3) :</p>
+                <p className="predictions-period">🧤 Touche la cage là où tu plonges (arrêt {savesDone + 1} / 3)</p>
                 <p className="penalty-keeper-tip">
                   {opponentPanenkas > 0
                     ? `👀 ${opponentPseudo ?? 'Ton adversaire'} a déjà tenté ${opponentPanenkas} panenka${opponentPanenkas > 1 ? 's' : ''} dans ce duel…`
@@ -519,20 +492,6 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
                 </p>
               </>
             )}
-
-            <div className="penalty-zone-grid">
-              <div className="penalty-zone-row">
-                {zoneBtn('haut-gauche')}
-                {zoneBtn('haut-droite')}
-              </div>
-              <div className="penalty-zone-row penalty-zone-row-center">
-                {zoneBtn('milieu')}
-              </div>
-              <div className="penalty-zone-row">
-                {zoneBtn('bas-gauche')}
-                {zoneBtn('bas-droite')}
-              </div>
-            </div>
 
             <div className="penalty-progress-dots">
               {[0, 1, 2].map((i) => (
