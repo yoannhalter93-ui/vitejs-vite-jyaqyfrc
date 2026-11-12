@@ -318,6 +318,9 @@ export default function FreeBets({ groupId, groupName, onBonusUsed, onVoteOrCrea
     // sur la contrainte (bet_id, profile_id) et donnait l'impression que
     // le clic "ne faisait rien"
     if (!user || myConfirmations[betId]) return
+    // garde-fou : un clic par erreur distribuait les points tout de suite,
+    // parfois avant même la fin du match
+    if (!window.confirm(`Confirmer le résultat FINAL : « ${side.toUpperCase()} » ?\n\nLe match doit être terminé. Les points sont distribués tout de suite et on ne peut plus revenir en arrière.`)) return
     setError(null)
     setInfo(null)
     // un même pari publié dans plusieurs groupes : la confirmation vaut pour
