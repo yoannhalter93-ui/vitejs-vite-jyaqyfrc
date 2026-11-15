@@ -559,9 +559,12 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     let f = stride
     let ball = true
     // vers la gauche = miroir exact de la droite (jambes, corps, ballon), numéro remis dans l'ordre
-    if (spinT > 0) { f = (hookDir > 0 ? 4 : 6) + (spinT < SPIN_TIME / 2 ? 1 : 0); ball = false }
-    else if (me.vx > 130) { f = 4 + (stride % 2); ball = false }
-    else if (me.vx < -130) { f = 6 + (stride % 2); ball = false }
+    // de côté dès qu'il se déplace un peu (sinon il glisse de dos sur le côté)
+    // vers la gauche : images de ta vidéo sans le ballon, le ballon est dessiné au pied gauche
+    let leftBall = false
+    if (spinT > 0) { f = (hookDir > 0 ? 4 : 6) + (spinT < SPIN_TIME / 2 ? 1 : 0); ball = false; leftBall = hookDir < 0 }
+    else if (me.vx > 35) { f = 4 + (stride % 2); ball = false }
+    else if (me.vx < -35) { f = 6 + (stride % 2); ball = false; leftBall = true }
     g.save()
     if (fallen > 0) {                      // il perd l'équilibre et tombe
       g.translate(me.x, me.y); g.rotate(ko!.fall * fallen * 1.25); g.translate(-me.x, -me.y)
@@ -569,6 +572,9 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     }
     g.drawImage(imgs.runner, f * RUN_FW, 0, RUN_FW, RUN_FH, me.x - RUN_FW * SPR / 2, me.y - RUN_FH * SPR + 12, RUN_FW * SPR, RUN_FH * SPR)
     g.restore()
+    if (leftBall && !ko && !fallen) {
+      g.drawImage(imgs.ball, me.x - 40, me.y - 34 - (f % 2), 20, 18)
+    }
     if (ball && !ko) {
       // ballon devant le joueur (comme avant : petit rebond)
       const bob = Math.abs(Math.sin(time * 9)) * 4
