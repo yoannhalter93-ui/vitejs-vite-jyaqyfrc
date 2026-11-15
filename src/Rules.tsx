@@ -90,7 +90,7 @@ export default function Rules({ onBack, backLabel = 'Groupes' }: Props) {
       <details className="rules-section" name="regles">
         <summary className="rules-section-title">❓ Questionnaire</summary>
         <p className="rules-section-text">
-          Chaque semaine, un adversaire du groupe t'est tiré au sort automatiquement — jamais deux fois la même personne tant que tu n'as pas croisé tout le monde. Duel à 10 questions, 10 secondes pour répondre à chacune. Celui qui a le plus de bonnes réponses gagne :
+          Chaque semaine, un adversaire du groupe t'est tiré au sort automatiquement — jamais deux fois la même personne tant que tu n'as pas croisé tout le monde. Duel à 10 questions, 15 secondes pour répondre à chacune. Celui qui a le plus de bonnes réponses gagne :
         </p>
         <ul className="rules-points">
           <li>Victoire — 3 points</li>
