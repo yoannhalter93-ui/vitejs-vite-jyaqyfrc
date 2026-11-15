@@ -5,6 +5,7 @@
 import runner from './assets/dribble/runner.png'
 import defender from './assets/dribble/defender.png'
 import ball from './assets/dribble/ball.png'
+import tackle from './assets/dribble/tackle.png'
 
 export function dribbleSpriteVars(): Record<string, string> {
   return {
@@ -15,10 +16,10 @@ export function dribbleSpriteVars(): Record<string, string> {
 }
 
 // images chargées pour le dessin sur canvas
-let imgCache: { runner: HTMLImageElement; def: HTMLImageElement; ball: HTMLImageElement } | null = null
+let imgCache: { runner: HTMLImageElement; def: HTMLImageElement; ball: HTMLImageElement; tackle: HTMLImageElement } | null = null
 export function dribbleImages() {
   if (imgCache) return imgCache
   const load = (src: string) => { const im = new Image(); im.src = src; return im }
-  imgCache = { runner: load(runner), def: load(defender), ball: load(ball) }
+  imgCache = { runner: load(runner), def: load(defender), ball: load(ball), tackle: load(tackle) }
   return imgCache
 }

@@ -10,7 +10,7 @@
 
 export const W = 360
 const SPR = 2
-const RUN_FW = 40, RUN_FH = 48, DEF_FW = 35, DEF_FH = 40
+const RUN_FW = 40, RUN_FH = 48, DEF_FW = 35, DEF_FH = 40, TCK_FW = 48, TCK_FH = 44
 const BODY_R = 13
 const STAMINA_COST = 35
 const STAMINA_REGEN = 10
@@ -66,7 +66,7 @@ const PALETTES = [
   ['#154a26', '#1b562d'], ['#13422a', '#194e31'], ['#103a2a', '#164532'],
 ]
 
-export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: HTMLImageElement; def: HTMLImageElement; ball: HTMLImageElement }, cb: EngineCallbacks) {
+export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: HTMLImageElement; def: HTMLImageElement; ball: HTMLImageElement; tackle: HTMLImageElement }, cb: EngineCallbacks) {
   const ctx = canvas.getContext('2d')!
   let H = 560, scale = 1
   const resize = () => {
@@ -285,7 +285,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
           case 'feint':
             // fait mine de partir d'un côté… puis tacle vers toi
             if (gap > 150) { target = clamp(me.x + d.fakeDir * 95, 30, W - 30); vmax = 130 }
-            else { if (!d.lunging) { d.lunging = true; d.alerted = 0.4 } target = me.x; vmax = 330; vy = S + 40 }
+            else { if (!d.lunging) { d.lunging = true; d.alerted = 0.4; d.lx = me.x } target = me.x; vmax = 330; vy = S + 40 }
             break
           case 'gate': {
             // le centre de la porte suit le joueur (on ne peut pas la contourner) ;
@@ -328,6 +328,10 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
         if (d.dribbled) { d.spin += dt * 9; vy = S * 1.05 }
       }
       d.x = clamp(d.x + d.vx * dt, 18, W - 18); d.y += vy * dt
+      // gerbe de gazon pendant le tacle
+      if (d.lunging && !d.dribbled && gap < 175 && gap > -60 && Math.random() < 0.6) {
+        dust.push({ x: d.x + (Math.random() - 0.5) * 20, y: d.y + 4, vx: (Math.random() - 0.5) * 90, vy: -60 - Math.random() * 60, life: 0.3 + Math.random() * 0.2, c: Math.random() < 0.6 ? '#3f8a3a' : '#c9b98f' })
+      }
       // contact
       if (!d.beaten) {
         const dx = d.x - me.x, dy = d.y - me.y
@@ -442,6 +446,20 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     }
     const drawDef = (d: Def) => {
       const f = Math.floor(d.t * 10) % 4
+      // TACLE GLISSÉ : pieds en avant, vers l'endroit visé
+      if (d.lunging && !d.dribbled && (d.beaten || me.y - d.y < 175)) {
+        const dir = (d.lx || me.x) < d.x - 4 ? -1 : 1
+        shadow(d.x + dir * 6, d.y + 2, 26)
+        g.save()
+        if (d.beaten) g.globalAlpha = 0.85
+        if (d.kind === 'charge') g.filter = 'hue-rotate(22deg) saturate(1.3)'
+        else if (d.kind === 'feint') g.filter = 'hue-rotate(-35deg) saturate(1.2)'
+        g.translate(d.x, d.y); g.scale(dir, 1)
+        const tf = d.beaten ? 1 : Math.floor(d.t * 12) % 2
+        g.drawImage(imgs.tackle, tf * TCK_FW, 0, TCK_FW, TCK_FH, -TCK_FW * SPR * 0.62, -TCK_FH * SPR * 0.78, TCK_FW * SPR, TCK_FH * SPR)
+        g.restore()
+        return
+      }
       shadow(d.x, d.y + 2, 17)
       g.save()
       if (d.dribbled) { g.globalAlpha = 0.9; g.translate(d.x, d.y - 30); g.rotate(Math.sin(d.spin) * 0.35); g.translate(-d.x, -(d.y - 30)) }
