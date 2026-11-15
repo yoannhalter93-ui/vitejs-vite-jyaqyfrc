@@ -12,16 +12,14 @@ export const W = 360
 const SPR = 2
 const RUN_FW = 40, RUN_FH = 48, DEF_FW = 35, DEF_FH = 40, TCK_FW = 48, TCK_FH = 44
 const BODY_R = 13
-const STAMINA_COST = 35
-const STAMINA_REGEN = 10
 const SPIN_TIME = 0.35
 const MAX_SCORE = 2000
 // fenêtre du dribble : écart vertical joueur ↔ défenseur au moment de l'appui
-const PERFECT_MIN = 28, PERFECT_MAX = 48, GOOD_MAX = 72, DUEL_MAX = 130
+const DUEL_MAX = 130
 
 type Kind = 'static' | 'lateral' | 'switch' | 'charge' | 'feint' | 'pair' | 'gate'
 type Def = {
-  kind: Kind; x: number; y: number; vx: number
+  kind: Kind; x: number; y: number; vx: number; vyNow: number
   t: number; baseX: number; amp: number; freq: number
   tx: number; react: number
   switched: boolean; lunging: boolean; fakeDir: number; alerted: number
@@ -57,8 +55,8 @@ function poolFor(level: number): [Kind | 'combo', number][] {
   if (level === 2) return [['static', 2], ['pair', 2], ['gate', 1]]
   if (level === 3) return [['static', 1], ['pair', 1], ['gate', 1], ['lateral', 2], ['switch', 2]]
   if (level === 4) return [['pair', 1], ['gate', 1], ['lateral', 1], ['switch', 1], ['charge', 2], ['feint', 2]]
-  if (level === 5) return [['charge', 1], ['feint', 1], ['switch', 1], ['gate', 1], ['combo', 3]]
-  return [['static', 1], ['lateral', 1], ['switch', 1], ['charge', 2], ['feint', 2], ['pair', 1], ['gate', 1], ['combo', 3]]
+  if (level === 5) return [['charge', 1], ['feint', 1], ['switch', 1], ['gate', 1], ['combo', 4]]
+  return [['static', 1], ['lateral', 1], ['switch', 1], ['charge', 2], ['feint', 2], ['pair', 1], ['gate', 2], ['combo', 5]]
 }
 // décor : un peu plus sombre et plus « nocturne » à chaque niveau
 const PALETTES = [
@@ -92,8 +90,28 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
   const yMin = () => H * 0.5, yMax = () => H * 0.86
   // vitesse : +5 % tous les 8 points, plafonnée
-  const scrollSpeed = () => 150 * Math.min(1.7, Math.pow(1.05, Math.floor(score / 8)))
-  const spacing = () => Math.max(170, 250 - (level - 1) * 14)
+  const scrollSpeed = () => 150 * Math.min(1.95, Math.pow(1.06, Math.floor(score / 8)))
+  const spacing = () => Math.max(135, 250 - (level - 1) * 20)
+  // la difficulté monte avec les niveaux : fenêtre de dribble plus courte, endurance plus chère
+  // (rien ne change aux niveaux 1-2 : le temps de prendre le coup de main)
+  const hard = () => Math.max(0, level - 2)
+  // fenêtres du dribble en TEMPS avant le contact (juste, même quand il tacle vite)
+  const perfectWin = () => 0.15 - Math.min(0.05, hard() * 0.009)   // s
+  const goodWin = () => 0.28 - Math.min(0.08, hard() * 0.014)      // s
+  // temps avant contact avec ce défenseur (s) ; Infinity s'il ne se rapproche pas
+  const ttc = (d: Def) => {
+    const close = Math.max(40, d.vyNow - me.vy)              // vitesse à laquelle l'écart se réduit
+    return (me.y - d.y - BODY_R * 2) / close
+  }
+  const timing = (d: Def): 'late' | 'perfect' | 'good' | 'early' => {
+    const t = ttc(d)
+    if (t < 0.02) return 'late'
+    if (t <= perfectWin()) return 'perfect'
+    if (t <= goodWin()) return 'good'
+    return 'early'
+  }
+  const staminaCost = () => 35 + Math.min(10, hard() * 1.7)
+  const staminaRegen = () => Math.max(5.5, 10 - hard() * 0.8)
 
   function reset() {
     invulnT = 0
@@ -106,7 +124,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   }
 
   const mk = (kind: Kind, x: number, y = -50): Def => ({
-    kind, x, y, vx: 0, t: Math.random() * 6, baseX: x, amp: 0, freq: 0, tx: x, react: 0,
+    kind, x, y, vx: 0, vyNow: 0, t: Math.random() * 6, baseX: x, amp: 0, freq: 0, tx: x, react: 0,
     switched: false, lunging: false, fakeDir: 0, alerted: 0, beaten: false, dribbled: false, spin: 0, group: -1, slot: 0,
     ai: 'approach', jockeyT: 0, lx: x, ly: 0,
   })
@@ -180,8 +198,9 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   function smartDefend(d: Def, gap: number, dt: number) {
     const L = Math.min(8, level)
     const JOCKEY_GAP = 112
-    const lateral = Math.min(275, 190 + L * 12)          // vitesse de côté (proche de la tienne)
-    const patience = Math.max(0.65, 1.5 - L * 0.1)        // temps max à temporiser
+    const H = Math.max(0, L - 2)
+    const lateral = Math.min(300, 202 + L * 4 + H * 14)    // vitesse de côté (dépasse la tienne vers le niveau 6)
+    const patience = Math.max(0.45, 1.4 - L * 0.05 - H * 0.12)   // temps max à temporiser
     // couverture à plusieurs : si un autre défenseur proche couvre déjà ton côté, il prend l'autre
     const mates = defs.filter((o) => o !== d && !o.beaten && o.kind !== 'pair' && o.kind !== 'gate' && Math.abs((me.y - o.y) - gap) < 90)
     let cover = 0
@@ -197,7 +216,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
       const vy = clamp((me.y - JOCKEY_GAP - d.y) * 5, -45, 220)
       // il se cale sur ta position lissée : tes zigzags ne le déplacent presque pas
       const target = avgX + clamp(me.x - avgX, -26, 26) + habit + cover
-      const committed = commitT > 0.2 && Math.abs(me.x - d.x) > 18
+      const committed = commitT > Math.max(0.12, 0.2 - H * 0.015) && Math.abs(me.x - d.x) > 18
       if (committed || d.jockeyT > patience || gap < 70) {
         d.ai = 'lunge'; d.lunging = true; d.alerted = 0.35
         // il tacle là où tu vas être
@@ -205,7 +224,9 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
       }
       return { target, vmax: lateral, vy, acc: 2200 }
     }
-    // tacle : engagé, il ne peut plus corriger beaucoup (c'est là qu'on le passe)
+    // tacle : engagé, il ne peut plus corriger beaucoup (c'est là qu'on le passe)…
+    // …sauf les meilleurs (niveau 5+), qui corrigent un peu leur tacle en route
+    if (L >= 5) d.lx += (me.x - d.lx) * Math.min(1, dt * (L - 4) * 1.1)
     return { target: d.lx, vmax: 300, vy: scrollSpeed() + 260 + L * 15, acc: 1300 }
   }
 
@@ -232,7 +253,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     // ---- endurance
     if (invulnT > 0) invulnT -= dt
     if (spinT > 0) spinT -= dt
-    else if (stamina < 100) { stamina = Math.min(100, stamina + STAMINA_REGEN * dt); cb.onStamina(stamina) }
+    else if (stamina < 100) { stamina = Math.min(100, stamina + staminaRegen() * dt); cb.onStamina(stamina) }
     // ---- apparitions (à distance régulière, pas au hasard du temps)
     nextSpawnAt -= S * dt
     if (nextSpawnAt <= 0) { spawn(); nextSpawnAt = spacing() * (0.9 + Math.random() * 0.25) }
@@ -251,7 +272,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
       members.forEach((d) => { d.tx = thirds[closed[d.slot]] })
     }
     // ---- défenseurs
-    const boost = 1 + 0.08 * (level - 1)      // un peu plus vifs à chaque niveau
+    const boost = 1 + 0.08 * (level - 1) + 0.05 * Math.max(0, level - 2)      // plus vifs à chaque niveau
     for (const d of defs) {
       d.t += dt
       if (d.alerted > 0) d.alerted -= dt
@@ -327,7 +348,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
         d.vx *= 0.94
         if (d.dribbled) { d.spin += dt * 9; vy = S * 1.05 }
       }
-      d.x = clamp(d.x + d.vx * dt, 18, W - 18); d.y += vy * dt
+      d.x = clamp(d.x + d.vx * dt, 18, W - 18); d.y += vy * dt; d.vyNow = vy
       // gerbe de gazon pendant le tacle
       if (d.lunging && !d.dribbled && gap < 175 && gap > -60 && Math.random() < 0.6) {
         dust.push({ x: d.x + (Math.random() - 0.5) * 20, y: d.y + 4, vx: (Math.random() - 0.5) * 90, vy: -60 - Math.random() * 60, life: 0.3 + Math.random() * 0.2, c: Math.random() < 0.6 ? '#3f8a3a' : '#c9b98f' })
@@ -373,8 +394,8 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   // Il ne passe le défenseur que s'il est fait au bon moment.
   function dribble() {
     if (!playing || spinT > 0) return
-    if (stamina < STAMINA_COST) { cb.onDribble('tired'); return }
-    stamina -= STAMINA_COST; cb.onStamina(stamina)
+    if (stamina < staminaCost()) { cb.onDribble('tired'); return }
+    stamina -= staminaCost(); cb.onStamina(stamina)
     spinT = SPIN_TIME
     puff(me.x, me.y, 6, '#d9c99e')
     const d = duelTarget()
@@ -382,16 +403,16 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
       txts.push({ s: 'DANS LE VIDE', x: me.x, y: me.y - 110, life: 0.7, c: '#cfc6ad', big: false })
       cb.onDribble('none'); return
     }
-    const gap = me.y - d.y
-    if (gap > GOOD_MAX) {                                         // trop tôt : il se replace devant toi
+    const when = timing(d)
+    if (when === 'early') {                                        // trop tôt : il se replace devant toi
       d.alerted = 0.9
       txts.push({ s: 'TROP TÔT', x: d.x, y: d.y - 60, life: 0.8, c: '#ffb36b', big: false })
       cb.onDribble('early'); return
     }
-    if (gap < PERFECT_MIN) {                                      // trop tard : il prend le ballon
+    if (when === 'late') {                                         // trop tard : il prend le ballon
       cb.onDribble('late'); lose(d); return
     }
-    const perfect = gap <= PERFECT_MAX
+    const perfect = when === 'perfect'
     d.beaten = true; d.dribbled = true; d.vx = (d.x < me.x ? -1 : 1) * 140
     invulnT = SPIN_TIME
     me.ty = clamp(me.y - 30, yMin(), yMax())                       // petit rush vers l'avant
@@ -426,8 +447,9 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
       const gap = me.y - d.y
       if (gap < -6 || gap > 190) continue
       const aligned = Math.abs(d.x - me.x) < 55
-      const perfect = aligned && gap >= PERFECT_MIN && gap <= PERFECT_MAX
-      const good = aligned && gap > PERFECT_MAX && gap <= GOOD_MAX
+      const w = timing(d)
+      const perfect = aligned && w === 'perfect'
+      const good = aligned && w === 'good'
       g.lineWidth = perfect ? 3 : 2
       g.strokeStyle = perfect ? 'rgba(255,216,74,.95)' : good ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)'
       g.beginPath(); g.ellipse(d.x, d.y + 6, 44, 15, 0, 0, Math.PI * 2); g.stroke()
