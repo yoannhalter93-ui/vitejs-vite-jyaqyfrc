@@ -42,21 +42,10 @@ function monday(): string {
 // (jeu-de-dribble.html), réglées au fil des retours de playtest.
 const LANES_X = [16.6, 50, 83.3] // % de position horizontale des 3 couloirs
 const START_TRAVEL = 1400 // ms pour qu'un défenseur traverse le terrain
-const MIN_TRAVEL = 560 // ms, plancher de difficulté
+const MIN_TRAVEL = 600 // ms, plancher de difficulté (à partir de 80)
 const START_GAP = 1150 // ms entre deux apparitions
-const MIN_GAP = 440
-const DECAY = 0.971 // accélération à chaque défenseur évité
-const SPEED_CAP_STREAK = 20 // au-delà de cette série, le rythme n'accélère plus
+const MIN_GAP = 470
 const LAST_MOMENT_WINDOW = 140 // ms : délai max entre le changement de couloir et l'arrivée du défenseur pour compter comme "au dernier moment"
-const DOUBLE_START_STREAK = 6
-const DOUBLE_RAMP_STREAK = 18
-const DOUBLE_MAX_CHANCE = 0.55
-const TRIPLE_START_STREAK = 10
-const TRIPLE_RAMP_STREAK = 26
-const TRIPLE_MAX_CHANCE = 0.3
-const VARIANT_START_STREAK = 8
-const VARIANT_RAMP_STREAK = 24
-const VARIANT_MAX_CHANCE = 0.4
 const MAX_SCORE = 2000 // garde-fou de bon sens côté client, comme pour les jonglages
 
 interface DefenderEntry {
@@ -64,11 +53,9 @@ interface DefenderEntry {
   lane: number
   resolved: boolean
   near?: boolean
-}
-
-interface TripleWave {
-  entries: DefenderEntry[]
-  ready: boolean
+  wall: boolean
+  travel: number   // ms pour traverser le terrain
+  spawnAt: number  // performance.now() à l'apparition
 }
 
 interface CrowdNodes {
@@ -84,7 +71,6 @@ interface Engine {
   playerLane: number
   spawnTimer: ReturnType<typeof setTimeout> | null
   activeDefenders: DefenderEntry[]
-  tripleWave: TripleWave | null
   laneJustVacated: number | null
   lastLaneChangeAt: number
   wallMsgTimer: ReturnType<typeof setTimeout> | null
@@ -101,7 +87,6 @@ function newEngine(): Engine {
     playerLane: 1,
     spawnTimer: null,
     activeDefenders: [],
-    tripleWave: null,
     laneJustVacated: null,
     lastLaneChangeAt: 0,
     wallMsgTimer: null,
@@ -399,23 +384,36 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     flare.classList.add('dribble-show', kind === 'dodge' ? 'dribble-dodge' : 'dribble-miss')
   }
 
-  const currentDoubleChance = () => {
-    const streak = engineRef.current.streak
-    if (streak < DOUBLE_START_STREAK) return 0
-    const t = Math.min(1, (streak - DOUBLE_START_STREAK) / (DOUBLE_RAMP_STREAK - DOUBLE_START_STREAK))
-    return t * DOUBLE_MAX_CHANCE
+  // ---- paliers (mode infini : on continue jusqu'à perdre le ballon) ----
+  // 0-14 : 1 défenseur · 15 : jusqu'à 2 · 25 : murs de 3 (dribble obligatoire)
+  // 40 : vitesse supérieure · 60 : défenseurs qui changent de couloir · 80 : vagues plus serrées
+  const paceFor = (s: number) => {
+    if (s < 40) { const t = Math.min(s, 39) / 39; return { travel: START_TRAVEL - (START_TRAVEL - 900) * t, gap: START_GAP - (START_GAP - 700) * t } }
+    if (s < 80) { const t = (s - 40) / 40; return { travel: 780 - 160 * t, gap: 640 - 120 * t } }
+    return { travel: MIN_TRAVEL, gap: MIN_GAP }
   }
-  const currentTripleChance = () => {
-    const streak = engineRef.current.streak
-    if (streak < TRIPLE_START_STREAK) return 0
-    const t = Math.min(1, (streak - TRIPLE_START_STREAK) / (TRIPLE_RAMP_STREAK - TRIPLE_START_STREAK))
-    return t * TRIPLE_MAX_CHANCE
+  const applyPace = () => {
+    const eng = engineRef.current
+    const p = paceFor(eng.streak)
+    eng.travel = p.travel; eng.gap = p.gap
+    updateDifficultyBar()
   }
-  const currentVariantChance = () => {
-    const streak = engineRef.current.streak
-    if (streak < VARIANT_START_STREAK) return 0
-    const t = Math.min(1, (streak - VARIANT_START_STREAK) / (VARIANT_RAMP_STREAK - VARIANT_START_STREAK))
-    return t * VARIANT_MAX_CHANCE
+  const TIER_MSG: [number, string][] = [
+    [15, '15 ! Ça se corse : 2 défenseurs'],
+    [25, '25 ! Murs de 3 : DRIBBLE au bon moment'],
+    [40, '40 ! Vitesse supérieure'],
+    [60, '60 ! Ils changent de couloir'],
+    [80, '80 ! Mode légende'],
+  ]
+  const addPoints = (n: number) => {
+    const eng = engineRef.current
+    const before = eng.streak
+    eng.streak += n
+    if (streakElRef.current) streakElRef.current.textContent = String(eng.streak)
+    bumpScore()
+    const tier = TIER_MSG.filter(([at]) => before < at && eng.streak >= at).pop()
+    if (tier) setTimeout(() => showWallMsg(tier[1], 'success'), 250)
+    applyPace()
   }
 
   const pickDiveLane = (fromLane: number) => {
@@ -436,6 +434,21 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     return lanes.slice(0, count)
   }
 
+  // fenêtre de dribble : quand le défenseur arrive presque au contact
+  const WIN_START = 0.66, WIN_END = 0.84, NEAR = 0.45
+  const progressOf = (d: DefenderEntry) => (performance.now() - d.spawnAt) / d.travel
+
+  // le bouton DRIBBLE s'allume quand un dribble est possible maintenant
+  const refreshReady = () => {
+    const eng = engineRef.current
+    const ready = eng.activeDefenders.some((d) => {
+      if (d.resolved) return false
+      const p = progressOf(d)
+      return p >= WIN_START && p <= WIN_END && (d.wall || d.lane === eng.playerLane)
+    })
+    dribbleBtnRef.current?.classList.toggle('dribble-ready', ready)
+  }
+
   const spawnOne = (lane: number, isWall?: boolean, variant?: 'fast' | 'dive'): DefenderEntry => {
     const eng = engineRef.current
     const field = fieldRef.current
@@ -453,10 +466,9 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     field?.appendChild(el)
     void el.offsetWidth
 
-    const entry: DefenderEntry = { el, lane, resolved: false }
+    const thisTravel = variant === 'fast' ? Math.max(MIN_TRAVEL * 0.8, eng.travel * 0.7) : eng.travel
+    const entry: DefenderEntry = { el, lane, resolved: false, wall: !!isWall, travel: thisTravel, spawnAt: performance.now() }
     eng.activeDefenders.push(entry)
-
-    const thisTravel = variant === 'fast' ? Math.max(MIN_TRAVEL * 0.75, eng.travel * 0.68) : eng.travel
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -473,58 +485,54 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         const newLane = pickDiveLane(entry.lane)
         if (newLane !== entry.lane) {
           entry.lane = newLane
-          const remaining = thisTravel * 0.35
+          const remaining = thisTravel * 0.4
           el.style.transition = `top ${remaining}ms linear, transform ${remaining}ms linear, left 160ms ease-out`
           el.style.left = LANES_X[newLane] + '%'
           el.classList.add('dribble-diving')
           setTimeout(() => { el.classList.remove('dribble-diving') }, 220)
           refreshAlerts()
         }
-      }, thisTravel * 0.65)
+      }, thisTravel * 0.6)
     }
 
     setTimeout(() => { entry.near = true; refreshAlerts() }, thisTravel * 0.5)
+    setTimeout(refreshReady, thisTravel * WIN_START + 5)
+    setTimeout(refreshReady, thisTravel * WIN_END + 5)
     setTimeout(() => { resolveDefender(entry) }, thisTravel)
     return entry
   }
 
-  const spawnTripleWave = () => {
-    const eng = engineRef.current
-    const entries = [0, 1, 2].map((lane) => spawnOne(lane, true))
-    const wave: TripleWave = { entries, ready: false }
-    eng.tripleWave = wave
-    showWallMsg('3 défenseurs ! Dribble (🌀) au bon moment')
-    setTimeout(() => {
-      if (eng.tripleWave === wave) {
-        wave.ready = true
-        dribbleBtnRef.current?.classList.add('dribble-ready')
-      }
-    }, eng.travel * 0.42)
-    setTimeout(() => {
-      if (eng.tripleWave === wave) {
-        wave.ready = false
-        dribbleBtnRef.current?.classList.remove('dribble-ready')
-      }
-    }, eng.travel * 0.8)
-  }
-
   const spawnWave = () => {
     const eng = engineRef.current
-    if (!eng.playing || eng.tripleWave) return
-    if (Math.random() < currentTripleChance()) {
-      spawnTripleWave()
-      return
-    }
-    const isDouble = Math.random() < currentDoubleChance()
-    if (isDouble) {
+    if (!eng.playing) return
+    const s = eng.streak, r = Math.random()
+    let gap = eng.gap
+    if (s >= 25 && r < (s >= 40 ? 0.24 : 0.18)) {
+      ;[0, 1, 2].forEach((lane) => spawnOne(lane, true))
+      showWallMsg('Mur de 3 ! DRIBBLE au bon moment')
+      gap = eng.gap + eng.travel * 0.55            // le temps de passer le mur
+    } else if (s >= 15 && r < (s >= 25 ? 0.6 : 0.42)) {
       pickLanes(2).forEach((lane) => spawnOne(lane))
     } else {
       const lane = pickLanes(1)[0]
       let variant: 'fast' | 'dive' | undefined
-      if (Math.random() < currentVariantChance()) variant = Math.random() < 0.5 ? 'fast' : 'dive'
+      if (s >= 60) { const v = Math.random(); if (v < 0.35) variant = 'dive'; else if (v < 0.55) variant = 'fast' }
+      else if (s >= 40 && Math.random() < 0.2) variant = 'fast'
       spawnOne(lane, false, variant)
     }
-    eng.spawnTimer = setTimeout(spawnWave, eng.gap)
+    if (s >= 80 && Math.random() < 0.45) gap *= 0.72  // combinaisons plus serrées
+    eng.spawnTimer = setTimeout(spawnWave, gap)
+  }
+
+  const loseBall = (entry: DefenderEntry) => {
+    entry.el.style.transition = 'none'
+    entry.el.style.transform = 'scale(1.35)'
+    showFlare('miss', entry.lane)
+    fieldRef.current?.classList.add('dribble-shake')
+    setTimeout(() => { fieldRef.current?.classList.remove('dribble-shake') }, 360)
+    playMiss()
+    vibrate(120)
+    endGame()
   }
 
   const resolveDefender = (entry: DefenderEntry) => {
@@ -532,35 +540,20 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     if (entry.resolved || !eng.playing) return
     entry.resolved = true
 
-    if (entry.lane === eng.playerLane) {
-      entry.el.style.transition = 'none'
-      entry.el.style.transform = 'scale(1.35)'
-      showFlare('miss', entry.lane)
-      fieldRef.current?.classList.add('dribble-shake')
-      setTimeout(() => { fieldRef.current?.classList.remove('dribble-shake') }, 360)
-      playMiss()
-      vibrate(120)
-      endGame()
-    } else {
-      const isLastMoment = eng.laneJustVacated === entry.lane && (Date.now() - eng.lastLaneChangeAt) < LAST_MOMENT_WINDOW
-      showFlare('dodge', entry.lane)
-      if (isLastMoment) playHola(); else playDodge()
-      eng.streak += 1
-      if (streakElRef.current) streakElRef.current.textContent = String(eng.streak)
-      bumpScore()
-      entry.el.classList.remove('px-alert')
-      if (eng.streak <= SPEED_CAP_STREAK) {
-        eng.travel = Math.max(MIN_TRAVEL, eng.travel * DECAY)
-        eng.gap = Math.max(MIN_GAP, eng.gap * DECAY)
-        updateDifficultyBar()
-      }
-      eng.activeDefenders = eng.activeDefenders.filter((d) => d !== entry)
-      if (isLastMoment) {
-        showNutmeg(entry)
-      } else {
-        entry.el.remove()
-      }
+    // mur de 3 pas dribblé : contact, quel que soit le couloir
+    if (entry.wall || entry.lane === eng.playerLane) {
+      loseBall(entry)
+      return
     }
+    const isLastMoment = eng.laneJustVacated === entry.lane && (Date.now() - eng.lastLaneChangeAt) < LAST_MOMENT_WINDOW
+    showFlare('dodge', entry.lane)
+    if (isLastMoment) playHola(); else playDodge()
+    entry.el.classList.remove('px-alert')
+    eng.activeDefenders = eng.activeDefenders.filter((d) => d !== entry)
+    if (isLastMoment) showNutmeg(entry)
+    else entry.el.remove()
+    addPoints(1)
+    refreshReady()
   }
 
   const onDirTap = (dir: number) => {
@@ -600,17 +593,27 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const resolveTripleSuccess = () => {
+  // DRIBBLE : passe le défenseur (ou le mur de 3) qui arrive sur toi, dans
+  // une petite fenêtre. Trop tôt ou trop tard = ballon perdu. Rien devant = rien.
+  const onDribbleTap = () => {
     const eng = engineRef.current
-    const wave = eng.tripleWave
-    if (!wave) return
-    eng.tripleWave = null
-    dribbleBtnRef.current?.classList.remove('dribble-ready')
-    wave.entries.forEach((entry) => {
-      entry.resolved = true
-      entry.el.remove()
-    })
-    eng.activeDefenders = eng.activeDefenders.filter((d) => wave.entries.indexOf(d) === -1)
+    if (!eng.playing) return
+    const live = eng.activeDefenders.filter((d) => !d.resolved && progressOf(d) >= NEAR)
+    const wall = live.filter((d) => d.wall)
+    const targets = wall.length ? wall : live.filter((d) => d.lane === eng.playerLane)
+    if (!targets.length) {
+      const btn = dribbleBtnRef.current
+      if (btn) { btn.classList.remove('dribble-whiff'); void btn.offsetWidth; btn.classList.add('dribble-whiff') }
+      return
+    }
+    const p = progressOf(targets[0])
+    if (p < WIN_START || p > WIN_END) {
+      targets.forEach((d) => { d.resolved = true })
+      loseBall(targets.find((d) => d.lane === eng.playerLane) ?? targets[0])
+      return
+    }
+    targets.forEach((d) => { d.resolved = true; d.el.remove() })
+    eng.activeDefenders = eng.activeDefenders.filter((d) => targets.indexOf(d) === -1)
     const runner = runnerRef.current
     if (runner) {
       runner.classList.remove('dribble-roulette')
@@ -618,56 +621,12 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
       runner.classList.add('dribble-roulette')
     }
     showFlare('dodge', eng.playerLane)
-    showWallMsg('Dribble réussi !', 'success')
+    showWallMsg(targets.length > 1 ? 'Dribble réussi ! +3' : 'Dribble ! +1', 'success')
     playDribbleSuccess()
-    playCrowdRoar()
+    if (targets.length > 1) playCrowdRoar()
     vibrate([25, 40, 25])
-    eng.streak += 3
-    if (streakElRef.current) streakElRef.current.textContent = String(eng.streak)
-    bumpScore()
-    if (eng.streak <= SPEED_CAP_STREAK) {
-      eng.travel = Math.max(MIN_TRAVEL, eng.travel * DECAY)
-      eng.gap = Math.max(MIN_GAP, eng.gap * DECAY)
-      updateDifficultyBar()
-    }
-    eng.spawnTimer = setTimeout(spawnWave, eng.gap)
-  }
-
-  const resolveTripleFail = () => {
-    const eng = engineRef.current
-    const wave = eng.tripleWave
-    if (!wave) return
-    eng.tripleWave = null
-    dribbleBtnRef.current?.classList.remove('dribble-ready')
-    const entry = wave.entries.filter((e) => e.lane === eng.playerLane)[0] || wave.entries[0]
-    entry.resolved = true
-    entry.el.style.transition = 'none'
-    entry.el.style.transform = 'scale(1.35)'
-    showFlare('miss', entry.lane)
-    fieldRef.current?.classList.add('dribble-shake')
-    setTimeout(() => { fieldRef.current?.classList.remove('dribble-shake') }, 360)
-    playMiss()
-    vibrate(120)
-    endGame()
-  }
-
-  const onDribbleTap = () => {
-    const eng = engineRef.current
-    if (!eng.playing) return
-    if (!eng.tripleWave) {
-      const btn = dribbleBtnRef.current
-      if (btn) {
-        btn.classList.remove('dribble-whiff')
-        void btn.offsetWidth
-        btn.classList.add('dribble-whiff')
-      }
-      return
-    }
-    if (eng.tripleWave.ready) {
-      resolveTripleSuccess()
-    } else {
-      resolveTripleFail()
-    }
+    addPoints(targets.length)
+    refreshReady()
   }
 
   const clearDefenders = () => {
@@ -716,7 +675,6 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     eng.streak = 0
     eng.travel = START_TRAVEL
     eng.gap = START_GAP
-    eng.tripleWave = null
     eng.laneJustVacated = null
     eng.lastLaneChangeAt = 0
     dribbleBtnRef.current?.classList.remove('dribble-ready')
@@ -743,7 +701,6 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     const eng = engineRef.current
     const finalStreak = Math.min(eng.streak, MAX_SCORE)
     eng.playing = false
-    eng.tripleWave = null
     dribbleBtnRef.current?.classList.remove('dribble-ready')
     if (eng.spawnTimer) clearTimeout(eng.spawnTimer)
     setLaneButtonsEnabled(false)
@@ -790,7 +747,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         </button>
         {showRules && (
           <p className="dribble-intro">
-            Des défenseurs descendent sur le terrain : ◀ / ▶ pour changer de couloir et les éviter. Certains sont plus rapides (orange) ou plongent vers ton couloir au dernier moment. Chaque défenseur évité accélère le suivant, et passé quelques arrêts d'affilée, 2 défenseurs peuvent débouler sur 2 couloirs en même temps — il en reste toujours un de libre. Parfois les 3 couloirs sont bloqués d'un coup : impossible d'esquiver, il faut alors appuyer sur 🌀 au bon moment pour passer en dribble (roulette), qui rapporte plus qu'une esquive classique. Trop tôt, trop tard, ou pas de dribble : contact, la course s'arrête.
+            Ton joueur remonte le terrain sans fin : va le plus loin possible sans perdre le ballon. ◀ / ▶ pour changer de couloir, DRIBBLE pour passer le défenseur qui arrive sur toi — mais seulement au dernier moment, quand le bouton s'allume : trop tôt ou trop tard, ballon perdu. Chaque défenseur passé = 1 point. Ça se corse au fil des paliers : 2 défenseurs à 15, murs de 3 (dribble obligatoire) à 25, vitesse supérieure à 40, défenseurs qui changent de couloir à 60, vagues serrées à 80. Ton meilleur score de la semaine compte pour le classement.
           </p>
         )}
 
