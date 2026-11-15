@@ -124,6 +124,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   const endScoreRef = useRef<HTMLSpanElement>(null)
   const endLabelRef = useRef<HTMLParagraphElement>(null)
   const comboElRef = useRef<HTMLDivElement>(null)
+  const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const streakElRef = useRef<HTMLElement>(null)
   const diffBarRef = useRef<HTMLElement>(null)
   const leftBtnRef = useRef<HTMLButtonElement>(null)
@@ -317,6 +318,13 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   const setPlayerLane = (lane: number) => {
     const eng = engineRef.current
     if (lane !== eng.playerLane) {
+      const r = runnerRef.current
+      if (r) {
+        r.classList.remove('px-go-left', 'px-go-right'); void r.offsetWidth
+        r.classList.add(lane > eng.playerLane ? 'px-go-right' : 'px-go-left')
+        if (moveTimer.current) clearTimeout(moveTimer.current)
+        moveTimer.current = setTimeout(() => r.classList.remove('px-go-left', 'px-go-right'), 280)
+      }
       eng.laneJustVacated = eng.playerLane
       eng.lastLaneChangeAt = Date.now()
     }
@@ -806,12 +814,12 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
           <span className="px-sep" />
           <b className="px-score" ref={streakElRef as any}>0</b>
           <span className="px-sep" />
-          <div className="px-combo" ref={comboElRef}>COMBO<b>×1</b></div>
+          <div className="px-combo" ref={comboElRef}><svg className="px-laurel" viewBox="0 0 22 34" aria-hidden="true"><path fill="currentColor" d="M15 33C7 29 3 22 4 12l2 0c0 9 3 15 10 19zM3 9c-2-3-1-6 1-8 2 3 1 6-1 8zm1 7c-3-1-4-4-4-7 3 1 4 4 4 7zm2 7c-3 0-5-3-6-6 3 0 5 3 6 6zm4 6c-3 1-6-1-7-4 3-1 6 1 7 4zM8 13c-1-3 0-6 3-8 1 3 0 6-3 8zm1 7c-1-3 1-6 3-7 1 3-1 6-3 7z"/></svg><span className="px-combo-txt">COMBO<b>×1</b></span><svg className="px-laurel r" viewBox="0 0 22 34" aria-hidden="true"><path fill="currentColor" d="M15 33C7 29 3 22 4 12l2 0c0 9 3 15 10 19zM3 9c-2-3-1-6 1-8 2 3 1 6-1 8zm1 7c-3-1-4-4-4-7 3 1 4 4 4 7zm2 7c-3 0-5-3-6-6 3 0 5 3 6 6zm4 6c-3 1-6-1-7-4 3-1 6 1 7 4zM8 13c-1-3 0-6 3-8 1 3 0 6-3 8zm1 7c-1-3 1-6 3-7 1 3-1 6-3 7z"/></svg></div>
         </div>
 
         <div className="dribble-stage">
           <div className="dribble-field" ref={fieldRef}>
-            <div className="px-lines" />
+            <div className="px-lines"><i className="px-corner tl" /><i className="px-corner tr" /><i className="px-corner bl" /><i className="px-corner br" /></div>
             <div className="dribble-goal-strip" />
             <div className="dribble-lane-line dribble-lane-1" />
             <div className="dribble-lane-line dribble-lane-2" />
@@ -819,7 +827,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
             <div className="dribble-wall-msg" ref={wallMsgRef} />
             <div className="dribble-countdown" ref={countdownRef} />
             <div className="dribble-runner" ref={runnerRef} style={{ left: '50%' }}>
-              <i className="px-speed" /><i className="px-sprite" /><i className="px-ball" />
+              <i className="px-swoosh" /><i className="px-speed" /><i className="px-sprite" /><i className="px-ball" />
             </div>
 
             <div className="dribble-idle-msg" ref={idleMsgRef}>
@@ -842,13 +850,14 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         <div className="dribble-lanes-ctl" onPointerDown={onControlsPointerDown}>
           <button ref={leftBtnRef} className="dribble-lane-btn" disabled tabIndex={-1}>◀</button>
           <button ref={dribbleBtnRef} className="dribble-lane-btn dribble-roulette-btn" disabled tabIndex={-1}>
-            <span className="px-spiral">🌀</span><span className="px-btn-lbl">DRIBBLE</span>
+            <svg className="px-spiral-svg" viewBox="0 0 32 32" aria-hidden="true"><path fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" d="M16 16.5c0-1.4 1.6-1.9 2.6-1 1.5 1.3.6 4-1.6 4.4-3 .6-5.2-2.4-4.4-5.2 1-3.6 5.6-4.7 8.4-2.6 3.6 2.6 3.2 8.2-.4 10.6-4.4 2.9-10.6.9-12.4-4-2-5.6 1.8-11.6 7.6-12.4"/></svg>
+            <span className="px-btn-lbl">DRIBBLE</span>
           </button>
           <button ref={rightBtnRef} className="dribble-lane-btn" disabled tabIndex={-1}>▶</button>
         </div>
 
         <div className="dribble-difficulty">
-          <span>Vitesse de course</span>
+          <span><svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true"><path fill="#e8dcc0" d="M11 0h3v3h-3zM7 3h6v2h2v2h3v2h-4V7h-1v3l2 2v2h-2v-1l-3-3-2 4H4l3-5V5H5v2H3V4h4z"/><path fill="#e8dcc0" opacity=".6" d="M0 6h3v1H0zm1 3h3v1H1z"/></svg>Vitesse de course</span>
           <div className="dribble-bar"><i ref={diffBarRef as any} style={{ width: '8%' }} /></div>
         </div>
       </div>
