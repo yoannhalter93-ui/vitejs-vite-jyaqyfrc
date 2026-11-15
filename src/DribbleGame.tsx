@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { supabase } from './supabaseClient'
 import { previousGameWeek } from './minigameWeeks'
 import { useAuth } from './AuthContext'
 import { useWizzChannel } from './wizzChannel'
+import { dribbleSpriteVars } from './dribblePixel'
+import './dribble-pixel.css'
 
 interface Props {
   groupId: string
@@ -61,6 +63,7 @@ interface DefenderEntry {
   el: HTMLDivElement
   lane: number
   resolved: boolean
+  near?: boolean
 }
 
 interface TripleWave {
@@ -120,6 +123,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   const endMsgRef = useRef<HTMLDivElement>(null)
   const endScoreRef = useRef<HTMLSpanElement>(null)
   const endLabelRef = useRef<HTMLParagraphElement>(null)
+  const comboElRef = useRef<HTMLDivElement>(null)
   const streakElRef = useRef<HTMLElement>(null)
   const diffBarRef = useRef<HTMLElement>(null)
   const leftBtnRef = useRef<HTMLButtonElement>(null)
@@ -318,6 +322,29 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     }
     eng.playerLane = lane
     if (runnerRef.current) runnerRef.current.style.left = LANES_X[lane] + '%'
+    refreshAlerts()
+  }
+
+  // « ! » au-dessus des défenseurs proches qui arrivent dans mon couloir
+  const refreshAlerts = () => {
+    const eng = engineRef.current
+    eng.activeDefenders.forEach((d) => d.el.classList.toggle('px-alert', !!d.near && !d.resolved && d.lane === eng.playerLane))
+  }
+
+  // combo (visuel) : petits ponts et dribbles réussis d'affilée dans la partie
+  const comboRef = useRef(0)
+  const setCombo = (n: number) => {
+    comboRef.current = n
+    const el = comboElRef.current
+    if (!el) return
+    const b = el.querySelector('b')
+    if (b) b.textContent = '×' + (n + 1)
+    if (n > 0) { el.classList.remove('glow'); void el.offsetWidth; el.classList.add('glow') }
+  }
+  const bumpScore = () => {
+    const el = streakElRef.current
+    if (!el) return
+    el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump')
   }
 
   const showWallMsg = (text: string, kind?: 'success') => {
@@ -421,7 +448,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     if (variant === 'fast') cls += ' dribble-fast'
     if (variant === 'dive') cls += ' dribble-diver'
     el.className = cls
-    el.innerHTML = '<i class="dribble-leg dribble-leg-l"></i><i class="dribble-leg dribble-leg-r"></i><i class="dribble-p-shorts"></i><i class="dribble-p-jersey"></i><i class="dribble-p-hair"></i>'
+    el.innerHTML = '<i class="px-sprite"></i>'
     el.style.transitionDuration = '0ms'
     el.style.left = LANES_X[lane] + '%'
     el.style.top = '-8%'
@@ -454,10 +481,12 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
           el.style.left = LANES_X[newLane] + '%'
           el.classList.add('dribble-diving')
           setTimeout(() => { el.classList.remove('dribble-diving') }, 220)
+          refreshAlerts()
         }
       }, thisTravel * 0.65)
     }
 
+    setTimeout(() => { entry.near = true; refreshAlerts() }, thisTravel * 0.5)
     setTimeout(() => { resolveDefender(entry) }, thisTravel)
     return entry
   }
@@ -521,6 +550,9 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
       if (isLastMoment) playHola(); else playDodge()
       eng.streak += 1
       if (streakElRef.current) streakElRef.current.textContent = String(eng.streak)
+      bumpScore()
+      if (isLastMoment) setCombo(comboRef.current + 1)
+      entry.el.classList.remove('px-alert')
       if (eng.streak <= SPEED_CAP_STREAK) {
         eng.travel = Math.max(MIN_TRAVEL, eng.travel * DECAY)
         eng.gap = Math.max(MIN_GAP, eng.gap * DECAY)
@@ -596,6 +628,8 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     vibrate([25, 40, 25])
     eng.streak += 3
     if (streakElRef.current) streakElRef.current.textContent = String(eng.streak)
+    bumpScore()
+    setCombo(comboRef.current + 1)
     if (eng.streak <= SPEED_CAP_STREAK) {
       eng.travel = Math.max(MIN_TRAVEL, eng.travel * DECAY)
       eng.gap = Math.max(MIN_GAP, eng.gap * DECAY)
@@ -692,6 +726,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     eng.lastLaneChangeAt = 0
     dribbleBtnRef.current?.classList.remove('dribble-ready')
     if (streakElRef.current) streakElRef.current.textContent = '0'
+    setCombo(0)
     updateDifficultyBar()
     if (idleMsgRef.current) idleMsgRef.current.style.display = 'none'
     if (endMsgRef.current) endMsgRef.current.style.display = 'none'
@@ -749,7 +784,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   }
 
   return (
-    <div className="predictions-screen dribble-page" ref={wrapperRef}>
+    <div className="predictions-screen dribble-page dribble-px" ref={wrapperRef} style={dribbleSpriteVars() as CSSProperties}>
       <div className="predictions-header">
         <button className="predictions-back" onClick={onExit}>← Accueil</button>
         <h2>Dribble — {groupName}</h2>
@@ -765,12 +800,18 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
           </p>
         )}
 
-        <div className="dribble-stat-row">
-          <div className="dribble-stat"><b ref={streakElRef as any}>0</b><span>Série en cours</span></div>
+        <div className="px-scorebar">
+          <svg className="px-laurel" viewBox="0 0 22 34" aria-hidden="true"><path fill="currentColor" d="M15 33C7 29 3 22 4 12l2 0c0 9 3 15 10 19zM3 9c-2-3-1-6 1-8 2 3 1 6-1 8zm1 7c-3-1-4-4-4-7 3 1 4 4 4 7zm2 7c-3 0-5-3-6-6 3 0 5 3 6 6zm4 6c-3 1-6-1-7-4 3-1 6 1 7 4zM8 13c-1-3 0-6 3-8 1 3 0 6-3 8zm1 7c-1-3 1-6 3-7 1 3-1 6-3 7z"/></svg>
+          <div className="px-score-lbl">Série<br />en cours</div>
+          <span className="px-sep" />
+          <b className="px-score" ref={streakElRef as any}>0</b>
+          <span className="px-sep" />
+          <div className="px-combo" ref={comboElRef}>COMBO<b>×1</b></div>
         </div>
 
         <div className="dribble-stage">
           <div className="dribble-field" ref={fieldRef}>
+            <div className="px-lines" />
             <div className="dribble-goal-strip" />
             <div className="dribble-lane-line dribble-lane-1" />
             <div className="dribble-lane-line dribble-lane-2" />
@@ -778,7 +819,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
             <div className="dribble-wall-msg" ref={wallMsgRef} />
             <div className="dribble-countdown" ref={countdownRef} />
             <div className="dribble-runner" ref={runnerRef} style={{ left: '50%' }}>
-              <i className="dribble-leg dribble-leg-l" /><i className="dribble-leg dribble-leg-r" /><i className="dribble-p-shorts" /><i className="dribble-p-jersey" /><i className="dribble-p-hair" /><i className="dribble-ball" />
+              <i className="px-speed" /><i className="px-sprite" /><i className="px-ball" />
             </div>
 
             <div className="dribble-idle-msg" ref={idleMsgRef}>
@@ -800,7 +841,9 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
             pointerdown n'a pas la correction de visée d'Android). */}
         <div className="dribble-lanes-ctl" onPointerDown={onControlsPointerDown}>
           <button ref={leftBtnRef} className="dribble-lane-btn" disabled tabIndex={-1}>◀</button>
-          <button ref={dribbleBtnRef} className="dribble-lane-btn dribble-roulette-btn" disabled tabIndex={-1}>🌀</button>
+          <button ref={dribbleBtnRef} className="dribble-lane-btn dribble-roulette-btn" disabled tabIndex={-1}>
+            <span className="px-spiral">🌀</span><span className="px-btn-lbl">DRIBBLE</span>
+          </button>
           <button ref={rightBtnRef} className="dribble-lane-btn" disabled tabIndex={-1}>▶</button>
         </div>
 

@@ -1,0 +1,137 @@
+/* Dribble — habillage « pixel art » (terrain rayé, joueurs en pixels, bandeau
+   crème, gros bouton DRIBBLE doré). Tout est limité à .dribble-px pour ne pas
+   toucher au Toro, qui réutilise les styles .dribble-app. */
+
+.dribble-px .dribble-app { gap: 12px; }
+
+/* ---- bandeau crème : série + combo ---- */
+.dribble-px .px-scorebar {
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(180deg, #f7f0dc, #ebdfc0);
+  border: 2px solid #c9a24a; border-radius: 12px;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.55), 0 3px 0 #8a6a22, 0 6px 14px rgba(0,0,0,.35);
+  padding: 8px 12px; color: #1b1b1f;
+}
+.dribble-px .px-laurel { width: 22px; height: 34px; flex: none; color: #c9962a; }
+.dribble-px .px-score-lbl { font: 700 10px/1.2 'Oswald', 'Arial Narrow', sans-serif; letter-spacing: 1.4px; text-transform: uppercase; color: rgba(27,27,31,.6); text-align: center; }
+.dribble-px .px-sep { width: 1px; align-self: stretch; background: rgba(27,27,31,.18); }
+.dribble-px .px-score { flex: 1; text-align: center; font: 700 40px/1 'Oswald', 'Arial Narrow', sans-serif; font-variant-numeric: tabular-nums; color: #15130f; }
+.dribble-px .px-score.bump { animation: px-bump .25s ease; }
+@keyframes px-bump { 40% { transform: scale(1.18) } }
+.dribble-px .px-combo {
+  flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 78px; padding: 4px 10px; border-radius: 9px;
+  background: linear-gradient(180deg, #a92a22, #7b1a15); border: 2px solid #e9c46a;
+  color: #f5d98b; font: 700 10px/1.1 'Oswald', 'Arial Narrow', sans-serif; letter-spacing: 1.2px;
+  box-shadow: 0 2px 0 #4d100c;
+}
+.dribble-px .px-combo b { font-size: 24px; letter-spacing: 0; line-height: 1; }
+.dribble-px .px-combo.glow { animation: px-glow .6s ease; }
+@keyframes px-glow { 0% { box-shadow: 0 0 0 0 rgba(255,214,90,.9), 0 2px 0 #4d100c; transform: scale(1.12) } 100% { box-shadow: 0 0 22px 6px rgba(255,214,90,0), 0 2px 0 #4d100c; transform: scale(1) } }
+
+/* ---- terrain : bandes de tonte qui défilent, lignes blanches ---- */
+.dribble-px .dribble-stage { background: #0c2a1c; border: 2px solid #2f5a3c; border-radius: 12px; padding: 8px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.35); }
+.dribble-px .dribble-field {
+  border-radius: 4px; border: 0;
+  background: #1f6b2c;
+  image-rendering: pixelated;
+}
+.dribble-px .dribble-field::before {
+  background-image: repeating-linear-gradient(180deg, #23752f 0 34px, #1b6328 34px 68px);
+  background-size: 100% 68px;
+  animation-name: px-field-scroll;
+  z-index: 0;
+}
+@keyframes px-field-scroll { from { background-position-y: 0 } to { background-position-y: 68px } }
+/* lignes du terrain (cadre + coins) */
+.dribble-px .px-lines {
+  position: absolute; inset: 6px; z-index: 1; pointer-events: none;
+  border: 3px solid rgba(240,240,225,.85); border-radius: 2px;
+}
+.dribble-px .px-lines::before, .dribble-px .px-lines::after {
+  content: ''; position: absolute; width: 16px; height: 16px; border: 3px solid rgba(240,240,225,.85); border-radius: 50%;
+}
+.dribble-px .px-lines::before { left: -11px; bottom: -11px; clip-path: inset(0 0 50% 50%); }
+.dribble-px .px-lines::after { right: -11px; bottom: -11px; clip-path: inset(0 50% 50% 0); }
+.dribble-px .dribble-lane-line { border-left: 3px dashed rgba(240,240,225,.75); z-index: 1; }
+.dribble-px .dribble-goal-strip {
+  height: 6%; opacity: 1; z-index: 1;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,.16) 0 12px, rgba(0,0,0,.12) 12px 24px);
+}
+.dribble-px .dribble-field::after { z-index: 1; }
+
+/* ---- joueurs en pixels (planche de 2 images qui alternent) ---- */
+.dribble-px .dribble-runner, .dribble-px .dribble-defender { width: 56px; height: 77px; margin-left: -28px; }
+.dribble-px .dribble-defender { height: 70px; }
+.dribble-px .px-sprite {
+  position: absolute; inset: 0; display: block;
+  background-size: 200% 100%; background-repeat: no-repeat; background-position: 0 0;
+  image-rendering: pixelated; filter: drop-shadow(0 3px 0 rgba(0,0,0,.35));
+}
+.dribble-px .dribble-runner .px-sprite { background-image: var(--px-runner); }
+.dribble-px .dribble-defender .px-sprite { background-image: var(--px-def); animation: px-run .26s steps(1) infinite; }
+.dribble-px .dribble-defender.dribble-fast .px-sprite { background-image: var(--px-def-fast); animation-duration: .18s; }
+.dribble-px .dribble-defender.dribble-fast { filter: drop-shadow(0 0 6px rgba(240,138,36,.7)); }
+.dribble-px .dribble-defender.dribble-wall .px-sprite { filter: drop-shadow(0 0 0 #ffd75a) drop-shadow(0 3px 0 rgba(0,0,0,.35)); }
+.dribble-px .dribble-runner.dribble-running .px-sprite { animation: px-run .3s steps(1) infinite; }
+@keyframes px-run { 0% { background-position: 0 0 } 50% { background-position: 100% 0 } }
+
+/* ballon au pied, qui roule devant le joueur */
+.dribble-px .px-ball {
+  position: absolute; left: 60%; top: -13px; width: 20px; height: 20px;
+  background-image: var(--px-ball); background-size: 100% 100%; image-rendering: pixelated;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); z-index: 5;
+}
+.dribble-px .dribble-runner.dribble-running .px-ball { animation: px-ball .3s steps(2) infinite; }
+@keyframes px-ball { 50% { transform: translateY(-4px) } }
+
+/* traits de vitesse derrière le joueur */
+.dribble-px .px-speed { position: absolute; left: 50%; top: 100%; width: 30px; height: 18px; margin-left: -22px; opacity: 0; pointer-events: none; }
+.dribble-px .px-speed::before, .dribble-px .px-speed::after { content: ''; position: absolute; width: 3px; height: 10px; background: rgba(255,255,255,.75); transform: rotate(28deg); }
+.dribble-px .px-speed::before { left: 4px; top: 2px; }
+.dribble-px .px-speed::after { left: 13px; top: 6px; }
+.dribble-px .dribble-running .px-speed { animation: px-speed .3s linear infinite; }
+@keyframes px-speed { 0% { opacity: .9; transform: translateY(0) } 100% { opacity: 0; transform: translateY(8px) } }
+
+/* « ! » au-dessus du défenseur qui arrive dans ton couloir */
+.dribble-px .dribble-defender.px-alert::before {
+  content: '!'; position: absolute; left: 50%; top: -24px; transform: translateX(-50%);
+  font: 900 20px/1 'Oswald', sans-serif; color: #ffd84a; text-shadow: 0 2px 0 #15130f, 2px 0 0 #15130f, -2px 0 0 #15130f, 0 -2px 0 #15130f;
+  animation: px-alert .3s steps(2) infinite;
+}
+@keyframes px-alert { 50% { transform: translateX(-50%) translateY(-3px) } }
+
+/* ballon du petit pont */
+.dribble-px .dribble-nutmeg-ball { width: 14px; height: 14px; margin-left: -7px; border-radius: 0; box-shadow: none; background: var(--px-ball) center / 100% 100% no-repeat; image-rendering: pixelated; }
+
+/* messages et compte à rebours en style rétro */
+.dribble-px .dribble-countdown { color: #ffd84a; font-size: 64px; text-shadow: 0 4px 0 #15130f, 4px 0 0 #15130f, -4px 0 0 #15130f, 0 -4px 0 #15130f; background: rgba(10,40,20,.25); }
+.dribble-px .dribble-wall-msg { background: #15130f; border: 2px solid #e9c46a; border-radius: 4px; color: #ffd84a; top: 12px; }
+.dribble-px .dribble-wall-msg.dribble-success { color: #7be08f; border-color: #7be08f; }
+.dribble-px .dribble-idle-msg, .dribble-px .dribble-end-msg { background: rgba(8,34,18,.82); }
+.dribble-px .dribble-end-msg .dribble-big { color: #ffd84a; font-size: 48px; text-shadow: 0 3px 0 #15130f; }
+
+/* ---- boutons : ◀  DRIBBLE  ▶ ---- */
+.dribble-px .dribble-lanes-ctl { gap: 10px; margin-top: 4px; }
+.dribble-px .dribble-lane-btn {
+  position: relative; padding: 0; height: 64px; border-radius: 10px;
+  background: linear-gradient(180deg, #2c7a43, #1b5530); border: 2px solid #4f9e64;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.18), 0 4px 0 #0e3019; color: #f4f1e8; font-size: 26px;
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
+}
+.dribble-px .dribble-lane-btn:disabled { opacity: .55; }
+.dribble-px .dribble-roulette-btn {
+  flex: 1.25 !important; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: linear-gradient(180deg, #2a4d2f, #173521); border: 2px solid #e9c46a;
+  box-shadow: inset 0 0 12px rgba(233,196,106,.35), 0 4px 0 #0e3019;
+}
+.dribble-px .dribble-roulette-btn .px-spiral { font-size: 24px; line-height: 1; filter: sepia(1) saturate(4) hue-rotate(-12deg) brightness(1.15); }
+.dribble-px .dribble-roulette-btn .px-btn-lbl { font: 700 13px/1 'Oswald', sans-serif; letter-spacing: 2px; color: #f4e3b0; }
+.dribble-px .dribble-roulette-btn.dribble-ready { background: linear-gradient(180deg, #8a6a1c, #5a430f); box-shadow: 0 0 18px 4px rgba(255,214,90,.7), 0 4px 0 #0e3019; }
+.dribble-px .dribble-lanes-ctl .dribble-lane-btn.is-pressed { transform: translateY(3px); box-shadow: inset 0 2px 0 rgba(255,255,255,.18), 0 1px 0 #0e3019; background: linear-gradient(180deg, #379152, #22663a); }
+.dribble-px .dribble-lanes-ctl .dribble-roulette-btn.is-pressed { background: linear-gradient(180deg, #a07c22, #6a4f12); }
+
+/* ---- jauge de vitesse ---- */
+.dribble-px .dribble-difficulty span { font: 700 11px/1 'Oswald', sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: #e8dcc0; }
+.dribble-px .dribble-bar { height: 12px; border-radius: 3px; background: #0c2a1c; border: 2px solid #c9a24a; }
+.dribble-px .dribble-bar i { border-radius: 1px; background: repeating-linear-gradient(90deg, #ffd84a 0 6px, #e9b52c 6px 8px); }
