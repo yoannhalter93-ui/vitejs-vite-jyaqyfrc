@@ -27,6 +27,8 @@ type Def = {
   switched: boolean; lunging: boolean; fakeDir: number; alerted: number
   beaten: boolean; dribbled: boolean; spin: number
   group: number; slot: number
+  // « IA » (à partir de 6 points) : approche → temporise (jockey) → tacle
+  ai: 'approach' | 'jockey' | 'lunge'; jockeyT: number; lx: number; ly: number
 }
 type Pair = { id: number; open: number; swaps: number }
 type Dust = { x: number; y: number; vx: number; vy: number; life: number; c: string }
@@ -97,12 +99,14 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     nextSpawnAt = 120; bannerT = 0; lost = null
     me.x = W / 2; me.y = H * 0.78; me.vx = 0; me.vy = 0; me.tx = me.x; me.ty = me.y
     defs = []; pairs.length = 0; dust = []; txts = []; holdDir = 0
+    avgX = W / 2; commitDir = 0; commitT = 0; sideBias = 0
     cb.onStamina(stamina); cb.onSpeed(0)
   }
 
   const mk = (kind: Kind, x: number, y = -50): Def => ({
     kind, x, y, vx: 0, t: Math.random() * 6, baseX: x, amp: 0, freq: 0, tx: x, react: 0,
     switched: false, lunging: false, fakeDir: 0, alerted: 0, beaten: false, dribbled: false, spin: 0, group: -1, slot: 0,
+    ai: 'approach', jockeyT: 0, lx: x, ly: 0,
   })
   const thirds = [W / 6, W / 2, W * 5 / 6]
 
@@ -148,6 +152,53 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     void before
   }
 
+  // ---------------- « IA » des défenseurs
+  // Ce qu'ils observent : ta position lissée (un zigzag ne les fait pas bouger
+  // d'un côté à l'autre), ton côté préféré (ils le ferment), et quand tu
+  // t'engages vraiment d'un côté (là, ils anticipent). Ils te temporisent à
+  // distance au lieu de foncer, puis taclent : soit quand tu t'engages, soit
+  // quand ils ont assez attendu, soit si tu viens à leur contact.
+  const SMART_AT = 6
+  let avgX = W / 2, commitDir = 0, commitT = 0
+  let sideBias = 0                          // > 0 : tu passes plutôt par la droite
+  function observe(dt: number) {
+    avgX += (me.x - avgX) * Math.min(1, dt / 0.45)
+    const dir = Math.abs(me.vx) > 140 ? Math.sign(me.vx) : 0
+    if (dir && dir === commitDir) commitT += dt
+    else { commitDir = dir; commitT = 0 }
+  }
+  function smartDefend(d: Def, gap: number, dt: number) {
+    const L = Math.min(8, level)
+    const JOCKEY_GAP = 112
+    const lateral = Math.min(275, 190 + L * 12)          // vitesse de côté (proche de la tienne)
+    const patience = Math.max(0.65, 1.5 - L * 0.1)        // temps max à temporiser
+    // couverture à plusieurs : si un autre défenseur proche couvre déjà ton côté, il prend l'autre
+    const mates = defs.filter((o) => o !== d && !o.beaten && o.kind !== 'pair' && Math.abs((me.y - o.y) - gap) < 90)
+    let cover = 0
+    if (mates.length) cover = (mates[0].x < d.x ? 1 : -1) * 38
+    const habit = clamp(sideBias, -1, 1) * 18
+    if (d.ai === 'approach') {
+      if (gap < JOCKEY_GAP + 12) { d.ai = 'jockey'; d.jockeyT = 0 }
+      return { target: avgX + habit + cover, vmax: lateral * 0.8, vy: scrollSpeed() + 40, acc: 1500 }
+    }
+    if (d.ai === 'jockey') {
+      d.jockeyT += dt
+      // il recule en gardant la distance (mais moins vite que toi si tu avances)
+      const vy = clamp((me.y - JOCKEY_GAP - d.y) * 5, -45, 220)
+      // il se cale sur ta position lissée : tes zigzags ne le déplacent presque pas
+      const target = avgX + clamp(me.x - avgX, -26, 26) + habit + cover
+      const committed = commitT > 0.2 && Math.abs(me.x - d.x) > 18
+      if (committed || d.jockeyT > patience || gap < 70) {
+        d.ai = 'lunge'; d.lunging = true; d.alerted = 0.35
+        // il tacle là où tu vas être
+        d.lx = clamp(me.x + me.vx * (committed ? 0.3 : 0.12), 20, W - 20)
+      }
+      return { target, vmax: lateral, vy, acc: 2200 }
+    }
+    // tacle : engagé, il ne peut plus corriger beaucoup (c'est là qu'on le passe)
+    return { target: d.lx, vmax: 300, vy: scrollSpeed() + 260 + L * 15, acc: 1300 }
+  }
+
   function step(rawDt: number) {
     let dt = rawDt
     if (slowT > 0) { slowT -= rawDt; dt = rawDt * 0.3 }       // mini ralenti après un beau dribble
@@ -163,6 +214,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     me.x = clamp(me.x + me.vx * dt, 22, W - 22); me.y = clamp(me.y + me.vy * dt, yMin(), yMax())
     // poussière quand il court vite sur le côté
     if (Math.abs(me.vx) > 160 && Math.random() < 0.5) puff(me.x, me.y, 1, '#c9b98f')
+    observe(dt)
     // ---- défilement
     const S = scrollSpeed()
     scroll += S * dt
@@ -235,10 +287,17 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
           : level >= 3 ? 210 : level >= 2 ? 150 : 0
         if (stick && gap < 70 && gap > 0 && Math.abs(me.x - d.x) < 80) { target = me.x; vmax = Math.max(vmax, stick) }
         if (d.alerted > 0.6) { target = me.x; vmax = 300 }          // trop tôt : il se replace
-        const acc = clamp((target - d.x) * 9 - d.vx * 4, -1600, 1600)
+        // ---- défenseur intelligent (après les 6 premiers points)
+        let accMax = 1600
+        if (score >= SMART_AT && d.kind !== 'pair' && gap > -10 && gap < 165) {
+          const r = smartDefend(d, gap, dt)
+          target = r.target; vmax = r.vmax; vy = r.vy; accMax = r.acc
+        }
+        const acc = clamp((target - d.x) * 9 - d.vx * 4, -accMax, accMax)
         d.vx = clamp(d.vx + acc * dt, -vmax, vmax)
         // passé sans dribble : simple évitement = +1
         if (gap < -16) {
+          sideBias = sideBias * 0.6 + (me.x > d.x ? 1 : -1) * 0.4
           d.beaten = true
           addPoints(1)
           txts.push({ s: '+1', x: d.x, y: d.y - 50, life: 0.7, c: '#e8f5e0', big: false })
