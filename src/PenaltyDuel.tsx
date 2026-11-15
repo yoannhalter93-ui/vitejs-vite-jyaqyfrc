@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
 import LoadingSkeleton from './LoadingSkeleton'
@@ -434,7 +435,13 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
             <PenaltyReview duel={duel} attempts={attempts} pseudos={pseudos} meId={user?.id} />
           </div>
         ) : myTurnToShoot || myTurnToSave ? (
-          <div className="roulette-result">
+          // pendant qu'on joue : le jeu prend tout l'écran du téléphone, croix en haut à droite pour sortir
+          createPortal(
+          <div className="pk-full" role="dialog" aria-label="Tirs au but">
+            <div className="pk-full-top">
+              <button className="pk-full-close" aria-label="Quitter" disabled={animBusy} onClick={() => setSelected(null)}>✕</button>
+            </div>
+            <div className="pk-full-stage">
             <PenaltyScene
               ref={sceneRef}
               canPick={!animBusy}
@@ -445,6 +452,8 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
               hint={myTurnToShoot ? '👆 Touche où tu tires' : '🧤 Touche où tu plonges'}
               hideKeeper={myTurnToShoot}
             />
+            </div>
+            <div className="pk-full-caption">
 
             {animStage === 'result' && animResult ? (
               <p className={"penalty-anim-caption " + (animResult.scored ? 'penalty-caption-goal' : 'penalty-caption-save')}>
@@ -468,8 +477,8 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
                 </p>
               </>
             )}
-
-          </div>
+            </div>
+          </div>, document.body)
         ) : (
           <p className="groups-empty">
             {iHaveShot && !opponentHasShot
