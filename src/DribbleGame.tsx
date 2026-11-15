@@ -3,7 +3,8 @@ import { supabase } from './supabaseClient'
 import { previousGameWeek } from './minigameWeeks'
 import { useAuth } from './AuthContext'
 import { useWizzChannel } from './wizzChannel'
-import { dribbleSpriteVars } from './dribblePixel'
+import { dribbleSpriteVars, dribbleImages } from './dribblePixel'
+import { createDribbleEngine } from './dribbleEngine'
 import './dribble-pixel.css'
 
 interface Props {
@@ -40,82 +41,30 @@ function monday(): string {
 
 // Constantes de jeu — reprises telles quelles du prototype validé
 // (jeu-de-dribble.html), réglées au fil des retours de playtest.
-const LANES_X = [16.6, 50, 83.3] // % de position horizontale des 3 couloirs
-const START_TRAVEL = 1400 // ms pour qu'un défenseur traverse le terrain
-const MIN_TRAVEL = 600 // ms, plancher de difficulté (à partir de 80)
-const START_GAP = 1150 // ms entre deux apparitions
-const MIN_GAP = 470
-const LAST_MOMENT_WINDOW = 140 // ms : délai max entre le changement de couloir et l'arrivée du défenseur pour compter comme "au dernier moment"
+
 const MAX_SCORE = 2000 // garde-fou de bon sens côté client, comme pour les jonglages
-
-interface DefenderEntry {
-  el: HTMLDivElement
-  lane: number
-  resolved: boolean
-  near?: boolean
-  wall: boolean
-  travel: number   // ms pour traverser le terrain
-  spawnAt: number  // performance.now() à l'apparition
-}
-
-interface CrowdNodes {
-  src: AudioBufferSourceNode
-  gain: GainNode
-}
-
-interface Engine {
-  streak: number
-  travel: number
-  gap: number
-  playing: boolean
-  playerLane: number
-  spawnTimer: ReturnType<typeof setTimeout> | null
-  activeDefenders: DefenderEntry[]
-  laneJustVacated: number | null
-  lastLaneChangeAt: number
-  wallMsgTimer: ReturnType<typeof setTimeout> | null
-  audioCtx: AudioContext | null
-  crowdNodes: CrowdNodes | null
-}
-
-function newEngine(): Engine {
-  return {
-    streak: 0,
-    travel: START_TRAVEL,
-    gap: START_GAP,
-    playing: false,
-    playerLane: 1,
-    spawnTimer: null,
-    activeDefenders: [],
-    laneJustVacated: null,
-    lastLaneChangeAt: 0,
-    wallMsgTimer: null,
-    audioCtx: null,
-    crowdNodes: null,
-  }
-}
 
 export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, onExit }: Props) {
   const { user } = useAuth()
 
   const fieldRef = useRef<HTMLDivElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
-  const runnerRef = useRef<HTMLDivElement>(null)
-  const flareRef = useRef<HTMLDivElement>(null)
   const wallMsgRef = useRef<HTMLDivElement>(null)
   const countdownRef = useRef<HTMLDivElement>(null)
   const idleMsgRef = useRef<HTMLDivElement>(null)
   const endMsgRef = useRef<HTMLDivElement>(null)
   const endScoreRef = useRef<HTMLSpanElement>(null)
   const endLabelRef = useRef<HTMLParagraphElement>(null)
-  const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const streakElRef = useRef<HTMLElement>(null)
-  const diffBarRef = useRef<HTMLElement>(null)
+  const staminaBarRef = useRef<HTMLElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const leftBtnRef = useRef<HTMLButtonElement>(null)
   const rightBtnRef = useRef<HTMLButtonElement>(null)
   const dribbleBtnRef = useRef<HTMLButtonElement>(null)
 
-  const engineRef = useRef<Engine>(newEngine())
+  const audio = useRef<{ audioCtx: AudioContext | null; crowdNodes: { src: AudioBufferSourceNode; gain: GainNode } | null }>({ audioCtx: null, crowdNodes: null })
+  const engine = useRef<ReturnType<typeof createDribbleEngine> | null>(null)
+  const playingRef = useRef(false)
 
   const [myPseudo, setMyPseudo] = useState<string | null>(null)
   const [scores, setScores] = useState<ScoreRow[]>([])
@@ -179,7 +128,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
 
   useEffect(() => {
     return () => {
-      if (user && engineRef.current.playing) {
+      if (user && playingRef.current) {
         sendOnWizzChannel('playing', { action: 'stop', profileId: user.id })
       }
     }
@@ -188,7 +137,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
 
   // ---- son (bips synthétiques, sans fichier) + vibration mobile ----
   const ensureAudio = () => {
-    const eng = engineRef.current
+    const eng = audio.current
     try {
       if (!eng.audioCtx) eng.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
       else if (eng.audioCtx.state === 'suspended') eng.audioCtx.resume()
@@ -196,7 +145,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   }
 
   const beep = (freq: number, dur: number, type: OscillatorType, vol?: number, delay?: number) => {
-    const ctx = engineRef.current.audioCtx
+    const ctx = audio.current.audioCtx
     if (!ctx) return
     try {
       const t0 = ctx.currentTime + (delay || 0)
@@ -225,7 +174,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     [300, 380, 460, 540, 620, 540].forEach((f, i) => beep(f, 0.09, 'sine', 0.16, i * 0.045))
   }
   const noiseBurst = (dur: number, peakVol: number, freq?: number) => {
-    const ctx = engineRef.current.audioCtx
+    const ctx = audio.current.audioCtx
     if (!ctx) return
     try {
       const bufferSize = Math.floor(ctx.sampleRate * dur)
@@ -254,14 +203,14 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   }
 
   const stopCrowdAmbience = () => {
-    const eng = engineRef.current
+    const eng = audio.current
     if (eng.crowdNodes) {
       try { eng.crowdNodes.src.stop() } catch { /* ignore */ }
       eng.crowdNodes = null
     }
   }
   const startCrowdAmbience = () => {
-    const eng = engineRef.current
+    const eng = audio.current
     const ctx = eng.audioCtx
     if (!ctx) return
     stopCrowdAmbience()
@@ -285,285 +234,73 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     } catch { /* ignore */ }
   }
   const setCrowdIntensity = (pct: number) => {
-    const eng = engineRef.current
+    const eng = audio.current
     if (eng.crowdNodes && eng.audioCtx) {
       const g = 0.05 + pct * 0.14
       eng.crowdNodes.gain.gain.setTargetAtTime(g, eng.audioCtx.currentTime, 0.3)
     }
   }
 
-  // ---- moteur de jeu (porté du prototype jeu-de-dribble.html) ----
-  const setLaneButtonsEnabled = (on: boolean) => {
-    if (leftBtnRef.current) leftBtnRef.current.disabled = !on
-    if (rightBtnRef.current) rightBtnRef.current.disabled = !on
-    if (dribbleBtnRef.current) dribbleBtnRef.current.disabled = !on
+  // ---- jeu (moteur sur canvas : voir dribbleEngine.ts) ----
+  const showWallMsg = (text: string, kind?: 'success') => {
+    const el = wallMsgRef.current
+    if (!el) return
+    if (wallTimer.current) clearTimeout(wallTimer.current)
+    el.textContent = text
+    el.classList.toggle('dribble-success', kind === 'success')
+    el.classList.add('dribble-show')
+    wallTimer.current = setTimeout(() => { el.classList.remove('dribble-show') }, 1100)
   }
-
-  const setPlayerLane = (lane: number) => {
-    const eng = engineRef.current
-    if (lane !== eng.playerLane) {
-      const r = runnerRef.current
-      if (r) {
-        r.classList.remove('px-go-left', 'px-go-right'); void r.offsetWidth
-        r.classList.add(lane > eng.playerLane ? 'px-go-right' : 'px-go-left')
-        if (moveTimer.current) clearTimeout(moveTimer.current)
-        moveTimer.current = setTimeout(() => r.classList.remove('px-go-left', 'px-go-right'), 280)
-      }
-      eng.laneJustVacated = eng.playerLane
-      eng.lastLaneChangeAt = Date.now()
-    }
-    eng.playerLane = lane
-    if (runnerRef.current) runnerRef.current.style.left = LANES_X[lane] + '%'
-    refreshAlerts()
-  }
-
-  // « ! » au-dessus des défenseurs proches qui arrivent dans mon couloir
-  const refreshAlerts = () => {
-    const eng = engineRef.current
-    eng.activeDefenders.forEach((d) => d.el.classList.toggle('px-alert', !!d.near && !d.resolved && d.lane === eng.playerLane))
-  }
-
+  const wallTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bumpScore = () => {
     const el = streakElRef.current
     if (!el) return
     el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump')
   }
-
-  const showWallMsg = (text: string, kind?: 'success') => {
-    const eng = engineRef.current
-    if (eng.wallMsgTimer) clearTimeout(eng.wallMsgTimer)
-    const el = wallMsgRef.current
-    if (!el) return
-    el.textContent = text
-    el.classList.toggle('dribble-success', kind === 'success')
-    el.classList.add('dribble-show')
-    eng.wallMsgTimer = setTimeout(() => { el.classList.remove('dribble-show') }, 900)
+  const setButtonsEnabled = (on: boolean) => {
+    for (const b of [leftBtnRef.current, rightBtnRef.current, dribbleBtnRef.current]) if (b) b.disabled = !on
   }
 
-  const updateDifficultyBar = () => {
-    const eng = engineRef.current
-    const pct = Math.max(0, Math.min(1, (START_TRAVEL - eng.travel) / (START_TRAVEL - MIN_TRAVEL)))
-    if (diffBarRef.current) diffBarRef.current.style.width = (8 + pct * 92) + '%'
-    const field = fieldRef.current
-    if (field) {
-      const scrollDur = 2.1 - pct * 1.55
-      field.style.setProperty('--scroll-dur', scrollDur + 's')
-      field.style.setProperty('--dusk', (pct * 0.85).toFixed(2))
-    }
-    setCrowdIntensity(pct)
-  }
-
-  const showNutmeg = (entry: DefenderEntry) => {
-    const field = fieldRef.current
-    if (!field) return
-    field.classList.remove('dribble-slowmo')
-    void field.offsetWidth
-    field.classList.add('dribble-slowmo')
-    setTimeout(() => { field.classList.remove('dribble-slowmo') }, 180)
-
-    entry.el.style.transition = 'none'
-    entry.el.classList.add('dribble-nutmegged')
-
-    const ball = document.createElement('div')
-    ball.className = 'dribble-nutmeg-ball'
-    ball.style.left = LANES_X[entry.lane] + '%'
-    field.appendChild(ball)
-
-    setTimeout(() => {
-      entry.el.remove()
-      ball.remove()
-    }, 480)
-  }
-
-  const showFlare = (kind: 'dodge' | 'miss', laneIdx?: number) => {
-    const flare = flareRef.current
-    if (!flare) return
-    if (laneIdx != null) flare.style.setProperty('--fx', LANES_X[laneIdx] + '%')
-    flare.classList.remove('dribble-show', 'dribble-dodge', 'dribble-miss')
-    void flare.offsetWidth
-    flare.classList.add('dribble-show', kind === 'dodge' ? 'dribble-dodge' : 'dribble-miss')
-  }
-
-  // ---- paliers (mode infini : on continue jusqu'à perdre le ballon) ----
-  // 0-14 : 1 défenseur · 15 : jusqu'à 2 · 25 : murs de 3 (dribble obligatoire)
-  // 40 : vitesse supérieure · 60 : défenseurs qui changent de couloir · 80 : vagues plus serrées
-  const paceFor = (s: number) => {
-    if (s < 40) { const t = Math.min(s, 39) / 39; return { travel: START_TRAVEL - (START_TRAVEL - 900) * t, gap: START_GAP - (START_GAP - 700) * t } }
-    if (s < 80) { const t = (s - 40) / 40; return { travel: 780 - 160 * t, gap: 640 - 120 * t } }
-    return { travel: MIN_TRAVEL, gap: MIN_GAP }
-  }
-  const applyPace = () => {
-    const eng = engineRef.current
-    const p = paceFor(eng.streak)
-    eng.travel = p.travel; eng.gap = p.gap
-    updateDifficultyBar()
-  }
-  const TIER_MSG: [number, string][] = [
-    [15, '15 ! Ça se corse : 2 défenseurs'],
-    [25, '25 ! Murs de 3 : DRIBBLE au bon moment'],
-    [40, '40 ! Vitesse supérieure'],
-    [60, '60 ! Ils changent de couloir'],
-    [80, '80 ! Mode légende'],
-  ]
-  const addPoints = (n: number) => {
-    const eng = engineRef.current
-    const before = eng.streak
-    eng.streak += n
-    if (streakElRef.current) streakElRef.current.textContent = String(eng.streak)
-    bumpScore()
-    const tier = TIER_MSG.filter(([at]) => before < at && eng.streak >= at).pop()
-    if (tier) setTimeout(() => showWallMsg(tier[1], 'success'), 250)
-    applyPace()
-  }
-
-  const pickDiveLane = (fromLane: number) => {
-    const eng = engineRef.current
-    const candidates: number[] = []
-    if (fromLane - 1 >= 0) candidates.push(fromLane - 1)
-    if (fromLane + 1 <= 2) candidates.push(fromLane + 1)
-    if (candidates.indexOf(eng.playerLane) !== -1) return eng.playerLane
-    return candidates[Math.floor(Math.random() * candidates.length)]
-  }
-
-  const pickLanes = (count: number) => {
-    const lanes = [0, 1, 2]
-    for (let i = lanes.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      const tmp = lanes[i]; lanes[i] = lanes[j]; lanes[j] = tmp
-    }
-    return lanes.slice(0, count)
-  }
-
-  // fenêtre de dribble : quand le défenseur arrive presque au contact
-  const WIN_START = 0.66, WIN_END = 0.84, NEAR = 0.45
-  const progressOf = (d: DefenderEntry) => (performance.now() - d.spawnAt) / d.travel
-
-  // le bouton DRIBBLE s'allume quand un dribble est possible maintenant
-  const refreshReady = () => {
-    const eng = engineRef.current
-    const ready = eng.activeDefenders.some((d) => {
-      if (d.resolved) return false
-      const p = progressOf(d)
-      return p >= WIN_START && p <= WIN_END && (d.wall || d.lane === eng.playerLane)
+  useEffect(() => {
+    const cv = canvasRef.current
+    if (!cv) return
+    const imgs = dribbleImages()
+    const e = createDribbleEngine(cv, imgs, {
+      onPoint: (sc) => {
+        if (streakElRef.current) streakElRef.current.textContent = String(sc)
+        bumpScore(); playDodge()
+      },
+      onLose: (sc) => endGameRef.current(sc),
+      onDribble: (ok) => {
+        const btn = dribbleBtnRef.current
+        if (ok) { playDribbleSuccess(); vibrate([20, 30, 20]) }
+        else if (btn) { btn.classList.remove('dribble-whiff'); void btn.offsetWidth; btn.classList.add('dribble-whiff'); showWallMsg('Plus assez d\'endurance !') }
+      },
+      onStamina: (v) => {
+        if (staminaBarRef.current) staminaBarRef.current.style.width = v + '%'
+        dribbleBtnRef.current?.classList.toggle('px-tired', v < 45)
+      },
+      onTier: (msg) => { showWallMsg(msg, 'success'); playHola(); playCrowdRoar() },
+      onSpeed: (pct) => setCrowdIntensity(pct),
     })
-    dribbleBtnRef.current?.classList.toggle('dribble-ready', ready)
+    engine.current = e
+    e.reset()
+    // les images arrivent après le premier dessin
+    Object.values(imgs).forEach((im) => { if (!im.complete) im.addEventListener('load', () => e.redraw(), { once: true }) })
+    const onResize = () => e.resize()
+    window.addEventListener('resize', onResize)
+    return () => { e.stop(); window.removeEventListener('resize', onResize) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // doigt sur le terrain : le joueur suit le doigt
+  const onFieldPointer = (e: ReactPointerEvent<HTMLCanvasElement>, down: boolean) => {
+    if (!playingRef.current) return
+    if (e.type === 'pointerdown') { try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* ignore */ } }
+    engine.current?.pointer(e.clientX, e.clientY, down)
   }
 
-  const spawnOne = (lane: number, isWall?: boolean, variant?: 'fast' | 'dive'): DefenderEntry => {
-    const eng = engineRef.current
-    const field = fieldRef.current
-    const el = document.createElement('div')
-    let cls = 'dribble-defender'
-    if (isWall) cls += ' dribble-wall'
-    if (variant === 'fast') cls += ' dribble-fast'
-    if (variant === 'dive') cls += ' dribble-diver'
-    el.className = cls
-    el.innerHTML = '<i class="px-sprite"></i>'
-    el.style.transitionDuration = '0ms'
-    el.style.left = LANES_X[lane] + '%'
-    el.style.top = '-8%'
-    el.style.transform = 'scale(0.55)'
-    field?.appendChild(el)
-    void el.offsetWidth
-
-    const thisTravel = variant === 'fast' ? Math.max(MIN_TRAVEL * 0.8, eng.travel * 0.7) : eng.travel
-    const entry: DefenderEntry = { el, lane, resolved: false, wall: !!isWall, travel: thisTravel, spawnAt: performance.now() }
-    eng.activeDefenders.push(entry)
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        el.style.transitionDuration = thisTravel + 'ms'
-        el.style.transitionTimingFunction = 'linear'
-        el.style.top = '82%'
-        el.style.transform = 'scale(1)'
-      })
-    })
-
-    if (variant === 'dive') {
-      setTimeout(() => {
-        if (entry.resolved || !eng.playing) return
-        const newLane = pickDiveLane(entry.lane)
-        if (newLane !== entry.lane) {
-          entry.lane = newLane
-          const remaining = thisTravel * 0.4
-          el.style.transition = `top ${remaining}ms linear, transform ${remaining}ms linear, left 160ms ease-out`
-          el.style.left = LANES_X[newLane] + '%'
-          el.classList.add('dribble-diving')
-          setTimeout(() => { el.classList.remove('dribble-diving') }, 220)
-          refreshAlerts()
-        }
-      }, thisTravel * 0.6)
-    }
-
-    setTimeout(() => { entry.near = true; refreshAlerts() }, thisTravel * 0.5)
-    setTimeout(refreshReady, thisTravel * WIN_START + 5)
-    setTimeout(refreshReady, thisTravel * WIN_END + 5)
-    setTimeout(() => { resolveDefender(entry) }, thisTravel)
-    return entry
-  }
-
-  const spawnWave = () => {
-    const eng = engineRef.current
-    if (!eng.playing) return
-    const s = eng.streak, r = Math.random()
-    let gap = eng.gap
-    if (s >= 25 && r < (s >= 40 ? 0.24 : 0.18)) {
-      ;[0, 1, 2].forEach((lane) => spawnOne(lane, true))
-      showWallMsg('Mur de 3 ! DRIBBLE au bon moment')
-      gap = eng.gap + eng.travel * 0.55            // le temps de passer le mur
-    } else if (s >= 15 && r < (s >= 25 ? 0.6 : 0.42)) {
-      pickLanes(2).forEach((lane) => spawnOne(lane))
-    } else {
-      const lane = pickLanes(1)[0]
-      let variant: 'fast' | 'dive' | undefined
-      if (s >= 60) { const v = Math.random(); if (v < 0.35) variant = 'dive'; else if (v < 0.55) variant = 'fast' }
-      else if (s >= 40 && Math.random() < 0.2) variant = 'fast'
-      spawnOne(lane, false, variant)
-    }
-    if (s >= 80 && Math.random() < 0.45) gap *= 0.72  // combinaisons plus serrées
-    eng.spawnTimer = setTimeout(spawnWave, gap)
-  }
-
-  const loseBall = (entry: DefenderEntry) => {
-    entry.el.style.transition = 'none'
-    entry.el.style.transform = 'scale(1.35)'
-    showFlare('miss', entry.lane)
-    fieldRef.current?.classList.add('dribble-shake')
-    setTimeout(() => { fieldRef.current?.classList.remove('dribble-shake') }, 360)
-    playMiss()
-    vibrate(120)
-    endGame()
-  }
-
-  const resolveDefender = (entry: DefenderEntry) => {
-    const eng = engineRef.current
-    if (entry.resolved || !eng.playing) return
-    entry.resolved = true
-
-    // mur de 3 pas dribblé : contact, quel que soit le couloir
-    if (entry.wall || entry.lane === eng.playerLane) {
-      loseBall(entry)
-      return
-    }
-    const isLastMoment = eng.laneJustVacated === entry.lane && (Date.now() - eng.lastLaneChangeAt) < LAST_MOMENT_WINDOW
-    showFlare('dodge', entry.lane)
-    if (isLastMoment) playHola(); else playDodge()
-    entry.el.classList.remove('px-alert')
-    eng.activeDefenders = eng.activeDefenders.filter((d) => d !== entry)
-    if (isLastMoment) showNutmeg(entry)
-    else entry.el.remove()
-    addPoints(1)
-    refreshReady()
-  }
-
-  const onDirTap = (dir: number) => {
-    const eng = engineRef.current
-    if (!eng.playing) return
-    const next = Math.max(0, Math.min(2, eng.playerLane + dir))
-    if (next !== eng.playerLane) setPlayerLane(next)
-  }
-
-  // bande de contrôle : tiers gauche = ◀, milieu = 🌀, droite = ▶
+  // bande de contrôle : gauche (maintenir) = ◀, milieu = DRIBBLE, droite (maintenir) = ▶
   const flashButton = (btn: HTMLButtonElement | null) => {
     if (!btn) return
     btn.classList.remove('is-pressed')
@@ -571,72 +308,37 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     btn.classList.add('is-pressed')
     setTimeout(() => btn.classList.remove('is-pressed'), 120)
   }
-  const onControlsPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!engineRef.current.playing) return
+  const onControlsDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!playingRef.current) return
     e.preventDefault()
     const rect = e.currentTarget.getBoundingClientRect()
     const third = (e.clientX - rect.left) / rect.width
-    if (third < 1 / 3) { flashButton(leftBtnRef.current); onDirTap(-1) }
-    else if (third > 2 / 3) { flashButton(rightBtnRef.current); onDirTap(1) }
-    else { flashButton(dribbleBtnRef.current); onDribbleTap() }
+    if (third < 1 / 3) { leftBtnRef.current?.classList.add('is-held'); engine.current?.hold(-1) }
+    else if (third > 2 / 3) { rightBtnRef.current?.classList.add('is-held'); engine.current?.hold(1) }
+    else { flashButton(dribbleBtnRef.current); engine.current?.dribble() }
+  }
+  const onControlsUp = () => {
+    leftBtnRef.current?.classList.remove('is-held'); rightBtnRef.current?.classList.remove('is-held')
+    engine.current?.hold(0)
   }
 
   useEffect(() => {
+    const down = new Set<string>()
     const onKey = (e: KeyboardEvent) => {
-      if (!engineRef.current.playing) return
-      if (e.key === 'ArrowLeft') { e.preventDefault(); flashButton(leftBtnRef.current); onDirTap(-1) }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); flashButton(rightBtnRef.current); onDirTap(1) }
-      else if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); flashButton(dribbleBtnRef.current); onDribbleTap() }
+      if (!playingRef.current) return
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault()
+        if (e.type === 'keydown') down.add(e.key); else down.delete(e.key)
+        engine.current?.hold(down.has('ArrowLeft') ? -1 : down.has('ArrowRight') ? 1 : 0)
+      } else if ((e.key === ' ' || e.key === 'ArrowUp') && e.type === 'keydown') {
+        e.preventDefault(); flashButton(dribbleBtnRef.current); engine.current?.dribble()
+      }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey)
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey) }
   }, [])
 
-  // DRIBBLE : passe le défenseur (ou le mur de 3) qui arrive sur toi, dans
-  // une petite fenêtre. Trop tôt ou trop tard = ballon perdu. Rien devant = rien.
-  const onDribbleTap = () => {
-    const eng = engineRef.current
-    if (!eng.playing) return
-    const live = eng.activeDefenders.filter((d) => !d.resolved && progressOf(d) >= NEAR)
-    const wall = live.filter((d) => d.wall)
-    const targets = wall.length ? wall : live.filter((d) => d.lane === eng.playerLane)
-    if (!targets.length) {
-      const btn = dribbleBtnRef.current
-      if (btn) { btn.classList.remove('dribble-whiff'); void btn.offsetWidth; btn.classList.add('dribble-whiff') }
-      return
-    }
-    const p = progressOf(targets[0])
-    if (p < WIN_START || p > WIN_END) {
-      targets.forEach((d) => { d.resolved = true })
-      loseBall(targets.find((d) => d.lane === eng.playerLane) ?? targets[0])
-      return
-    }
-    targets.forEach((d) => { d.resolved = true; d.el.remove() })
-    eng.activeDefenders = eng.activeDefenders.filter((d) => targets.indexOf(d) === -1)
-    const runner = runnerRef.current
-    if (runner) {
-      runner.classList.remove('dribble-roulette')
-      void runner.offsetWidth
-      runner.classList.add('dribble-roulette')
-    }
-    showFlare('dodge', eng.playerLane)
-    showWallMsg(targets.length > 1 ? 'Dribble réussi ! +3' : 'Dribble ! +1', 'success')
-    playDribbleSuccess()
-    if (targets.length > 1) playCrowdRoar()
-    vibrate([25, 40, 25])
-    addPoints(targets.length)
-    refreshReady()
-  }
-
-  const clearDefenders = () => {
-    const eng = engineRef.current
-    eng.activeDefenders.forEach((d) => d.el.remove())
-    eng.activeDefenders = []
-  }
-
   const runCountdown = () => {
-    const eng = engineRef.current
     const steps = ['3', '2', '1', 'GO !']
     let i = 0
     const countdownEl = countdownRef.current
@@ -644,11 +346,10 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     const showStep = () => {
       if (i >= steps.length) {
         if (countdownEl) countdownEl.style.display = 'none'
-        eng.playing = true
-        setLaneButtonsEnabled(true)
-        runnerRef.current?.classList.add('dribble-running')
+        playingRef.current = true
+        setButtonsEnabled(true)
         startCrowdAmbience()
-        eng.spawnTimer = setTimeout(spawnWave, 400)
+        engine.current?.start()
         return
       }
       if (countdownEl) {
@@ -665,29 +366,16 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   }
 
   const startGame = () => {
-    // Empeche le swipe vertical accidentel de faire defiler la page
-    // pendant la partie (classe retiree dans endGame ci-dessous).
+    // empêche le défilement de la page pendant la partie
     wrapperRef.current?.classList.add('dribble-locked')
     ensureAudio()
-    const eng = engineRef.current
-    eng.playing = false
-    if (eng.spawnTimer) clearTimeout(eng.spawnTimer)
-    eng.streak = 0
-    eng.travel = START_TRAVEL
-    eng.gap = START_GAP
-    eng.laneJustVacated = null
-    eng.lastLaneChangeAt = 0
-    dribbleBtnRef.current?.classList.remove('dribble-ready')
+    playingRef.current = false
+    engine.current?.reset()
     if (streakElRef.current) streakElRef.current.textContent = '0'
-    updateDifficultyBar()
     if (idleMsgRef.current) idleMsgRef.current.style.display = 'none'
     if (endMsgRef.current) endMsgRef.current.style.display = 'none'
-    clearDefenders()
-    setPlayerLane(1)
-    setLaneButtonsEnabled(false)
-    runnerRef.current?.classList.remove('dribble-running')
+    setButtonsEnabled(false)
     runCountdown()
-
     // Préviens les autres membres du groupe (bandeau partagé avec les autres
     // mini-jeux, via App.tsx) que la partie démarre.
     if (user) {
@@ -696,26 +384,23 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     }
   }
 
-  const endGame = () => {
+  const endGame = (sc: number) => {
     wrapperRef.current?.classList.remove('dribble-locked')
-    const eng = engineRef.current
-    const finalStreak = Math.min(eng.streak, MAX_SCORE)
-    eng.playing = false
-    dribbleBtnRef.current?.classList.remove('dribble-ready')
-    if (eng.spawnTimer) clearTimeout(eng.spawnTimer)
-    setLaneButtonsEnabled(false)
-    runnerRef.current?.classList.remove('dribble-running')
+    const finalStreak = Math.min(sc, MAX_SCORE)
+    playingRef.current = false
+    setButtonsEnabled(false)
+    onControlsUp()
     stopCrowdAmbience()
+    playMiss(); vibrate(120)
+    fieldRef.current?.classList.add('dribble-shake')
+    setTimeout(() => { fieldRef.current?.classList.remove('dribble-shake') }, 360)
     if (endScoreRef.current) endScoreRef.current.textContent = String(finalStreak)
     if (endLabelRef.current) {
       endLabelRef.current.textContent = finalStreak <= 1
-        ? (finalStreak === 1 ? 'défenseur évité avant le contact.' : 'Aucun défenseur évité avant le contact.')
-        : 'défenseurs évités avant le contact.'
+        ? (finalStreak === 1 ? 'défenseur passé avant de perdre le ballon.' : 'Aucun défenseur passé.')
+        : 'défenseurs passés avant de perdre le ballon.'
     }
-    setTimeout(() => {
-      clearDefenders()
-      if (endMsgRef.current) endMsgRef.current.style.display = 'flex'
-    }, 500)
+    setTimeout(() => { if (endMsgRef.current) endMsgRef.current.style.display = 'flex' }, 700)
 
     if (user) {
       sendOnWizzChannel('playing', { action: 'stop', profileId: user.id })
@@ -733,6 +418,9 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
       }
     }
   }
+  // le moteur appelle toujours la dernière version (user, ligue… à jour)
+  const endGameRef = useRef(endGame)
+  endGameRef.current = endGame
 
   return (
     <div className="predictions-screen dribble-page dribble-px" ref={wrapperRef} style={dribbleSpriteVars() as CSSProperties}>
@@ -741,19 +429,19 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         <h2>Dribble — {groupName}</h2>
       </div>
 
-      <div className={`dribble-app`}>
+      <div className="dribble-app">
         <button type="button" className="dribble-rules-toggle" onClick={() => setShowRules((v) => !v)}>
           {showRules ? 'Masquer les règles ▲' : 'Voir les règles ▼'}
         </button>
         {showRules && (
           <p className="dribble-intro">
-            Ton joueur remonte le terrain sans fin : va le plus loin possible sans perdre le ballon. ◀ / ▶ pour changer de couloir, DRIBBLE pour passer le défenseur qui arrive sur toi — mais seulement au dernier moment, quand le bouton s'allume : trop tôt ou trop tard, ballon perdu. Chaque défenseur passé = 1 point. Ça se corse au fil des paliers : 2 défenseurs à 15, murs de 3 (dribble obligatoire) à 25, vitesse supérieure à 40, défenseurs qui changent de couloir à 60, vagues serrées à 80. Ton meilleur score de la semaine compte pour le classement.
+            Ton joueur remonte le terrain sans fin : va le plus loin possible sans perdre le ballon. Glisse le doigt sur le terrain (ou garde ◀ / ▶ appuyé) pour te déplacer librement. Les défenseurs montent te presser et essaient de te couper la route : feinte d'un côté, pars de l'autre. DRIBBLE fait un crochet qui passe à travers un défenseur, mais il coûte de l'endurance, qui se recharge petit à petit (jauge sous les boutons). Contact = ballon perdu. Chaque défenseur passé = 1 point. Ça se corse par paliers : 2 défenseurs à 10, ils te prennent à deux à 25, ils lisent tes feintes à 45, mode légende à 70. Ton meilleur score de la semaine compte pour le classement.
           </p>
         )}
 
         <div className="px-scorebar">
           <svg className="px-laurel" viewBox="0 0 22 34" aria-hidden="true"><path fill="currentColor" d="M15 33C7 29 3 22 4 12l2 0c0 9 3 15 10 19zM3 9c-2-3-1-6 1-8 2 3 1 6-1 8zm1 7c-3-1-4-4-4-7 3 1 4 4 4 7zm2 7c-3 0-5-3-6-6 3 0 5 3 6 6zm4 6c-3 1-6-1-7-4 3-1 6 1 7 4zM8 13c-1-3 0-6 3-8 1 3 0 6-3 8zm1 7c-1-3 1-6 3-7 1 3-1 6-3 7z"/></svg>
-          <div className="px-score-lbl">Série<br />en cours</div>
+          <div className="px-score-lbl">Défenseurs<br />passés</div>
           <span className="px-sep" />
           <b className="px-score" ref={streakElRef as any}>0</b>
           <svg className="px-laurel r" viewBox="0 0 22 34" aria-hidden="true"><path fill="currentColor" d="M15 33C7 29 3 22 4 12l2 0c0 9 3 15 10 19zM3 9c-2-3-1-6 1-8 2 3 1 6-1 8zm1 7c-3-1-4-4-4-7 3 1 4 4 4 7zm2 7c-3 0-5-3-6-6 3 0 5 3 6 6zm4 6c-3 1-6-1-7-4 3-1 6 1 7 4zM8 13c-1-3 0-6 3-8 1 3 0 6-3 8zm1 7c-1-3 1-6 3-7 1 3-1 6-3 7z"/></svg>
@@ -761,35 +449,26 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
 
         <div className="dribble-stage">
           <div className="dribble-field" ref={fieldRef}>
-            <div className="px-lines"><i className="px-corner tl" /><i className="px-corner tr" /><i className="px-corner bl" /><i className="px-corner br" /></div>
-            <div className="dribble-goal-strip" />
-            <div className="dribble-lane-line dribble-lane-1" />
-            <div className="dribble-lane-line dribble-lane-2" />
-            <div className="dribble-flare" ref={flareRef} />
+            <canvas className="px-canvas" ref={canvasRef}
+              onPointerDown={(e) => onFieldPointer(e, true)} onPointerMove={(e) => { if (e.buttons || e.pointerType === 'touch') onFieldPointer(e, true) }}
+              onPointerUp={(e) => onFieldPointer(e, false)} onPointerCancel={(e) => onFieldPointer(e, false)} />
             <div className="dribble-wall-msg" ref={wallMsgRef} />
             <div className="dribble-countdown" ref={countdownRef} />
-            <div className="dribble-runner" ref={runnerRef} style={{ left: '50%' }}>
-              <i className="px-swoosh" /><i className="px-speed" /><i className="px-sprite" /><i className="px-ball" />
-            </div>
-
             <div className="dribble-idle-msg" ref={idleMsgRef}>
               <span style={{ fontSize: 28 }}>⚽</span>
-              <p className="dribble-sub">Prêt à percer la défense ?</p>
+              <p className="dribble-sub">Glisse le doigt pour slalomer entre les défenseurs. Dribble quand ça bouche !</p>
               <button className="dribble-cta" onPointerDown={startGame}>Commencer</button>
             </div>
             <div className="dribble-end-msg" ref={endMsgRef} style={{ display: 'none' }}>
               <span className="dribble-big" ref={endScoreRef}>0</span>
-              <p className="dribble-sub" ref={endLabelRef}>défenseurs évités avant le contact.</p>
+              <p className="dribble-sub" ref={endLabelRef}>défenseurs passés avant de perdre le ballon.</p>
               <button className="dribble-cta" onPointerDown={startGame}>Rejouer</button>
             </div>
           </div>
         </div>
 
-        {/* Toute la bande est une seule zone tactile coupée en 3 tiers : un
-            doigt qui tombe entre deux boutons ou sur un bord compte quand
-            même (avant, les espaces entre boutons étaient des zones mortes et
-            pointerdown n'a pas la correction de visée d'Android). */}
-        <div className="dribble-lanes-ctl" onPointerDown={onControlsPointerDown}>
+        {/* bande tactile coupée en 3 : ◀ (maintenir) · DRIBBLE · ▶ (maintenir) */}
+        <div className="dribble-lanes-ctl" onPointerDown={onControlsDown} onPointerUp={onControlsUp} onPointerCancel={onControlsUp} onPointerLeave={onControlsUp}>
           <button ref={leftBtnRef} className="dribble-lane-btn" disabled tabIndex={-1}>◀</button>
           <button ref={dribbleBtnRef} className="dribble-lane-btn dribble-roulette-btn" disabled tabIndex={-1}>
             <svg className="px-spiral-svg" viewBox="0 0 32 32" aria-hidden="true"><path fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" d="M16 16.5c0-1.4 1.6-1.9 2.6-1 1.5 1.3.6 4-1.6 4.4-3 .6-5.2-2.4-4.4-5.2 1-3.6 5.6-4.7 8.4-2.6 3.6 2.6 3.2 8.2-.4 10.6-4.4 2.9-10.6.9-12.4-4-2-5.6 1.8-11.6 7.6-12.4"/></svg>
@@ -799,8 +478,8 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         </div>
 
         <div className="dribble-difficulty">
-          <span><svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true"><path fill="#e8dcc0" d="M11 0h3v3h-3zM7 3h6v2h2v2h3v2h-4V7h-1v3l2 2v2h-2v-1l-3-3-2 4H4l3-5V5H5v2H3V4h4z"/><path fill="#e8dcc0" opacity=".6" d="M0 6h3v1H0zm1 3h3v1H1z"/></svg>Vitesse de course</span>
-          <div className="dribble-bar"><i ref={diffBarRef as any} style={{ width: '8%' }} /></div>
+          <span>⚡ Endurance</span>
+          <div className="dribble-bar px-stamina"><i ref={staminaBarRef as any} style={{ width: '100%' }} /></div>
         </div>
       </div>
 

@@ -13,3 +13,12 @@ export function dribbleSpriteVars(): Record<string, string> {
     '--px-ball': `url(${ball})`,
   }
 }
+
+// images chargées pour le dessin sur canvas
+let imgCache: { runner: HTMLImageElement; def: HTMLImageElement; ball: HTMLImageElement } | null = null
+export function dribbleImages() {
+  if (imgCache) return imgCache
+  const load = (src: string) => { const im = new Image(); im.src = src; return im }
+  imgCache = { runner: load(runner), def: load(defender), ball: load(ball) }
+  return imgCache
+}
