@@ -556,27 +556,17 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     const stride = Math.floor(scroll / 15) % 4
     let f = stride
     let ball = true
-    // vers la gauche : le joueur de dos qui court (mêmes images que tout droit), penché à gauche,
-    // ballon au pied gauche — le maillot et le 10 restent bien en place
-    let left = false
-    if (spinT > 0) { if (hookDir > 0) { f = 4 + (spinT < SPIN_TIME / 2 ? 1 : 0); ball = false } else left = true }
+    // vers la gauche = miroir exact de la droite (jambes, corps, ballon), numéro remis dans l'ordre
+    if (spinT > 0) { f = (hookDir > 0 ? 4 : 6) + (spinT < SPIN_TIME / 2 ? 1 : 0); ball = false }
     else if (me.vx > 130) { f = 4 + (stride % 2); ball = false }
-    else if (me.vx < -130) left = true
+    else if (me.vx < -130) { f = 6 + (stride % 2); ball = false }
     g.save()
-    if (left && !ko) {
-      g.translate(me.x, me.y); g.rotate(-0.16); g.translate(-me.x, -me.y)
-      ball = false
-    }
     if (fallen > 0) {                      // il perd l'équilibre et tombe
       g.translate(me.x, me.y); g.rotate(ko!.fall * fallen * 1.25); g.translate(-me.x, -me.y)
       f = 0; ball = false
     }
     g.drawImage(imgs.runner, f * RUN_FW, 0, RUN_FW, RUN_FH, me.x - RUN_FW * SPR / 2, me.y - RUN_FH * SPR + 12, RUN_FW * SPR, RUN_FH * SPR)
     g.restore()
-    if (left && !ko) {
-      const bob = Math.abs(Math.sin(time * 9)) * 3
-      g.drawImage(imgs.ball, me.x - 36, me.y - 40 - bob, 20, 18)
-    }
     if (ball && !ko) {
       // ballon devant le joueur (comme avant : petit rebond)
       const bob = Math.abs(Math.sin(time * 9)) * 4
