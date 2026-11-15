@@ -65,7 +65,6 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   const me = { x: W / 2, y: 0, vx: 0, vy: 0, tx: W / 2, ty: 0 }
   let defs: Def[] = []
   let holdDir = 0          // -1 / +1 tant qu'on garde ◀ ▶ appuyé
-  let dragging = false
 
   const lv = () => levelFor(score)
   const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
@@ -74,7 +73,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   function reset() {
     score = 0; stamina = 100; dribbleT = 0; scroll = 0; spawnT = 0.6; time = 0; lost = null
     me.x = W / 2; me.y = H * 0.78; me.vx = 0; me.vy = 0; me.tx = me.x; me.ty = me.y
-    defs = []; holdDir = 0; dragging = false
+    defs = []; holdDir = 0
     cb.onStamina(stamina); cb.onSpeed(0)
   }
 
@@ -97,8 +96,9 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     // ---- joueur : suit le doigt (ou ◀ ▶) avec de l'élan
     if (holdDir) me.tx = clamp(me.tx + holdDir * 300 * dt, 24, W - 24)
     const pv = dribbleT > 0 ? 330 : 270
-    const ax = clamp((me.tx - me.x) * 9 - me.vx * 1.2, -1800, 1800)
-    const ay = clamp((me.ty - me.y) * 9 - me.vy * 1.2, -1800, 1800)
+    // ressort amorti (pas de dépassement puis retour en arrière)
+    const ax = clamp((me.tx - me.x) * 16 - me.vx * 8, -2400, 2400)
+    const ay = clamp((me.ty - me.y) * 16 - me.vy * 8, -2400, 2400)
     me.vx = clamp(me.vx + ax * dt, -pv, pv); me.vy = clamp(me.vy + ay * dt, -pv * 0.7, pv * 0.7)
     me.x = clamp(me.x + me.vx * dt, 22, W - 22); me.y = clamp(me.y + me.vy * dt, yMin(), yMax())
     // ---- défilement (le joueur avance)
@@ -247,12 +247,16 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     // doigt sur le terrain : le joueur va vers le doigt (un peu au-dessus, pour le voir)
     pointer(xPx: number, yPx: number, down: boolean) {
       const r = canvas.getBoundingClientRect()
-      if (!down) { dragging = false; return }
-      dragging = true
+      if (!down) return
       me.tx = clamp((xPx - r.left) / r.width * W, 24, W - 24)
       me.ty = clamp((yPx - r.top) / r.height * H - 40, yMin(), yMax())
     },
-    hold(dir: number) { holdDir = dir; if (!dir && !dragging) me.tx = me.x + me.vx * 0.12 },
+    // ◀ ▶ : un appui = un pas franc sur le côté, garder appuyé = continuer à glisser.
+    // Au relâcher le joueur RESTE où il va (avant, il revenait en arrière).
+    hold(dir: number) {
+      if (dir && dir !== holdDir) me.tx = clamp((dir > 0 ? Math.max(me.tx, me.x) : Math.min(me.tx, me.x)) + dir * 70, 24, W - 24)
+      holdDir = dir
+    },
     dribble(): boolean {
       if (!playing || dribbleT > 0) return false
       if (stamina < STAMINA_COST) { cb.onDribble(false); return false }
