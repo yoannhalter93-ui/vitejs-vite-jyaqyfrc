@@ -1,6 +1,6 @@
 // Moteur du Dribble (mode infini, déplacement libre au doigt).
 // Le terrain défile, ton joueur remonte. Les défenseurs ont chacun un
-// comportement (statique, latéral, change de côté, charge, feinte puis tacle,
+// comportement (marqueur qui te suit, latéral, change de côté, charge, feinte puis tacle,
 // paire qui ferme deux couloirs). Autour de chaque défenseur, une ZONE DE DUEL :
 // DRIBBLE dedans au bon moment = PARFAIT +2 ou BIEN +1. Trop tôt : il se
 // replace (et l'endurance est dépensée). Trop tard : il prend le ballon.
@@ -28,7 +28,7 @@ type Def = {
   beaten: boolean; dribbled: boolean; spin: number
   group: number; slot: number
 }
-type Pair = { id: number; open: number; swapAt: number; swapped: boolean }
+type Pair = { id: number; open: number; swaps: number }
 type Dust = { x: number; y: number; vx: number; vy: number; life: number; c: string }
 type Txt = { s: string; x: number; y: number; life: number; c: string; big: boolean }
 
@@ -123,7 +123,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   function add(kind: Kind, y: number) {
     if (kind === 'pair') {
       const open = Math.floor(Math.random() * 3), id = ++groupId
-      pairs.push({ id, open, swapAt: level >= 5 ? 160 + Math.random() * 80 : -1, swapped: false })
+      pairs.push({ id, open, swaps: 0 })
       let slot = 0
       for (let i = 0; i < 3; i++) if (i !== open) { const d = mk('pair', thirds[i], y); d.group = id; d.slot = slot++; defs.push(d) }
       return
@@ -177,16 +177,18 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     for (const p of pairs) {
       const members = defs.filter((d) => d.group === p.id)
       if (!members.length) continue
-      if (p.swapAt > 0 && !p.swapped && me.y - members[0].y < p.swapAt) {
-        p.swapped = true
-        const others = [0, 1, 2].filter((i) => i !== p.open)
-        p.open = others[Math.floor(Math.random() * 2)]
-        members.forEach((d) => { d.alerted = 0.5 })
+      // ils ferment le couloir où tu es + un voisin : le trou est toujours loin de toi
+      const mine = me.x < W / 3 ? 0 : me.x < W * 2 / 3 ? 1 : 2
+      if (p.open === mine && me.y - members[0].y > 60 && p.swaps < (level >= 5 ? 2 : 1)) {
+        p.swaps++
+        p.open = mine === 1 ? (Math.random() < 0.5 ? 0 : 2) : mine === 0 ? 2 : 0
+        members.forEach((d) => { d.alerted = 0.35 })
       }
       const closed = [0, 1, 2].filter((i) => i !== p.open)
       members.forEach((d) => { d.tx = thirds[closed[d.slot]] })
     }
     // ---- défenseurs
+    const boost = 1 + 0.08 * (level - 1)      // un peu plus vifs à chaque niveau
     for (const d of defs) {
       d.t += dt
       if (d.alerted > 0) d.alerted -= dt
@@ -196,12 +198,15 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
         let vmax = 120, target = d.tx
         switch (d.kind) {
           case 'static':
-            // reste planté, mais fait un petit pas vers toi s'il est au contact
-            target = gap < 90 && Math.abs(me.x - d.x) < 55 ? me.x : d.baseX
-            vmax = 90
+            // le « marqueur » : se met toujours entre toi et le chemin (avec un temps de réaction)
+            d.react -= dt
+            if (d.react <= 0) { d.react = Math.max(0.16, 0.44 - level * 0.05); d.tx = me.x + me.vx * (level >= 3 ? 0.15 : 0) }
+            target = d.tx; vmax = level === 1 ? 95 : level === 2 ? 115 : 125 * boost; vy = S + 25
             break
           case 'lateral':
-            target = d.baseX + Math.sin(d.t * d.freq) * d.amp; vmax = 200
+            // glisse de gauche à droite… puis te prend au marquage quand tu approches
+            if (gap < 170) { d.react -= dt; if (d.react <= 0) { d.react = 0.25; d.tx = me.x } target = d.tx; vmax = 190 * boost }
+            else { target = d.baseX + Math.sin(d.t * d.freq) * d.amp; vmax = 200 }
             break
           case 'switch':
             // part d'un côté puis change de ligne pour se mettre devant toi
@@ -220,7 +225,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
             else { if (!d.lunging) { d.lunging = true; d.alerted = 0.4 } target = me.x; vmax = 330; vy = S + 40 }
             break
           case 'pair':
-            target = d.tx; vmax = 180
+            target = d.tx; vmax = 170 * boost; vy = S + 15
             break
         }
         // au contact, les défenseurs « collants » ferment l'espace : il faut dribbler

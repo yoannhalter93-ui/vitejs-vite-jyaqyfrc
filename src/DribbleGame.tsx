@@ -441,7 +441,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         </button>
         {showRules && (
           <p className="dribble-intro">
-            Ton joueur remonte le terrain sans fin : va le plus loin possible sans perdre le ballon. Glisse le doigt (ou ◀ / ▶) pour te déplacer. Chaque défenseur a sa façon de défendre : planté, qui glisse de côté, qui change de ligne, qui charge, qui feinte puis tacle, ou deux qui ferment deux couloirs. Autour de chaque défenseur, un cercle au sol = la zone de duel : appuie sur DRIBBLE quand le cercle devient doré → PARFAIT +2 ; un peu avant (cercle blanc) → BIEN +1. Trop tôt, il se replace devant toi ; trop tard, il prend le ballon. L'éviter sans dribbler = +1. Le dribble coûte de l'endurance (jauge sous les boutons). Tous les 10 points : niveau suivant, un peu plus vite, avec de nouveaux défenseurs. Ton meilleur score de la semaine compte pour le classement.
+            Ton joueur remonte le terrain sans fin : va le plus loin possible sans perdre le ballon. Glisse le doigt (ou ◀ / ▶) pour te déplacer. Chaque défenseur a sa façon de défendre : il te marque et se met devant toi, glisse de côté, qui change de ligne, qui charge, qui feinte puis tacle, ou deux qui ferment deux couloirs. Autour de chaque défenseur, un cercle au sol = la zone de duel : appuie sur DRIBBLE quand le cercle devient doré → PARFAIT +2 ; un peu avant (cercle blanc) → BIEN +1. Trop tôt, il se replace devant toi ; trop tard, il prend le ballon. L'éviter sans dribbler = +1. Le dribble coûte de l'endurance (jauge sous les boutons). Tous les 10 points : niveau suivant, un peu plus vite, avec de nouveaux défenseurs. Ton meilleur score de la semaine compte pour le classement.
           </p>
         )}
 
