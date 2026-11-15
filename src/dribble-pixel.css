@@ -18,7 +18,7 @@
   color: #e8dcc0; font: 600 13px 'Oswald', sans-serif; letter-spacing: .5px;
 }
 
-/* ---- bandeau crème : série + combo ---- */
+/* ---- bandeau crème : série en cours ---- */
 .dribble-px .px-scorebar {
   display: flex; align-items: center; gap: 8px;
   background: linear-gradient(180deg, #faf3df, #ece0c1);
@@ -34,16 +34,6 @@
 .dribble-px .px-score { flex: 1; text-align: center; font: 700 40px/1 'Oswald', 'Arial Narrow', sans-serif; font-variant-numeric: tabular-nums; color: #15130f; }
 .dribble-px .px-score.bump { animation: px-bump .25s ease; }
 @keyframes px-bump { 40% { transform: scale(1.18) } }
-.dribble-px .px-combo {
-  flex: none; display: flex; align-items: center; gap: 3px; padding: 3px 6px; border-radius: 6px;
-  background: linear-gradient(180deg, #a3271f, #6f1813); border: 2px solid var(--px-gold);
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 2px 0 #3e0d0a;
-}
-.dribble-px .px-combo .px-laurel { width: 12px; height: 26px; color: var(--px-gold); }
-.dribble-px .px-combo-txt { display: flex; flex-direction: column; align-items: center; color: #f5d98b; font: 700 10px/1 'Oswald', sans-serif; letter-spacing: 1.2px; }
-.dribble-px .px-combo-txt b { font-size: 24px; letter-spacing: 0; line-height: 1; margin-top: 1px; }
-.dribble-px .px-combo.glow { animation: px-glow .6s ease; }
-@keyframes px-glow { 0% { box-shadow: 0 0 0 0 rgba(255,214,90,.95), 0 2px 0 #3e0d0a; transform: scale(1.12) } 100% { box-shadow: 0 0 24px 8px rgba(255,214,90,0), 0 2px 0 #3e0d0a; transform: scale(1) } }
 
 /* ---- terrain : pelouse rayée sombre, texture, lignes blanches ---- */
 .dribble-px .dribble-stage { background: #0a2414; border: 0; border-radius: 10px; padding: 0; box-shadow: 0 0 0 2px #0a2414; }

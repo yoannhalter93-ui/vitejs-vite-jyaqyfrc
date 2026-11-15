@@ -123,7 +123,6 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   const endMsgRef = useRef<HTMLDivElement>(null)
   const endScoreRef = useRef<HTMLSpanElement>(null)
   const endLabelRef = useRef<HTMLParagraphElement>(null)
-  const comboElRef = useRef<HTMLDivElement>(null)
   const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const streakElRef = useRef<HTMLElement>(null)
   const diffBarRef = useRef<HTMLElement>(null)
@@ -339,16 +338,6 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     eng.activeDefenders.forEach((d) => d.el.classList.toggle('px-alert', !!d.near && !d.resolved && d.lane === eng.playerLane))
   }
 
-  // combo (visuel) : petits ponts et dribbles réussis d'affilée dans la partie
-  const comboRef = useRef(0)
-  const setCombo = (n: number) => {
-    comboRef.current = n
-    const el = comboElRef.current
-    if (!el) return
-    const b = el.querySelector('b')
-    if (b) b.textContent = '×' + (n + 1)
-    if (n > 0) { el.classList.remove('glow'); void el.offsetWidth; el.classList.add('glow') }
-  }
   const bumpScore = () => {
     const el = streakElRef.current
     if (!el) return
@@ -559,7 +548,6 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
       eng.streak += 1
       if (streakElRef.current) streakElRef.current.textContent = String(eng.streak)
       bumpScore()
-      if (isLastMoment) setCombo(comboRef.current + 1)
       entry.el.classList.remove('px-alert')
       if (eng.streak <= SPEED_CAP_STREAK) {
         eng.travel = Math.max(MIN_TRAVEL, eng.travel * DECAY)
@@ -637,7 +625,6 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     eng.streak += 3
     if (streakElRef.current) streakElRef.current.textContent = String(eng.streak)
     bumpScore()
-    setCombo(comboRef.current + 1)
     if (eng.streak <= SPEED_CAP_STREAK) {
       eng.travel = Math.max(MIN_TRAVEL, eng.travel * DECAY)
       eng.gap = Math.max(MIN_GAP, eng.gap * DECAY)
@@ -734,7 +721,6 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     eng.lastLaneChangeAt = 0
     dribbleBtnRef.current?.classList.remove('dribble-ready')
     if (streakElRef.current) streakElRef.current.textContent = '0'
-    setCombo(0)
     updateDifficultyBar()
     if (idleMsgRef.current) idleMsgRef.current.style.display = 'none'
     if (endMsgRef.current) endMsgRef.current.style.display = 'none'
@@ -813,8 +799,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
           <div className="px-score-lbl">Série<br />en cours</div>
           <span className="px-sep" />
           <b className="px-score" ref={streakElRef as any}>0</b>
-          <span className="px-sep" />
-          <div className="px-combo" ref={comboElRef}><svg className="px-laurel" viewBox="0 0 22 34" aria-hidden="true"><path fill="currentColor" d="M15 33C7 29 3 22 4 12l2 0c0 9 3 15 10 19zM3 9c-2-3-1-6 1-8 2 3 1 6-1 8zm1 7c-3-1-4-4-4-7 3 1 4 4 4 7zm2 7c-3 0-5-3-6-6 3 0 5 3 6 6zm4 6c-3 1-6-1-7-4 3-1 6 1 7 4zM8 13c-1-3 0-6 3-8 1 3 0 6-3 8zm1 7c-1-3 1-6 3-7 1 3-1 6-3 7z"/></svg><span className="px-combo-txt">COMBO<b>×1</b></span><svg className="px-laurel r" viewBox="0 0 22 34" aria-hidden="true"><path fill="currentColor" d="M15 33C7 29 3 22 4 12l2 0c0 9 3 15 10 19zM3 9c-2-3-1-6 1-8 2 3 1 6-1 8zm1 7c-3-1-4-4-4-7 3 1 4 4 4 7zm2 7c-3 0-5-3-6-6 3 0 5 3 6 6zm4 6c-3 1-6-1-7-4 3-1 6 1 7 4zM8 13c-1-3 0-6 3-8 1 3 0 6-3 8zm1 7c-1-3 1-6 3-7 1 3-1 6-3 7z"/></svg></div>
+          <svg className="px-laurel r" viewBox="0 0 22 34" aria-hidden="true"><path fill="currentColor" d="M15 33C7 29 3 22 4 12l2 0c0 9 3 15 10 19zM3 9c-2-3-1-6 1-8 2 3 1 6-1 8zm1 7c-3-1-4-4-4-7 3 1 4 4 4 7zm2 7c-3 0-5-3-6-6 3 0 5 3 6 6zm4 6c-3 1-6-1-7-4 3-1 6 1 7 4zM8 13c-1-3 0-6 3-8 1 3 0 6-3 8zm1 7c-1-3 1-6 3-7 1 3-1 6-3 7z"/></svg>
         </div>
 
         <div className="dribble-stage">
