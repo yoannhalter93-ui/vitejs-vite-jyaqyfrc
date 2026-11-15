@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from './supabaseClient'
 import { previousGameWeek } from './minigameWeeks'
 import { useAuth } from './AuthContext'
@@ -64,6 +65,8 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
 
   const audio = useRef<{ audioCtx: AudioContext | null; crowdNodes: { src: AudioBufferSourceNode; gain: GainNode } | null }>({ audioCtx: null, crowdNodes: null })
   const engine = useRef<ReturnType<typeof createDribbleEngine> | null>(null)
+  const [fs, setFs] = useState(false)           // plein écran pendant qu'on joue
+  const pendingStart = useRef(false)
   const playingRef = useRef(false)
 
   const [myPseudo, setMyPseudo] = useState<string | null>(null)
@@ -290,13 +293,15 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     })
     engine.current = e
     e.reset()
+    if (pendingStart.current) { pendingStart.current = false; beginGame() }
     // les images arrivent après le premier dessin
     Object.values(imgs).forEach((im) => { if (!im.complete) im.addEventListener('load', () => e.redraw(), { once: true }) })
     const onResize = () => e.resize()
     window.addEventListener('resize', onResize)
     return () => { e.stop(); window.removeEventListener('resize', onResize) }
+    // le canvas change quand on passe en plein écran : on recrée le moteur
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fs])
 
   // doigt sur le terrain : le joueur suit le doigt
   const onFieldPointer = (e: ReactPointerEvent<HTMLCanvasElement>, down: boolean) => {
@@ -371,7 +376,22 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     showStep()
   }
 
+  // « Commencer » : le jeu passe en plein écran, puis la partie démarre
   const startGame = () => {
+    if (!fs) { pendingStart.current = true; setFs(true); return }
+    beginGame()
+  }
+  // croix en haut à droite : on sort du plein écran (une partie en cours compte comme terminée)
+  const quitFullscreen = () => {
+    if (playingRef.current && engine.current) {
+      const sc = engine.current.score()
+      engine.current.stop()
+      endGameRef.current(sc, false)
+    }
+    setFs(false)
+  }
+
+  const beginGame = () => {
     // empêche le défilement de la page pendant la partie
     wrapperRef.current?.classList.add('dribble-locked')
     ensureAudio()
@@ -390,7 +410,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     }
   }
 
-  const endGame = (sc: number) => {
+  const endGame = (sc: number, showEnd = true) => {
     wrapperRef.current?.classList.remove('dribble-locked')
     const finalStreak = Math.min(sc, MAX_SCORE)
     playingRef.current = false
@@ -406,7 +426,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         ? (finalStreak === 1 ? 'point avant de perdre le ballon.' : 'Aucun point cette fois.')
         : 'points avant de perdre le ballon.'
     }
-    setTimeout(() => { if (endMsgRef.current) endMsgRef.current.style.display = 'flex' }, 700)
+    if (showEnd) setTimeout(() => { if (endMsgRef.current) endMsgRef.current.style.display = 'flex' }, 700)
 
     if (user) {
       sendOnWizzChannel('playing', { action: 'stop', profileId: user.id })
@@ -428,14 +448,8 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   const endGameRef = useRef(endGame)
   endGameRef.current = endGame
 
-  return (
-    <div className="predictions-screen dribble-page dribble-px" ref={wrapperRef} style={dribbleSpriteVars() as CSSProperties}>
-      <div className="predictions-header">
-        <button className="predictions-back" onClick={onExit}>← Accueil</button>
-        <h2>Dribble — {groupName}</h2>
-      </div>
-
-      <div className="dribble-app">
+  const rulesBlock = (
+      <div className="dribble-app px-rules">
         <button type="button" className="dribble-rules-toggle" onClick={() => setShowRules((v) => !v)}>
           {showRules ? 'Masquer les règles ▲' : 'Voir les règles ▼'}
         </button>
@@ -445,12 +459,17 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
           </p>
         )}
 
+      </div>
+  )
+  const gameBlock = (
+      <div className="dribble-app">
         <div className="px-scorebar">
           <svg className="px-laurel" viewBox="0 0 22 34" aria-hidden="true"><path fill="currentColor" d="M15 33C7 29 3 22 4 12l2 0c0 9 3 15 10 19zM3 9c-2-3-1-6 1-8 2 3 1 6-1 8zm1 7c-3-1-4-4-4-7 3 1 4 4 4 7zm2 7c-3 0-5-3-6-6 3 0 5 3 6 6zm4 6c-3 1-6-1-7-4 3-1 6 1 7 4zM8 13c-1-3 0-6 3-8 1 3 0 6-3 8zm1 7c-1-3 1-6 3-7 1 3-1 6-3 7z"/></svg>
           <div className="px-score-lbl">Score</div>
           <span className="px-sep" />
           <b className="px-score" ref={streakElRef as any}>0</b>
           <svg className="px-laurel r" viewBox="0 0 22 34" aria-hidden="true"><path fill="currentColor" d="M15 33C7 29 3 22 4 12l2 0c0 9 3 15 10 19zM3 9c-2-3-1-6 1-8 2 3 1 6-1 8zm1 7c-3-1-4-4-4-7 3 1 4 4 4 7zm2 7c-3 0-5-3-6-6 3 0 5 3 6 6zm4 6c-3 1-6-1-7-4 3-1 6 1 7 4zM8 13c-1-3 0-6 3-8 1 3 0 6-3 8zm1 7c-1-3 1-6 3-7 1 3-1 6-3 7z"/></svg>
+          {fs && <button className="px-fs-close" aria-label="Quitter" onClick={quitFullscreen}>✕</button>}
         </div>
 
         <div className="dribble-stage">
@@ -488,6 +507,20 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
           <div className="dribble-bar px-stamina"><i ref={staminaBarRef as any} style={{ width: '100%' }} /></div>
         </div>
       </div>
+  )
+
+  return (
+    <div className="predictions-screen dribble-page dribble-px" ref={wrapperRef} style={dribbleSpriteVars() as CSSProperties}>
+      <div className="predictions-header">
+        <button className="predictions-back" onClick={onExit}>← Accueil</button>
+        <h2>Dribble — {groupName}</h2>
+      </div>
+
+      {!fs && rulesBlock}
+      {fs ? createPortal(
+        <div className="dribble-page dribble-px px-fs" style={dribbleSpriteVars() as CSSProperties}>{gameBlock}</div>,
+        document.body,
+      ) : gameBlock}
 
       {(allTimeBest || lastWeekBest || scores.length > 0) && (
         <button type="button" className="dribble-rules-toggle" onClick={() => setShowBoard((v) => !v)}>

@@ -504,6 +504,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     start() { playing = true; last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(loop) },
     stop() { playing = false; cancelAnimationFrame(raf) },
     isPlaying: () => playing,
+    score: () => score,
     resize() { resize(); draw() },
     redraw: draw,
     pointer(xPx: number, yPx: number, down: boolean) {

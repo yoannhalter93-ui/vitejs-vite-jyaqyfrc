@@ -170,3 +170,16 @@
 .dribble-px .dribble-lanes-ctl .dribble-lane-btn.is-held { transform: translateY(3px); background: linear-gradient(180deg, #379152, #22663a); }
 .dribble-px .dribble-roulette-btn.px-tired { filter: grayscale(.85) brightness(.75); }
 .dribble-px .px-stamina i { transition: width .15s linear; background: linear-gradient(180deg, #7be08f, #2f9a4c); }
+
+/* ---- plein écran pendant qu'on joue : tout l'écran du téléphone, croix en haut à droite ---- */
+.dribble-px.px-fs { position: fixed; inset: 0; z-index: 3000; background: #0a2414; margin: 0;
+  padding: calc(env(safe-area-inset-top) + 8px) 8px calc(env(safe-area-inset-bottom) + 8px);
+  display: flex; flex-direction: column; overscroll-behavior: contain; touch-action: none; }
+.dribble-px.px-fs .dribble-app { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.dribble-px.px-fs .dribble-stage { flex: 1; min-height: 0; }
+.dribble-px.px-fs .px-scorebar { padding-right: 6px; }
+.dribble-px .px-fs-close { flex: none; width: 34px; height: 34px; margin-left: 4px; border-radius: 50%; padding: 0;
+  border: 2px solid #c9a24a; background: #15130f; color: #f4ecd4; font-size: 16px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.dribble-px.px-fs .px-score { font-size: 34px; }
+.dribble-px .dribble-app.px-rules { flex: none; margin-bottom: 10px; }
