@@ -567,8 +567,8 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     // vers la gauche : images de ta vidéo sans le ballon, le ballon est dessiné au pied gauche
     let leftBall = false
     if (spinT > 0) { f = (hookDir > 0 ? 4 : 6) + (spinT < SPIN_TIME / 2 ? 1 : 0); ball = false; leftBall = hookDir < 0 }
-    else if (me.vx > 35) { f = 4 + (stride % 2); ball = false }
-    else if (me.vx < -35) { f = 6 + (stride % 2); ball = false; leftBall = true }
+    else if (me.vx > 90) { f = 4 + (stride % 2); ball = false }
+    else if (me.vx < -90) { f = 6 + (stride % 2); ball = false; leftBall = true }
     g.save()
     if (fallen > 0) {                      // il perd l'équilibre et tombe
       g.translate(me.x, me.y); g.rotate(ko!.fall * fallen * 1.25); g.translate(-me.x, -me.y)
