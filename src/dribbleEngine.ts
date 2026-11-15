@@ -432,31 +432,20 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
       g.strokeStyle = perfect ? 'rgba(255,216,74,.95)' : good ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)'
       g.beginPath(); g.ellipse(d.x, d.y + 6, 44, 15, 0, 0, Math.PI * 2); g.stroke()
     }
-    // la porte : flèche dorée entre les deux défenseurs (le passage)
-    const seen = new Set<number>()
-    for (const d of defs) {
-      if (d.kind !== 'gate' || d.beaten || seen.has(d.group)) continue
-      const m = defs.find((o) => o !== d && o.group === d.group && !o.beaten)
-      if (!m) continue
-      seen.add(d.group)
-      const cx = (d.x + m.x) / 2, cy = (d.y + m.y) / 2 - 18
-      const a = 0.55 + 0.35 * Math.sin(time * 10)
-      g.fillStyle = `rgba(255,216,74,${a})`
-      g.beginPath(); g.moveTo(cx, cy - 14); g.lineTo(cx - 9, cy - 2); g.lineTo(cx - 3, cy - 2); g.lineTo(cx - 3, cy + 8); g.lineTo(cx + 3, cy + 8); g.lineTo(cx + 3, cy - 2); g.lineTo(cx + 9, cy - 2); g.closePath(); g.fill()
-    }
     const drawDef = (d: Def) => {
       const f = Math.floor(d.t * 10) % 4
       // TACLE GLISSÉ : pieds en avant, vers l'endroit visé
       if (d.lunging && !d.dribbled && (d.beaten || me.y - d.y < 175)) {
         const dir = (d.lx || me.x) < d.x - 4 ? -1 : 1
-        shadow(d.x + dir * 6, d.y + 2, 26)
+        shadow(d.x + dir * 4, d.y + 2, 19)
         g.save()
         if (d.beaten) g.globalAlpha = 0.85
         if (d.kind === 'charge') g.filter = 'hue-rotate(22deg) saturate(1.3)'
         else if (d.kind === 'feint') g.filter = 'hue-rotate(-35deg) saturate(1.2)'
         g.translate(d.x, d.y); g.scale(dir, 1)
         const tf = d.beaten ? 1 : Math.floor(d.t * 12) % 2
-        g.drawImage(imgs.tackle, tf * TCK_FW, 0, TCK_FW, TCK_FH, -TCK_FW * SPR * 0.62, -TCK_FH * SPR * 0.78, TCK_FW * SPR, TCK_FH * SPR)
+        const TS = 1.35   // même taille qu'un défenseur debout
+        g.drawImage(imgs.tackle, tf * TCK_FW, 0, TCK_FW, TCK_FH, -TCK_FW * TS * 0.62, -TCK_FH * TS * 0.78, TCK_FW * TS, TCK_FH * TS)
         g.restore()
         return
       }
