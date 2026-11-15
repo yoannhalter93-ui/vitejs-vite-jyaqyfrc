@@ -166,11 +166,8 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // animation en cours (tir aveugle ou plongeon du gardien)
-  const [animMode, setAnimMode] = useState<'shoot' | 'keep' | null>(null)
+  // animation en cours (tir aveugle ou plongeon du gardien) : on bloque les choix
   const [animBusy, setAnimBusy] = useState(false)
-  const [animStage, setAnimStage] = useState<'flying' | 'result' | null>(null)
-  const [animResult, setAnimResult] = useState<{ scored: boolean; points: number; shooterZone: string } | null>(null)
   const [finishedSoundPlayed, setFinishedSoundPlayed] = useState<string | null>(null)
   const [revancheBusy, setRevancheBusy] = useState(false)
   const [tab, setTab] = useState<'current' | 'history'>('current')
@@ -315,16 +312,10 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
   const nextKeepAttempt = myKeepAttempts.find((a) => a.shot_taken && !a.resolved) ?? null
   const shotsDone = myShotAttempts.filter((a) => a.shooter_zone !== null).length
   const savesDone = myKeepAttempts.filter((a) => a.resolved).length
-  // panenkas déjà tentées par l'adversaire contre moi dans ce duel (tirs
-  // déjà révélés), pour l'astuce du gardien
-  const opponentPanenkas = myKeepAttempts.filter((a) => a.resolved && a.shooter_zone === 'milieu').length
-  const opponentPseudo = duel ? pseudos[isPlayerA ? duel.player_b_id ?? '' : duel.player_a_id] : undefined
 
   const pickShotZone = async (zone: string) => {
     if (!selected || animBusy || !nextShotAttempt) return
     setAnimBusy(true)
-    setAnimMode('shoot')
-    setAnimStage('flying')
     // le tireur frappe tout de suite (tir à l'aveugle : on ne voit pas le
     // plongeon adverse), pendant que le tir est enregistré
     const anim = sceneRef.current?.play({ shot: zone, dive: null, blind: true, onKick: playKick })
@@ -334,10 +325,10 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
     await anim
     if (err) {
       setError(err.message)
-      setAnimBusy(false); setAnimMode(null); setAnimStage(null)
+      setAnimBusy(false)
       return
     }
-    setAnimBusy(false); setAnimMode(null); setAnimStage(null)
+    setAnimBusy(false)
     await openDuel(selected)
     await loadList()
   }
@@ -345,17 +336,13 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
   const pickSaveZone = async (zone: string) => {
     if (!selected || animBusy || !nextKeepAttempt) return
     setAnimBusy(true)
-    setAnimMode('keep')
-    setAnimResult(null)
-    setAnimStage('flying')
-
     const attemptRef = nextKeepAttempt
     const { error: err } = await supabase.rpc('submit_save', {
       p_duel_id: selected, p_attempt_number: attemptRef.attempt_number, p_zone: zone,
     })
     if (err) {
       setError(err.message)
-      setAnimBusy(false); setAnimMode(null); setAnimStage(null)
+      setAnimBusy(false)
       return
     }
 
@@ -375,13 +362,11 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
     await sceneRef.current?.play({
       shot: shooterZone, dive: zone, goal: scored,
       onResult: () => {
-        setAnimResult({ scored, points: resolved?.points ?? 0, shooterZone })
-        setAnimStage('result')
         if (scored) { if (shooterZone === 'milieu') playPanenka(); else playGoal() }
         else playSave()
       },
     })
-    setAnimBusy(false); setAnimMode(null); setAnimStage(null); setAnimResult(null)
+    setAnimBusy(false)
     await openDuel(selected)
     await loadList()
   }
@@ -438,9 +423,6 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
           // pendant qu'on joue : le jeu prend tout l'écran du téléphone, croix en haut à droite pour sortir
           createPortal(
           <div className="pk-full" role="dialog" aria-label="Tirs au but">
-            <div className="pk-full-top">
-              <button className="pk-full-close" aria-label="Quitter" disabled={animBusy} onClick={() => setSelected(null)}>✕</button>
-            </div>
             <div className="pk-full-stage">
             <PenaltyScene
               ref={sceneRef}
@@ -452,31 +434,8 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
               hint={myTurnToShoot ? '👆 Touche où tu tires' : '🧤 Touche où tu plonges'}
               hideKeeper={myTurnToShoot}
             />
-            </div>
-            <div className="pk-full-caption">
-
-            {animStage === 'result' && animResult ? (
-              <p className={"penalty-anim-caption " + (animResult.scored ? 'penalty-caption-goal' : 'penalty-caption-save')}>
-                {animResult.scored
-                  ? (animResult.shooterZone === 'milieu' ? '🎩 Panenka ! But au milieu (+2)' : '⚽ But dans le coin ! (+1)')
-                  : '🧤 Arrêté ! (+0)'}
-              </p>
-            ) : animMode === 'keep' && animStage === 'flying' ? (
-              <p className="penalty-anim-caption">👀 Le tir arrive...</p>
-            ) : animMode === 'shoot' && animStage ? (
-              <p className="penalty-anim-caption">⚽ Tir envoyé, à l'aveugle...</p>
-            ) : myTurnToShoot ? (
-              <p className="predictions-period">Touche la cage là où tu veux tirer, ou glisse le doigt du ballon vers la cage (tir {shotsDone + 1} / 3, l'adversaire ne le voit pas).</p>
-            ) : (
-              <>
-                <p className="predictions-period">Touche la cage là où tu plonges : devine où l'adversaire a tiré (arrêt {savesDone + 1} / 3).</p>
-                <p className="penalty-keeper-tip">
-                  {opponentPanenkas > 0
-                    ? `👀 ${opponentPseudo ?? 'Ton adversaire'} a déjà tenté ${opponentPanenkas} panenka${opponentPanenkas > 1 ? 's' : ''} dans ce duel…`
-                    : '💡 Il tire souvent au milieu ? Reste au milieu pour arrêter la panenka !'}
-                </p>
-              </>
-            )}
+              <button className="pk-full-close" aria-label="Quitter" disabled={animBusy} onClick={() => setSelected(null)}>✕</button>
+              {error && <p className="pk-full-error">{error}</p>}
             </div>
           </div>, document.body)
         ) : (

@@ -43,14 +43,18 @@
 .pks-target.show { animation: pks-target 1.1s ease-out forwards; }
 @keyframes pks-target { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.3) } 25% { opacity: 1; transform: translate(-50%, -50%) scale(1.1) } 40% { transform: translate(-50%, -50%) scale(1) } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1) } }
 
-/* ---- plein écran pendant qu'on joue (tirs au but) ---- */
-.pk-full { position: fixed; inset: 0; z-index: 3000; background: #0b1f15; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+/* ---- plein écran pendant qu'on joue (tirs au but) : rien d'autre que la scène + une croix ---- */
+/* la scène est calée en bas (pelouse jusqu'au bord) ; au-dessus, le ciel sombre du stade continue */
+.pk-full { position: fixed; inset: 0; z-index: 3000; background: #0f2319; display: flex; align-items: flex-end; justify-content: center;
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); overscroll-behavior: contain; touch-action: none; }
-.pk-full-stage { width: 100%; display: flex; justify-content: center; flex: 0 1 auto; min-height: 0; }
-.pk-full .pks { max-width: none; border-radius: 0; width: min(100vw, calc((100dvh - 150px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 941 / 1410)); }
-.pk-full-top { width: 100%; height: 50px; flex: none; display: flex; justify-content: flex-end; align-items: center; padding: 0 10px; }
-.pk-full-caption { width: 100%; max-width: 520px; padding: 6px 14px 10px; text-align: center; min-height: 86px; }
-.pk-full-caption p { margin: 4px 0; }
-.pk-full-close { width: 38px; height: 38px; border-radius: 50%;
-  border: 2px solid rgba(233,196,106,.7); background: rgba(15,30,20,.85); color: #f3e6c4; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.pk-full-stage { position: relative; width: min(100vw, calc((100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 941 / 1410)); }
+.pk-full .pks { max-width: none; width: 100%; border-radius: 0; }
+/* bandeau TIR / DUEL et croix tout en haut de l'écran (dans le ciel du stade) */
+.pk-full .pks-hud { position: fixed; z-index: 21; top: calc(env(safe-area-inset-top) + 10px); left: 10px; right: 58px; height: 54px;
+  background: rgba(10,26,18,.75); border: 1.5px solid rgba(233,196,106,.55); border-radius: 12px; }
+.pk-full .pks-hud .val { font-size: 24px; }
+.pk-full-close { position: fixed; z-index: 21; top: calc(env(safe-area-inset-top) + 19px); right: 12px; width: 36px; height: 36px; border-radius: 50%;
+  border: 2px solid rgba(233,196,106,.7); background: rgba(15,30,20,.8); color: #f3e6c4; font-size: 17px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
 .pk-full-close:disabled { opacity: .45; }
+.pk-full-error { position: absolute; z-index: 20; left: 12px; right: 12px; bottom: 12px; margin: 0; padding: 8px 12px; border-radius: 10px; background: rgba(142,27,27,.92); color: #fff; font: 600 14px system-ui, sans-serif; text-align: center; }
