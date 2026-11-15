@@ -33,3 +33,12 @@
 .pks-hint { position: absolute; z-index: 5; left: 50%; top: calc(1222 / 1410 * 100%); min-width: 72%; text-align: center; padding: .9em 1.2em; transform: translate(-50%, -50%); background: rgba(15,30,20,.92); border: 2px solid rgba(233,196,106,.6); border-radius: 999px; font: italic 700 clamp(15px, 4.6vw, 24px) Georgia, serif; color: #f3e6c4; white-space: nowrap; pointer-events: none; }
 .pks-flash { position: absolute; inset: 0; z-index: 6; background: rgba(255,220,120,.25); opacity: 0; transition: opacity .3s; pointer-events: none; }
 .pks-flash.on { opacity: 1; }
+
+/* quand je tire : pas de gardien (l'adversaire n'a pas encore plongé) */
+.pks.nokeeper .pks-kf { display: none; }
+/* cible blanche à l'endroit visé (tir à l'aveugle) */
+.pks-target { position: absolute; z-index: 4; width: calc(70 / 941 * 100%); aspect-ratio: 1; transform: translate(-50%, -50%) scale(.3); border-radius: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle, #fff 0 14%, transparent 15% 34%, rgba(255,255,255,.95) 35% 45%, transparent 46% 64%, rgba(255,255,255,.9) 65% 75%, transparent 76%);
+  filter: drop-shadow(0 0 4px rgba(0,0,0,.5)); }
+.pks-target.show { animation: pks-target 1.1s ease-out forwards; }
+@keyframes pks-target { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.3) } 25% { opacity: 1; transform: translate(-50%, -50%) scale(1.1) } 40% { transform: translate(-50%, -50%) scale(1) } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1) } }
