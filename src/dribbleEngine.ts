@@ -36,6 +36,7 @@ export type DribbleKind = 'perfect' | 'good' | 'early' | 'late' | 'none' | 'tire
 export type EngineCallbacks = {
   onPoint: (score: number) => void
   onLose: (score: number) => void
+  onHit?: () => void
   onDribble: (kind: DribbleKind) => void
   onStamina: (v: number) => void
   onLevel: (level: number, msg: string) => void
@@ -64,6 +65,14 @@ const PALETTES = [
   ['#154a26', '#1b562d'], ['#13422a', '#194e31'], ['#103a2a', '#164532'],
 ]
 
+// une couleur = un rôle : ROUGE classique (marque, ferme les couloirs, porte),
+// ORANGE se déplace sur les côtés / change de ligne, ROSE tacle agressif
+export function roleFilter(kind: string) {
+  if (kind === 'lateral' || kind === 'switch') return 'hue-rotate(24deg) saturate(1.35) brightness(1.08)'
+  if (kind === 'charge' || kind === 'feint') return 'hue-rotate(-38deg) saturate(1.25)'
+  return 'none'
+}
+
 export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: HTMLImageElement; def: HTMLImageElement; ball: HTMLImageElement; tackle: HTMLImageElement }, cb: EngineCallbacks) {
   const ctx = canvas.getContext('2d')!
   let H = 560, scale = 1
@@ -78,9 +87,13 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
 
   let playing = false, raf = 0, last = 0, time = 0
   let invulnT = 0
+  let hookDir = 1                                   // côté du crochet (-1 gauche, +1 droite)
+  const ballP = { x: W / 2, y: 0, vx: 0 }             // ballon au pied (il « vit » : touches, retard sur les côtés)
+  // défaite : choc → ralenti → ballon qui part → le défenseur célèbre → BALLON PERDU !
+  let ko: { t: number; d: Def; bx: number; by: number; bvx: number; bvy: number; bz: number; bvz: number; fall: number } | null = null
+  let shake = 0
   let score = 0, level = 1, stamina = 100, spinT = 0, scroll = 0, slowT = 0, flashT = 0
   let nextSpawnAt = 0, groupId = 0, bannerT = 0, bannerText = ''
-  let lost: { x: number; y: number; t: number } | null = null
   const me = { x: W / 2, y: 0, vx: 0, vy: 0, tx: W / 2, ty: 0 }
   let defs: Def[] = []
   const pairs: Pair[] = []
@@ -114,9 +127,9 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   const staminaRegen = () => Math.max(5.5, 10 - hard() * 0.8)
 
   function reset() {
-    invulnT = 0
+    invulnT = 0; ko = null; shake = 0; hookDir = 1
     score = 0; level = 1; stamina = 100; spinT = 0; scroll = 0; slowT = 0; flashT = 0; time = 0
-    nextSpawnAt = 120; bannerT = 0; lost = null
+    nextSpawnAt = 120; bannerT = 0
     me.x = W / 2; me.y = H * 0.78; me.vx = 0; me.vy = 0; me.tx = me.x; me.ty = me.y
     defs = []; pairs.length = 0; dust = []; txts = []; holdDir = 0
     avgX = W / 2; commitDir = 0; commitT = 0; sideBias = 0
@@ -252,6 +265,8 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     cb.onSpeed(clamp((S - 150) / 105, 0, 1))
     // ---- endurance
     if (invulnT > 0) invulnT -= dt
+    // ballon au pied : touches régulières devant (rythmées par la course), retard sur les côtés
+    ballP.x += (me.x + me.vx * 0.05 - ballP.x) * Math.min(1, dt * (spinT > 0 ? 18 : 9))
     if (spinT > 0) spinT -= dt
     else if (stamina < 100) { stamina = Math.min(100, stamina + staminaRegen() * dt); cb.onStamina(stamina) }
     // ---- apparitions (à distance régulière, pas au hasard du temps)
@@ -384,8 +399,29 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
 
   function lose(d: Def) {
     playing = false
-    lost = { x: (d.x + me.x) / 2, y: (d.y + me.y) / 2 - 20, t: 0 }
-    cb.onLose(score)
+    // le ballon part à l'opposé du défenseur
+    const away = Math.sign(me.x - d.x) || (Math.random() < 0.5 ? -1 : 1)
+    ko = { t: 0, d, bx: ballP.x, by: me.y - 20, bvx: away * (150 + Math.random() * 70), bvy: 70 + Math.random() * 40, bz: 0, bvz: 240, fall: away }
+    shake = 0.25
+    d.lunging = false; d.dribbled = false
+    cb.onHit?.()
+  }
+  // déroulé de la défaite (temps réel), puis l'écran de score
+  function koStep(rawDt: number) {
+    if (!ko) return false
+    const k = ko
+    const slow = k.t > 0.12 && k.t < 0.75 ? 0.3 : 1          // petit ralenti après le choc
+    const dt = rawDt * slow
+    k.t += rawDt
+    if (shake > 0) shake -= rawDt
+    // ballon qui s'échappe en rebondissant
+    k.bx += k.bvx * dt; k.by += k.bvy * dt
+    k.bvz -= 900 * dt; k.bz += k.bvz * dt
+    if (k.bz < 0) { k.bz = 0; k.bvz = Math.abs(k.bvz) > 60 ? -k.bvz * 0.5 : 0; k.bvx *= 0.8; k.bvy *= 0.8 }
+    if (k.bx < 14 || k.bx > W - 14) { k.bvx = -k.bvx * 0.6; k.bx = clamp(k.bx, 14, W - 14) }
+    time += dt
+    if (k.t > 1.75) { ko = null; cb.onLose(score); return false }
+    return true
   }
 
   // défenseur visé par un dribble : le plus proche devant toi, à portée
@@ -409,6 +445,10 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     spinT = SPIN_TIME
     puff(me.x, me.y, 6, '#d9c99e')
     const d = duelTarget()
+    // crochet : on part du côté où il y a de la place (à l'opposé du défenseur)
+    hookDir = d ? (me.x >= d.x ? 1 : -1) : (Math.abs(me.vx) > 30 ? Math.sign(me.vx) : (me.x < W / 2 ? 1 : -1))
+    if (me.x < 60) hookDir = 1; else if (me.x > W - 60) hookDir = -1
+    me.tx = clamp(me.x + hookDir * 58, 24, W - 24)
     if (!d) {                                                     // dans le vide
       txts.push({ s: 'DANS LE VIDE', x: me.x, y: me.y - 110, life: 0.7, c: '#cfc6ad', big: false })
       cb.onDribble('none'); return
@@ -438,6 +478,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   function draw() {
     const g = ctx
     g.setTransform(scale, 0, 0, scale, 0, 0)
+    if (shake > 0) g.translate((Math.random() - 0.5) * 10 * shake * 4, (Math.random() - 0.5) * 8 * shake * 4)
     g.imageSmoothingEnabled = false
     const pal = PALETTES[Math.min(PALETTES.length - 1, level - 1)]
     const band = 46, off = scroll % (band * 2)
@@ -472,8 +513,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
         shadow(d.x + dir * 4, d.y + 2, 19)
         g.save()
         if (d.beaten) g.globalAlpha = 0.85
-        if (d.kind === 'charge') g.filter = 'hue-rotate(22deg) saturate(1.3)'
-        else if (d.kind === 'feint') g.filter = 'hue-rotate(-35deg) saturate(1.2)'
+        g.filter = roleFilter(d.kind)
         g.translate(d.x, d.y); g.scale(dir, 1)
         const tf = d.beaten ? 1 : Math.floor(d.t * 12) % 2
         const TS = 1.35   // même taille qu'un défenseur debout
@@ -482,13 +522,14 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
         return
       }
       shadow(d.x, d.y + 2, 17)
+      // le défenseur qui a pris le ballon célèbre (petits sauts)
+      const party = ko && ko.d === d && ko.t > 0.2 ? Math.abs(Math.sin((ko.t - 0.2) * 14)) * 9 : 0
       g.save()
+      if (party) g.translate(0, -party)
       if (d.dribbled) { g.globalAlpha = 0.9; g.translate(d.x, d.y - 30); g.rotate(Math.sin(d.spin) * 0.35); g.translate(-d.x, -(d.y - 30)) }
       else if (d.beaten) g.globalAlpha = 0.85
       // couleur selon le comportement (lisible d'un coup d'œil)
-      if (d.kind === 'charge') g.filter = 'hue-rotate(22deg) saturate(1.3)'
-      else if (d.kind === 'feint') g.filter = 'hue-rotate(-35deg) saturate(1.2)'
-      else if (d.kind === 'lateral' || d.kind === 'switch') g.filter = 'brightness(1.15)'
+      g.filter = roleFilter(d.kind)
       g.drawImage(imgs.def, f * DEF_FW, 0, DEF_FW, DEF_FH, d.x - DEF_FW * SPR / 2, d.y - DEF_FH * SPR + 8, DEF_FW * SPR, DEF_FH * SPR)
       g.restore()
       // « ! » quand il change de côté / tacle / se replace
@@ -509,26 +550,35 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     for (const p of dust) { g.globalAlpha = Math.min(1, p.life * 3); g.fillStyle = p.c; g.fillRect(Math.round(p.x), Math.round(p.y), 3, 3) }
     g.globalAlpha = 1
     // joueur
+    const fallen = ko ? Math.min(1, ko.t / 0.45) : 0
     shadow(me.x, me.y + 2, 18)
-    let f = [0, 1, 2, 1][Math.floor(time * 11) % 4]
+    // course : 4 images (pied gauche / croisé / pied droit / croisé), au rythme du terrain (pas de glisse)
+    const stride = Math.floor(scroll / 15) % 4
+    let f = stride
     let ball = true
-    if (me.vx > 120) { f = 3 + (Math.floor(time * 8) % 2); ball = false }
-    else if (me.vx < -120) { f = 5 + (Math.floor(time * 8) % 2); ball = false }
+    if (spinT > 0) { f = hookDir > 0 ? 4 + (spinT < SPIN_TIME / 2 ? 1 : 0) : 6 + (spinT < SPIN_TIME / 2 ? 1 : 0); ball = false }
+    else if (me.vx > 130) { f = 4 + (stride % 2); ball = false }
+    else if (me.vx < -130) { f = 6 + (stride % 2); ball = false }
     g.save()
-    if (spinT > 0) {
-      const k = 1 - spinT / SPIN_TIME
-      g.translate(me.x, me.y - 30); g.rotate(k * Math.PI * 2); g.translate(-me.x, -(me.y - 30))
+    if (fallen > 0) {                      // il perd l'équilibre et tombe
+      g.translate(me.x, me.y); g.rotate(ko!.fall * fallen * 1.25); g.translate(-me.x, -me.y)
+      f = 0; ball = false
     }
     g.drawImage(imgs.runner, f * RUN_FW, 0, RUN_FW, RUN_FH, me.x - RUN_FW * SPR / 2, me.y - RUN_FH * SPR + 12, RUN_FW * SPR, RUN_FH * SPR)
     g.restore()
-    if (ball && spinT <= 0) {
-      const bob = Math.abs(Math.sin(time * 9)) * 4
-      g.drawImage(imgs.ball, me.x - 10 + Math.sin(time * 4.5) * 3, me.y - RUN_FH * SPR + 14 - bob, 20, 18)
+    if (ball && !ko) {
+      // une touche toutes les 2 foulées : le ballon part devant puis le pied le rattrape
+      const ph = (scroll / 60) % 1
+      const ahead = 10 + 16 * Math.sin(ph * Math.PI)
+      g.drawImage(imgs.ball, ballP.x - 10, me.y - RUN_FH * SPR + 26 - ahead, 20, 18)
     }
     if (spinT > 0) {
-      g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 3
-      g.beginPath(); g.ellipse(me.x, me.y - 2, 30, 10, 0, 0.2, Math.PI - 0.2); g.stroke()
+      // le crochet : le ballon passe d'un pied à l'autre (arc) + trace blanche
+      g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 3
+      g.beginPath(); g.ellipse(me.x, me.y - 2, 26, 9, 0, hookDir > 0 ? Math.PI * 0.15 : Math.PI * 0.15, Math.PI * 0.85); g.stroke()
     }
+    // ballon perdu qui s'échappe
+    if (ko) g.drawImage(imgs.ball, ko.bx - 10, ko.by - 12 - ko.bz, 20, 18)
     defs.filter((d) => d.y > me.y).forEach(drawDef)
     // textes flottants
     for (const t of txts) {
@@ -558,10 +608,20 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
       g.fillText((LEVEL_MSG[level] ?? 'Encore plus vite !').toUpperCase(), W / 2, H * 0.3 + 21)
       g.globalAlpha = 1
     }
-    if (lost) {
-      lost.t += 1 / 60
-      g.fillStyle = `rgba(193,68,60,${Math.max(0, 0.6 - lost.t)})`
-      g.beginPath(); g.arc(lost.x, lost.y, 40 + lost.t * 80, 0, Math.PI * 2); g.fill()
+    if (ko) {
+      // choc : flash rouge
+      if (ko.t < 0.25) { g.fillStyle = `rgba(193,68,60,${0.45 * (1 - ko.t / 0.25)})`; g.fillRect(0, 0, W, H) }
+      // BALLON PERDU !
+      if (ko.t > 0.7) {
+        const a = Math.min(1, (ko.t - 0.7) * 5), sc = 1 + Math.max(0, 0.25 - (ko.t - 0.7)) * 1.6
+        g.save(); g.globalAlpha = a; g.translate(W / 2, H * 0.24); g.scale(sc, sc)
+        g.fillStyle = 'rgba(21,19,15,.88)'; g.fillRect(-W / 2, -30, W, 56)
+        g.fillStyle = '#c1443c'; g.fillRect(-W / 2, -30, W, 3); g.fillRect(-W / 2, 23, W, 3)
+        g.font = "700 34px Oswald, 'Arial Narrow', sans-serif"; g.textAlign = 'center'
+        g.lineWidth = 5; g.strokeStyle = '#15130f'; g.strokeText('BALLON PERDU !', 0, 10)
+        g.fillStyle = '#ff6b5e'; g.fillText('BALLON PERDU !', 0, 10)
+        g.restore()
+      }
     }
   }
 
@@ -569,7 +629,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     const dt = Math.min(0.05, (now - last) / 1000); last = now
     if (playing) step(dt)
     draw()
-    if (playing || (lost && lost.t < 0.7)) raf = requestAnimationFrame(loop)
+    if (playing || koStep(dt)) raf = requestAnimationFrame(loop)
   }
 
   // aide aux tests automatiques (?debug dans l'adresse) : lecture seule

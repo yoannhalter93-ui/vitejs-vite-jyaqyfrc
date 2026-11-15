@@ -274,6 +274,8 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         bumpScore(); playDodge()
       },
       onLose: (sc) => endGameRef.current(sc),
+      // le choc (avant le ralenti et « BALLON PERDU ! ») : son, vibration
+      onHit: () => { playMiss(); vibrate([60, 40, 120]); stopCrowdAmbience(); playCrowdRoar() },
       onDribble: (kind) => {
         const btn = dribbleBtnRef.current
         if (kind === 'perfect') { playDribbleSuccess(); playCrowdRoar(); vibrate([20, 30, 40]) }
@@ -417,16 +419,13 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     setButtonsEnabled(false)
     onControlsUp()
     stopCrowdAmbience()
-    playMiss(); vibrate(120)
-    fieldRef.current?.classList.add('dribble-shake')
-    setTimeout(() => { fieldRef.current?.classList.remove('dribble-shake') }, 360)
     if (endScoreRef.current) endScoreRef.current.textContent = String(finalStreak)
     if (endLabelRef.current) {
       endLabelRef.current.textContent = finalStreak <= 1
         ? (finalStreak === 1 ? 'point avant de perdre le ballon.' : 'Aucun point cette fois.')
         : 'points avant de perdre le ballon.'
     }
-    if (showEnd) setTimeout(() => { if (endMsgRef.current) endMsgRef.current.style.display = 'flex' }, 700)
+    if (showEnd && endMsgRef.current) endMsgRef.current.style.display = 'flex'
 
     if (user) {
       sendOnWizzChannel('playing', { action: 'stop', profileId: user.id })
@@ -455,7 +454,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         </button>
         {showRules && (
           <p className="dribble-intro">
-            Ton joueur remonte le terrain sans fin : va le plus loin possible sans perdre le ballon. Glisse le doigt (ou ◀ / ▶) pour te déplacer. Après les 6 premiers points (pour prendre le coup de main), les défenseurs deviennent malins : ils te temporisent au lieu de foncer, ne se font plus avoir par les zigzags, repèrent ton côté préféré, se couvrent entre eux, et taclent dès que tu t'engages. Chaque défenseur a sa façon de défendre : il te marque et se met devant toi, glisse de côté, qui change de ligne, qui charge, qui feinte puis tacle, ou deux qui ferment deux couloirs. Parfois deux défenseurs forment une porte qui te suit : la seule solution est de passer entre les deux avant qu'elle se referme. Autour de chaque défenseur, un cercle au sol = la zone de duel : appuie sur DRIBBLE quand le cercle devient doré → PARFAIT +2 ; un peu avant (cercle blanc) → BIEN +1. Trop tôt, il se replace devant toi ; trop tard, il prend le ballon. L'éviter sans dribbler = +1. Chaque appui sur DRIBBLE fait le geste et coûte de l'endurance, même au mauvais moment (jauge sous les boutons). Tous les 10 points : niveau suivant, un peu plus vite, avec de nouveaux défenseurs. Ton meilleur score de la semaine compte pour le classement.
+            Ton joueur remonte le terrain sans fin : va le plus loin possible sans perdre le ballon. Glisse le doigt (ou ◀ / ▶) pour te déplacer. Après les 6 premiers points (pour prendre le coup de main), les défenseurs deviennent malins : ils te temporisent au lieu de foncer, ne se font plus avoir par les zigzags, repèrent ton côté préféré, se couvrent entre eux, et taclent dès que tu t'engages. Une couleur = un rôle : ROUGE = classique (il te marque, ferme les couloirs, forme des portes), ORANGE = se déplace sur les côtés et change de ligne, ROSE = tacle agressif (charge, feinte puis tacle). Parfois deux défenseurs forment une porte qui te suit : la seule solution est de passer entre les deux avant qu'elle se referme. Autour de chaque défenseur, un cercle au sol = la zone de duel : appuie sur DRIBBLE quand le cercle devient doré → PARFAIT +2 ; un peu avant (cercle blanc) → BIEN +1. Trop tôt, il se replace devant toi ; trop tard, il prend le ballon. L'éviter sans dribbler = +1. Chaque appui sur DRIBBLE fait le geste et coûte de l'endurance, même au mauvais moment (jauge sous les boutons). Tous les 10 points : niveau suivant, un peu plus vite, avec de nouveaux défenseurs. Ton meilleur score de la semaine compte pour le classement.
           </p>
         )}
 
