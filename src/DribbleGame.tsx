@@ -309,7 +309,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
   const onFieldPointer = (e: ReactPointerEvent<HTMLCanvasElement>, down: boolean) => {
     if (!playingRef.current) return
     if (e.type === 'pointerdown') { try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* ignore */ } }
-    engine.current?.pointer(e.clientX, e.clientY, down)
+    engine.current?.pointer(e.clientX, e.clientY, !down ? 'up' : e.type === 'pointerdown' ? 'down' : 'move')
   }
 
   // bande de contrôle : gauche (maintenir) = ◀, milieu = DRIBBLE, droite (maintenir) = ▶

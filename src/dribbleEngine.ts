@@ -98,7 +98,8 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   let defs: Def[] = []
   const pairs: Pair[] = []
   let dust: Dust[] = [], txts: Txt[] = []
-  let holdDir = 0
+  let holdDir = 0, holdT = 0
+  let drag: { fx: number; fy: number; mx: number; my: number } | null = null
 
   const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
   const yMin = () => H * 0.5, yMax = () => H * 0.86
@@ -250,7 +251,8 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     if (flashT > 0) flashT -= rawDt
     if (bannerT > 0) bannerT -= rawDt
     // ---- joueur
-    if (holdDir) me.tx = clamp(me.tx + holdDir * 300 * dt, 24, W - 24)
+    // appui court = petit pas de côté ; garder appuyé = il continue, de plus en plus vite
+    if (holdDir) { holdT += dt; if (holdT > 0.18) me.tx = clamp(me.tx + holdDir * Math.min(300, 120 + (holdT - 0.18) * 600) * dt, 24, W - 24) }
     const pv = spinT > 0 ? 320 : 270
     const ax = clamp((me.tx - me.x) * 16 - me.vx * 8, -2400, 2400)
     const ay = clamp((me.ty - me.y) * 16 - me.vy * 8, -2400, 2400)
@@ -645,15 +647,20 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     score: () => score,
     resize() { resize(); draw() },
     redraw: draw,
-    pointer(xPx: number, yPx: number, down: boolean) {
-      if (!down) return
+    // doigt sur le terrain, comme un pad : le joueur bouge d'autant que ton doigt glisse
+    // (il ne saute pas là où tu poses le doigt)
+    pointer(xPx: number, yPx: number, phase: 'down' | 'move' | 'up') {
       const r = canvas.getBoundingClientRect()
-      me.tx = clamp((xPx - r.left) / r.width * W, 24, W - 24)
-      me.ty = clamp((yPx - r.top) / r.height * H - 40, yMin(), yMax())
+      const fx = (xPx - r.left) / r.width * W, fy = (yPx - r.top) / r.height * H
+      if (phase === 'up') { drag = null; return }
+      if (phase === 'down' || !drag) { drag = { fx, fy, mx: me.x, my: me.y }; return }
+      me.tx = clamp(drag.mx + (fx - drag.fx) * 1.3, 24, W - 24)
+      me.ty = clamp(drag.my + (fy - drag.fy) * 1.1, yMin(), yMax())
     },
     // ◀ ▶ : un appui = un pas franc sur le côté, garder appuyé = continuer à glisser
     hold(dir: number) {
-      if (dir && dir !== holdDir) me.tx = clamp((dir > 0 ? Math.max(me.tx, me.x) : Math.min(me.tx, me.x)) + dir * 70, 24, W - 24)
+      if (dir && dir !== holdDir) { me.tx = clamp(me.x + dir * 30, 24, W - 24); holdT = 0 }
+      if (!dir) me.tx = clamp(me.tx, Math.min(me.x, me.tx), Math.max(me.x, me.tx))
       holdDir = dir
     },
     dribble,
