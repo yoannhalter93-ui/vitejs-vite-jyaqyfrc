@@ -99,7 +99,8 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   const pairs: Pair[] = []
   let dust: Dust[] = [], txts: Txt[] = []
   let holdDir = 0, holdT = 0
-  let drag: { fx: number; fy: number; mx: number; my: number } | null = null
+  // doigt posé sur le terrain : le joueur file vers le doigt (de plus en plus vite tant qu'on reste appuyé)
+  let finger: { x: number; y: number; t: number } | null = null
 
   const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
   const yMin = () => H * 0.5, yMax = () => H * 0.86
@@ -132,7 +133,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     score = 0; level = 1; stamina = 100; spinT = 0; scroll = 0; slowT = 0; flashT = 0; time = 0
     nextSpawnAt = 120; bannerT = 0
     me.x = W / 2; me.y = H * 0.78; me.vx = 0; me.vy = 0; me.tx = me.x; me.ty = me.y
-    defs = []; pairs.length = 0; dust = []; txts = []; holdDir = 0
+    defs = []; pairs.length = 0; dust = []; txts = []; holdDir = 0; finger = null
     avgX = W / 2; commitDir = 0; commitT = 0; sideBias = 0
     cb.onStamina(stamina); cb.onSpeed(0)
   }
@@ -252,7 +253,10 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     if (bannerT > 0) bannerT -= rawDt
     // ---- joueur
     // appui court = petit pas de côté ; garder appuyé = il continue, de plus en plus vite
-    if (holdDir) { holdT += dt; if (holdT > 0.18) me.tx = clamp(me.tx + holdDir * Math.min(300, 120 + (holdT - 0.18) * 600) * dt, 24, W - 24) }
+    // ◀ ▶ : il part tout de suite tant qu'on appuie… et s'arrête net dès qu'on lâche
+    if (holdDir) { holdT += dt; me.tx = clamp(me.x + holdDir * 150, 24, W - 24) }
+    // doigt sur le terrain : il va vers le doigt tant qu'on appuie, s'arrête net quand on lâche
+    if (finger) { me.tx = finger.x; me.ty = finger.y }
     const pv = spinT > 0 ? 320 : 270
     const ax = clamp((me.tx - me.x) * 16 - me.vx * 8, -2400, 2400)
     const ay = clamp((me.ty - me.y) * 16 - me.vy * 8, -2400, 2400)
@@ -653,20 +657,19 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     score: () => score,
     resize() { resize(); draw() },
     redraw: draw,
-    // doigt sur le terrain, comme un pad : le joueur bouge d'autant que ton doigt glisse
-    // (il ne saute pas là où tu poses le doigt)
+    // doigt sur le terrain : il va vers le doigt tant qu'on appuie, s'arrête dès qu'on lâche
     pointer(xPx: number, yPx: number, phase: 'down' | 'move' | 'up') {
       const r = canvas.getBoundingClientRect()
       const fx = (xPx - r.left) / r.width * W, fy = (yPx - r.top) / r.height * H
-      if (phase === 'up') { drag = null; return }
-      if (phase === 'down' || !drag) { drag = { fx, fy, mx: me.x, my: me.y }; return }
-      me.tx = clamp(drag.mx + (fx - drag.fx) * 1.3, 24, W - 24)
-      me.ty = clamp(drag.my + (fy - drag.fy) * 1.1, yMin(), yMax())
+      if (phase === 'up') { finger = null; me.vx *= 0.2; me.vy *= 0.2; me.tx = me.x; me.ty = me.y; return }
+      const x = clamp(fx, 24, W - 24), y = clamp(fy - 40, yMin(), yMax())
+      if (!finger) finger = { x, y, t: 0 }
+      finger.x = x; finger.y = y
     },
-    // ◀ ▶ : un appui = un pas franc sur le côté, garder appuyé = continuer à glisser
+    // ◀ ▶ : il bouge tant qu'on appuie, s'arrête dès qu'on lâche
     hold(dir: number) {
-      if (dir && dir !== holdDir) { me.tx = clamp(me.x + dir * 30, 24, W - 24); holdT = 0 }
-      if (!dir) me.tx = clamp(me.tx, Math.min(me.x, me.tx), Math.max(me.x, me.tx))
+      if (dir && dir !== holdDir) holdT = 0
+      if (!dir) { me.vx *= 0.2; me.tx = me.x }      // lâché : il arrête net d'aller sur le côté
       holdDir = dir
     },
     dribble,
