@@ -567,10 +567,9 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     g.drawImage(imgs.runner, f * RUN_FW, 0, RUN_FW, RUN_FH, me.x - RUN_FW * SPR / 2, me.y - RUN_FH * SPR + 12, RUN_FW * SPR, RUN_FH * SPR)
     g.restore()
     if (ball && !ko) {
-      // une touche toutes les 2 foulées : le ballon part devant puis le pied le rattrape
-      const ph = (scroll / 60) % 1
-      const ahead = 10 + 16 * Math.sin(ph * Math.PI)
-      g.drawImage(imgs.ball, ballP.x - 10, me.y - RUN_FH * SPR + 26 - ahead, 20, 18)
+      // ballon devant le joueur (comme avant : petit rebond)
+      const bob = Math.abs(Math.sin(time * 9)) * 4
+      g.drawImage(imgs.ball, me.x - 10 + Math.sin(time * 4.5) * 3, me.y - RUN_FH * SPR + 14 - bob, 20, 18)
     }
     if (spinT > 0) {
       // le crochet : le ballon passe d'un pied à l'autre (arc) + trace blanche
