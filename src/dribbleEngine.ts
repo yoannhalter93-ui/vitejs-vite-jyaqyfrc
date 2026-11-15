@@ -19,7 +19,7 @@ const MAX_SCORE = 2000
 // fenêtre du dribble : écart vertical joueur ↔ défenseur au moment de l'appui
 const PERFECT_MIN = 28, PERFECT_MAX = 48, GOOD_MAX = 72, DUEL_MAX = 130
 
-type Kind = 'static' | 'lateral' | 'switch' | 'charge' | 'feint' | 'pair'
+type Kind = 'static' | 'lateral' | 'switch' | 'charge' | 'feint' | 'pair' | 'gate'
 type Def = {
   kind: Kind; x: number; y: number; vx: number
   t: number; baseX: number; amp: number; freq: number
@@ -54,11 +54,11 @@ const LEVEL_MSG: Record<number, string> = {
 }
 function poolFor(level: number): [Kind | 'combo', number][] {
   if (level <= 1) return [['static', 1]]
-  if (level === 2) return [['static', 2], ['pair', 2]]
-  if (level === 3) return [['static', 1], ['pair', 1], ['lateral', 2], ['switch', 2]]
-  if (level === 4) return [['pair', 1], ['lateral', 1], ['switch', 1], ['charge', 2], ['feint', 2]]
-  if (level === 5) return [['charge', 1], ['feint', 1], ['switch', 1], ['combo', 3]]
-  return [['static', 1], ['lateral', 1], ['switch', 1], ['charge', 2], ['feint', 2], ['pair', 1], ['combo', 3]]
+  if (level === 2) return [['static', 2], ['pair', 2], ['gate', 1]]
+  if (level === 3) return [['static', 1], ['pair', 1], ['gate', 1], ['lateral', 2], ['switch', 2]]
+  if (level === 4) return [['pair', 1], ['gate', 1], ['lateral', 1], ['switch', 1], ['charge', 2], ['feint', 2]]
+  if (level === 5) return [['charge', 1], ['feint', 1], ['switch', 1], ['gate', 1], ['combo', 3]]
+  return [['static', 1], ['lateral', 1], ['switch', 1], ['charge', 2], ['feint', 2], ['pair', 1], ['gate', 1], ['combo', 3]]
 }
 // décor : un peu plus sombre et plus « nocturne » à chaque niveau
 const PALETTES = [
@@ -79,6 +79,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   resize()
 
   let playing = false, raf = 0, last = 0, time = 0
+  let invulnT = 0
   let score = 0, level = 1, stamina = 100, spinT = 0, scroll = 0, slowT = 0, flashT = 0
   let nextSpawnAt = 0, groupId = 0, bannerT = 0, bannerText = ''
   let lost: { x: number; y: number; t: number } | null = null
@@ -95,6 +96,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   const spacing = () => Math.max(170, 250 - (level - 1) * 14)
 
   function reset() {
+    invulnT = 0
     score = 0; level = 1; stamina = 100; spinT = 0; scroll = 0; slowT = 0; flashT = 0; time = 0
     nextSpawnAt = 120; bannerT = 0; lost = null
     me.x = W / 2; me.y = H * 0.78; me.vx = 0; me.vy = 0; me.tx = me.x; me.ty = me.y
@@ -125,6 +127,14 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     add(kind, -50)
   }
   function add(kind: Kind, y: number) {
+    if (kind === 'gate') {
+      // la « porte » : deux défenseurs qui te gardent entre eux — la seule
+      // solution est de passer au milieu, avant qu'elle se referme
+      const id = ++groupId
+      const c = clamp(me.x, 90, W - 90)
+      for (const s of [-1, 1]) { const d = mk('gate', c + s * 62, y); d.group = id; d.slot = s; d.baseX = c; defs.push(d) }
+      return
+    }
     if (kind === 'pair') {
       const open = Math.floor(Math.random() * 3), id = ++groupId
       pairs.push({ id, open, swaps: 0 })
@@ -173,7 +183,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     const lateral = Math.min(275, 190 + L * 12)          // vitesse de côté (proche de la tienne)
     const patience = Math.max(0.65, 1.5 - L * 0.1)        // temps max à temporiser
     // couverture à plusieurs : si un autre défenseur proche couvre déjà ton côté, il prend l'autre
-    const mates = defs.filter((o) => o !== d && !o.beaten && o.kind !== 'pair' && Math.abs((me.y - o.y) - gap) < 90)
+    const mates = defs.filter((o) => o !== d && !o.beaten && o.kind !== 'pair' && o.kind !== 'gate' && Math.abs((me.y - o.y) - gap) < 90)
     let cover = 0
     if (mates.length) cover = (mates[0].x < d.x ? 1 : -1) * 38
     const habit = clamp(sideBias, -1, 1) * 18
@@ -220,6 +230,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     scroll += S * dt
     cb.onSpeed(clamp((S - 150) / 105, 0, 1))
     // ---- endurance
+    if (invulnT > 0) invulnT -= dt
     if (spinT > 0) spinT -= dt
     else if (stamina < 100) { stamina = Math.min(100, stamina + STAMINA_REGEN * dt); cb.onStamina(stamina) }
     // ---- apparitions (à distance régulière, pas au hasard du temps)
@@ -276,6 +287,16 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
             if (gap > 150) { target = clamp(me.x + d.fakeDir * 95, 30, W - 30); vmax = 130 }
             else { if (!d.lunging) { d.lunging = true; d.alerted = 0.4 } target = me.x; vmax = 330; vy = S + 40 }
             break
+          case 'gate': {
+            // le centre de la porte suit le joueur (on ne peut pas la contourner) ;
+            // l'ouverture se resserre en approchant : il faut passer à temps
+            const mate = defs.find((o) => o !== d && o.group === d.group && !o.beaten)
+            const half = clamp(34 + Math.max(0, gap - 40) * 0.22, 34, 62)    // demi-ouverture (centre ↔ défenseur)
+            const follow = clamp(me.x, 30 + half, W - 30 - half)
+            target = mate ? follow + d.slot * half : me.x
+            vmax = 250; vy = S + 20
+            break
+          }
           case 'pair':
             target = d.tx; vmax = 170 * boost; vy = S + 15
             break
@@ -283,13 +304,13 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
         // au contact, les défenseurs « collants » ferment l'espace : il faut dribbler
         // (lire le défenseur et partir tôt marche encore ; à la dernière seconde, non)
         const stick = d.kind === 'charge' || d.kind === 'feint' ? 260
-          : d.kind === 'pair' ? 0
+          : d.kind === 'pair' || d.kind === 'gate' ? 0
           : level >= 3 ? 210 : level >= 2 ? 150 : 0
         if (stick && gap < 70 && gap > 0 && Math.abs(me.x - d.x) < 80) { target = me.x; vmax = Math.max(vmax, stick) }
         if (d.alerted > 0.6) { target = me.x; vmax = 300 }          // trop tôt : il se replace
         // ---- défenseur intelligent (après les 6 premiers points)
         let accMax = 1600
-        if (score >= SMART_AT && d.kind !== 'pair' && gap > -10 && gap < 165) {
+        if (score >= SMART_AT && d.kind !== 'pair' && d.kind !== 'gate' && gap > -10 && gap < 165) {
           const r = smartDefend(d, gap, dt)
           target = r.target; vmax = r.vmax; vy = r.vy; accMax = r.acc
         }
@@ -310,7 +331,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
       // contact
       if (!d.beaten) {
         const dx = d.x - me.x, dy = d.y - me.y
-        if (dx * dx + dy * dy < (BODY_R * 2) ** 2 && spinT <= 0) { lose(d); return }
+        if (dx * dx + dy * dy < (BODY_R * 2) ** 2 && invulnT <= 0) { lose(d); return }
       }
     }
     defs = defs.filter((d) => d.y < H + 90)
@@ -344,12 +365,19 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     return best
   }
 
+  // DRIBBLE : le geste part toujours et vide toujours l'endurance.
+  // Il ne passe le défenseur que s'il est fait au bon moment.
   function dribble() {
     if (!playing || spinT > 0) return
-    const d = duelTarget()
-    if (!d) { cb.onDribble('none'); return }                    // rien à dribbler : rien ne se passe
     if (stamina < STAMINA_COST) { cb.onDribble('tired'); return }
     stamina -= STAMINA_COST; cb.onStamina(stamina)
+    spinT = SPIN_TIME
+    puff(me.x, me.y, 6, '#d9c99e')
+    const d = duelTarget()
+    if (!d) {                                                     // dans le vide
+      txts.push({ s: 'DANS LE VIDE', x: me.x, y: me.y - 110, life: 0.7, c: '#cfc6ad', big: false })
+      cb.onDribble('none'); return
+    }
     const gap = me.y - d.y
     if (gap > GOOD_MAX) {                                         // trop tôt : il se replace devant toi
       d.alerted = 0.9
@@ -360,9 +388,8 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
       cb.onDribble('late'); lose(d); return
     }
     const perfect = gap <= PERFECT_MAX
-    // groupe (paire) : le dribble passe celui qui est devant toi
     d.beaten = true; d.dribbled = true; d.vx = (d.x < me.x ? -1 : 1) * 140
-    spinT = SPIN_TIME
+    invulnT = SPIN_TIME
     me.ty = clamp(me.y - 30, yMin(), yMax())                       // petit rush vers l'avant
     puff(me.x, me.y, perfect ? 14 : 8, '#d9c99e')
     if (perfect) { slowT = 0.12; flashT = 0.18 }
@@ -400,6 +427,18 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
       g.lineWidth = perfect ? 3 : 2
       g.strokeStyle = perfect ? 'rgba(255,216,74,.95)' : good ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)'
       g.beginPath(); g.ellipse(d.x, d.y + 6, 44, 15, 0, 0, Math.PI * 2); g.stroke()
+    }
+    // la porte : flèche dorée entre les deux défenseurs (le passage)
+    const seen = new Set<number>()
+    for (const d of defs) {
+      if (d.kind !== 'gate' || d.beaten || seen.has(d.group)) continue
+      const m = defs.find((o) => o !== d && o.group === d.group && !o.beaten)
+      if (!m) continue
+      seen.add(d.group)
+      const cx = (d.x + m.x) / 2, cy = (d.y + m.y) / 2 - 18
+      const a = 0.55 + 0.35 * Math.sin(time * 10)
+      g.fillStyle = `rgba(255,216,74,${a})`
+      g.beginPath(); g.moveTo(cx, cy - 14); g.lineTo(cx - 9, cy - 2); g.lineTo(cx - 3, cy - 2); g.lineTo(cx - 3, cy + 8); g.lineTo(cx + 3, cy + 8); g.lineTo(cx + 3, cy - 2); g.lineTo(cx + 9, cy - 2); g.closePath(); g.fill()
     }
     const drawDef = (d: Def) => {
       const f = Math.floor(d.t * 10) % 4
