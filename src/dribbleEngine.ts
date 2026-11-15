@@ -1,50 +1,68 @@
-// Moteur du Dribble (mode infini, déplacement libre façon Toro).
-// Le terrain défile : ton joueur remonte vers le haut, les défenseurs arrivent
-// en face et te pressent (ils ont de l'élan et un temps de réaction : une
-// feinte les met dans le vent). Contact = ballon perdu. Chaque défenseur passé
-// = 1 point. DRIBBLE : crochet d'une demi-seconde qui passe à travers un
-// défenseur, mais il coûte de l'endurance, qui se recharge avec le temps.
+// Moteur du Dribble (mode infini, déplacement libre au doigt).
+// Le terrain défile, ton joueur remonte. Les défenseurs ont chacun un
+// comportement (statique, latéral, change de côté, charge, feinte puis tacle,
+// paire qui ferme deux couloirs). Autour de chaque défenseur, une ZONE DE DUEL :
+// DRIBBLE dedans au bon moment = PARFAIT +2 ou BIEN +1. Trop tôt : il se
+// replace (et l'endurance est dépensée). Trop tard : il prend le ballon.
+// Simple évitement = +1. Le dribble coûte de l'endurance (recharge lente).
+// Niveau tous les 10 points : vitesse +5 %, nouveaux comportements, décor qui change.
 // Coordonnées : px logiques, largeur fixe W = 360, hauteur selon l'écran.
 
 export const W = 360
-const SPR = 2                 // 1 pixel du sprite = 2 px logiques
+const SPR = 2
 const RUN_FW = 40, RUN_FH = 48, DEF_FW = 35, DEF_FH = 40
-const BODY_R = 13             // rayon de contact (joueur et défenseur)
-const STAMINA_COST = 45       // un dribble
-const STAMINA_REGEN = 9       // par seconde (≈ 5 s pour un dribble)
-const DRIBBLE_TIME = 0.5
+const BODY_R = 13
+const STAMINA_COST = 35
+const STAMINA_REGEN = 10
+const SPIN_TIME = 0.35
 const MAX_SCORE = 2000
+// fenêtre du dribble : écart vertical joueur ↔ défenseur au moment de l'appui
+const PERFECT_MIN = 28, PERFECT_MAX = 48, GOOD_MAX = 72, DUEL_MAX = 130
 
+type Kind = 'static' | 'lateral' | 'switch' | 'charge' | 'feint' | 'pair'
 type Def = {
-  x: number; y: number; vx: number; vy: number
-  tx: number; react: number   // cible horizontale visée (mise à jour avec un temps de réaction)
-  beaten: boolean; dribbled: boolean; t: number; side: number
+  kind: Kind; x: number; y: number; vx: number
+  t: number; baseX: number; amp: number; freq: number
+  tx: number; react: number
+  switched: boolean; lunging: boolean; fakeDir: number; alerted: number
+  beaten: boolean; dribbled: boolean; spin: number
+  group: number; slot: number
 }
+type Pair = { id: number; open: number; swapAt: number; swapped: boolean }
+type Dust = { x: number; y: number; vx: number; vy: number; life: number; c: string }
+type Txt = { s: string; x: number; y: number; life: number; c: string; big: boolean }
 
-export type Level = { maxDefs: number; vx: number; accel: number; react: number; every: number; scroll: number; lead: number; duo: number }
-// paliers : plus de défenseurs, plus rapides, plus malins
-export function levelFor(s: number): Level {
-  if (s < 10) return { maxDefs: 1, vx: 105, accel: 420, react: 0.32, every: 1.2, scroll: 140 + s * 3, lead: 0, duo: 0 }
-  if (s < 25) return { maxDefs: 2, vx: 135, accel: 520, react: 0.27, every: 1.35, scroll: 150 + (s - 10) * 2, lead: 0.1, duo: 0 }
-  if (s < 45) return { maxDefs: 3, vx: 160, accel: 600, react: 0.23, every: 1.15, scroll: 180 + (s - 25) * 1.5, lead: 0.2, duo: 0.3 }
-  if (s < 70) return { maxDefs: 3, vx: 185, accel: 700, react: 0.19, every: 1.0, scroll: 210 + (s - 45) * 1.2, lead: 0.35, duo: 0.4 }
-  return { maxDefs: 4, vx: 210, accel: 800, react: 0.15, every: 0.85, scroll: Math.min(300, 240 + (s - 70)), lead: 0.45, duo: 0.5 }
-}
-export const TIERS: [number, string][] = [
-  [10, '10 ! Deux défenseurs'],
-  [25, '25 ! Ils te prennent à deux'],
-  [45, '45 ! Ils lisent tes feintes'],
-  [70, '70 ! Mode légende'],
-]
-
+export type DribbleKind = 'perfect' | 'good' | 'early' | 'late' | 'none' | 'tired'
 export type EngineCallbacks = {
   onPoint: (score: number) => void
   onLose: (score: number) => void
-  onDribble: (ok: boolean) => void
-  onStamina: (v: number) => void       // 0..100
-  onTier: (msg: string) => void
-  onSpeed: (pct: number) => void      // 0..1
+  onDribble: (kind: DribbleKind) => void
+  onStamina: (v: number) => void
+  onLevel: (level: number, msg: string) => void
+  onSpeed: (pct: number) => void
 }
+
+// ce qui arrive à chaque niveau (1 niveau = 10 points)
+const LEVEL_MSG: Record<number, string> = {
+  2: 'Ils ferment deux couloirs',
+  3: 'Ils bougent !',
+  4: 'Ils chargent et taclent',
+  5: 'Ils attaquent à deux',
+  6: 'Tout se mélange',
+}
+function poolFor(level: number): [Kind | 'combo', number][] {
+  if (level <= 1) return [['static', 1]]
+  if (level === 2) return [['static', 2], ['pair', 2]]
+  if (level === 3) return [['static', 1], ['pair', 1], ['lateral', 2], ['switch', 2]]
+  if (level === 4) return [['pair', 1], ['lateral', 1], ['switch', 1], ['charge', 2], ['feint', 2]]
+  if (level === 5) return [['charge', 1], ['feint', 1], ['switch', 1], ['combo', 3]]
+  return [['static', 1], ['lateral', 1], ['switch', 1], ['charge', 2], ['feint', 2], ['pair', 1], ['combo', 3]]
+}
+// décor : un peu plus sombre et plus « nocturne » à chaque niveau
+const PALETTES = [
+  ['#1b5c20', '#226b27'], ['#1a5a24', '#21682c'], ['#185226', '#1f602e'],
+  ['#154a26', '#1b562d'], ['#13422a', '#194e31'], ['#103a2a', '#164532'],
+]
 
 export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: HTMLImageElement; def: HTMLImageElement; ball: HTMLImageElement }, cb: EngineCallbacks) {
   const ctx = canvas.getContext('2d')!
@@ -58,97 +76,190 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
   }
   resize()
 
-  // état
   let playing = false, raf = 0, last = 0, time = 0
-  let score = 0, stamina = 100, dribbleT = 0, scroll = 0, spawnT = 0
+  let score = 0, level = 1, stamina = 100, spinT = 0, scroll = 0, slowT = 0, flashT = 0
+  let nextSpawnAt = 0, groupId = 0, bannerT = 0, bannerText = ''
   let lost: { x: number; y: number; t: number } | null = null
   const me = { x: W / 2, y: 0, vx: 0, vy: 0, tx: W / 2, ty: 0 }
   let defs: Def[] = []
-  let holdDir = 0          // -1 / +1 tant qu'on garde ◀ ▶ appuyé
+  const pairs: Pair[] = []
+  let dust: Dust[] = [], txts: Txt[] = []
+  let holdDir = 0
 
-  const lv = () => levelFor(score)
   const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
-  const yMin = () => H * 0.48, yMax = () => H * 0.86
+  const yMin = () => H * 0.5, yMax = () => H * 0.86
+  // vitesse : +5 % tous les 8 points, plafonnée
+  const scrollSpeed = () => 150 * Math.min(1.7, Math.pow(1.05, Math.floor(score / 8)))
+  const spacing = () => Math.max(170, 250 - (level - 1) * 14)
 
   function reset() {
-    score = 0; stamina = 100; dribbleT = 0; scroll = 0; spawnT = 0.6; time = 0; lost = null
+    score = 0; level = 1; stamina = 100; spinT = 0; scroll = 0; slowT = 0; flashT = 0; time = 0
+    nextSpawnAt = 120; bannerT = 0; lost = null
     me.x = W / 2; me.y = H * 0.78; me.vx = 0; me.vy = 0; me.tx = me.x; me.ty = me.y
-    defs = []; holdDir = 0
+    defs = []; pairs.length = 0; dust = []; txts = []; holdDir = 0
     cb.onStamina(stamina); cb.onSpeed(0)
   }
 
-  function spawn() {
-    const L = lv()
-    const duo = defs.length + 2 <= L.maxDefs && Math.random() < L.duo
-    if (duo) {
-      // deux défenseurs qui ferment l'espace des deux côtés du joueur
-      const gap = 70 + Math.random() * 30
-      for (const s of [-1, 1]) defs.push(mk(clamp(me.x + s * gap, 30, W - 30), -40 - Math.random() * 20, s))
-    } else {
-      defs.push(mk(30 + Math.random() * (W - 60), -40, 0))
-    }
-  }
-  const mk = (x: number, y: number, side: number): Def => ({ x, y, vx: 0, vy: 0, tx: x, react: 0, beaten: false, dribbled: false, t: Math.random(), side })
+  const mk = (kind: Kind, x: number, y = -50): Def => ({
+    kind, x, y, vx: 0, t: Math.random() * 6, baseX: x, amp: 0, freq: 0, tx: x, react: 0,
+    switched: false, lunging: false, fakeDir: 0, alerted: 0, beaten: false, dribbled: false, spin: 0, group: -1, slot: 0,
+  })
+  const thirds = [W / 6, W / 2, W * 5 / 6]
 
-  function step(dt: number) {
-    const L = lv()
+  function spawn() {
+    const pool = poolFor(level)
+    let r = Math.random() * pool.reduce((a, [, w]) => a + w, 0)
+    let kind: Kind | 'combo' = pool[0][0]
+    for (const [k, w] of pool) { r -= w; if (r <= 0) { kind = k; break } }
+    if (kind === 'combo') {
+      // deux comportements ensemble, décalés
+      const a: Kind[] = ['charge', 'feint', 'lateral', 'switch', 'static']
+      const k1 = a[Math.floor(Math.random() * a.length)], k2 = a[Math.floor(Math.random() * a.length)]
+      add(k1, -50); add(k2, -130)
+      return
+    }
+    add(kind, -50)
+  }
+  function add(kind: Kind, y: number) {
+    if (kind === 'pair') {
+      const open = Math.floor(Math.random() * 3), id = ++groupId
+      pairs.push({ id, open, swapAt: level >= 5 ? 160 + Math.random() * 80 : -1, swapped: false })
+      let slot = 0
+      for (let i = 0; i < 3; i++) if (i !== open) { const d = mk('pair', thirds[i], y); d.group = id; d.slot = slot++; defs.push(d) }
+      return
+    }
+    const x = kind === 'static' ? clamp(me.x + (Math.random() - 0.5) * 140, 40, W - 40) : 40 + Math.random() * (W - 80)
+    const d = mk(kind, x, y)
+    if (kind === 'lateral') { d.amp = 60 + Math.random() * 50; d.freq = 1.6 + Math.random() * 1.2; d.baseX = clamp(x, 40 + d.amp, W - 40 - d.amp) }
+    if (kind === 'feint') d.fakeDir = Math.random() < 0.5 ? -1 : 1
+    defs.push(d)
+  }
+
+  function addPoints(n: number) {
+    const before = score
+    score = Math.min(MAX_SCORE, score + n)
+    cb.onPoint(score)
+    const lv = Math.floor(score / 10) + 1
+    if (lv > level) {
+      level = lv
+      bannerText = 'NIVEAU ' + level; bannerT = 1.6
+      cb.onLevel(level, LEVEL_MSG[level] ?? 'Encore plus vite !')
+    }
+    void before
+  }
+
+  function step(rawDt: number) {
+    let dt = rawDt
+    if (slowT > 0) { slowT -= rawDt; dt = rawDt * 0.3 }       // mini ralenti après un beau dribble
     time += dt
-    // ---- joueur : suit le doigt (ou ◀ ▶) avec de l'élan
+    if (flashT > 0) flashT -= rawDt
+    if (bannerT > 0) bannerT -= rawDt
+    // ---- joueur
     if (holdDir) me.tx = clamp(me.tx + holdDir * 300 * dt, 24, W - 24)
-    const pv = dribbleT > 0 ? 330 : 270
-    // ressort amorti (pas de dépassement puis retour en arrière)
+    const pv = spinT > 0 ? 320 : 270
     const ax = clamp((me.tx - me.x) * 16 - me.vx * 8, -2400, 2400)
     const ay = clamp((me.ty - me.y) * 16 - me.vy * 8, -2400, 2400)
     me.vx = clamp(me.vx + ax * dt, -pv, pv); me.vy = clamp(me.vy + ay * dt, -pv * 0.7, pv * 0.7)
     me.x = clamp(me.x + me.vx * dt, 22, W - 22); me.y = clamp(me.y + me.vy * dt, yMin(), yMax())
-    // ---- défilement (le joueur avance)
-    const S = L.scroll
+    // poussière quand il court vite sur le côté
+    if (Math.abs(me.vx) > 160 && Math.random() < 0.5) puff(me.x, me.y, 1, '#c9b98f')
+    // ---- défilement
+    const S = scrollSpeed()
     scroll += S * dt
-    cb.onSpeed(clamp((S - 120) / 180, 0, 1))
+    cb.onSpeed(clamp((S - 150) / 105, 0, 1))
     // ---- endurance
-    if (dribbleT > 0) dribbleT -= dt
+    if (spinT > 0) spinT -= dt
     else if (stamina < 100) { stamina = Math.min(100, stamina + STAMINA_REGEN * dt); cb.onStamina(stamina) }
+    // ---- apparitions (à distance régulière, pas au hasard du temps)
+    nextSpawnAt -= S * dt
+    if (nextSpawnAt <= 0) { spawn(); nextSpawnAt = spacing() * (0.9 + Math.random() * 0.25) }
+    // ---- paires : le couloir libre peut changer en route (niveau 5+)
+    for (const p of pairs) {
+      const members = defs.filter((d) => d.group === p.id)
+      if (!members.length) continue
+      if (p.swapAt > 0 && !p.swapped && me.y - members[0].y < p.swapAt) {
+        p.swapped = true
+        const others = [0, 1, 2].filter((i) => i !== p.open)
+        p.open = others[Math.floor(Math.random() * 2)]
+        members.forEach((d) => { d.alerted = 0.5 })
+      }
+      const closed = [0, 1, 2].filter((i) => i !== p.open)
+      members.forEach((d) => { d.tx = thirds[closed[d.slot]] })
+    }
     // ---- défenseurs
-    spawnT -= dt
-    if (spawnT <= 0 && defs.filter((d) => !d.beaten).length < L.maxDefs) { spawn(); spawnT = L.every * (0.8 + Math.random() * 0.4) }
     for (const d of defs) {
       d.t += dt
+      if (d.alerted > 0) d.alerted -= dt
+      let vy = S
+      const gap = me.y - d.y                 // > 0 : il est devant toi
       if (!d.beaten) {
-        // réagit avec un temps de retard : vise où tu vas être (anticipation selon le palier)
-        d.react -= dt
-        if (d.react <= 0) {
-          d.react = L.react
-          const lead = clamp(me.vx * L.lead, -90, 90)
-          d.tx = clamp(me.x + lead + d.side * 18, 20, W - 20)
+        let vmax = 120, target = d.tx
+        switch (d.kind) {
+          case 'static':
+            // reste planté, mais fait un petit pas vers toi s'il est au contact
+            target = gap < 90 && Math.abs(me.x - d.x) < 55 ? me.x : d.baseX
+            vmax = 90
+            break
+          case 'lateral':
+            target = d.baseX + Math.sin(d.t * d.freq) * d.amp; vmax = 200
+            break
+          case 'switch':
+            // part d'un côté puis change de ligne pour se mettre devant toi
+            if (!d.switched && gap < 230) { d.switched = true; d.alerted = 0.45; d.baseX = me.x + me.vx * 0.25 }
+            target = d.baseX; vmax = d.switched ? 260 : 60
+            break
+          case 'charge':
+            // fonce sur toi en suivant tes déplacements (avec un temps de réaction)
+            d.react -= dt
+            if (d.react <= 0) { d.react = 0.22; d.tx = me.x }
+            target = d.tx; vmax = gap < 110 ? 230 : 140; vy = S + 70
+            break
+          case 'feint':
+            // fait mine de partir d'un côté… puis tacle vers toi
+            if (gap > 150) { target = clamp(me.x + d.fakeDir * 95, 30, W - 30); vmax = 130 }
+            else { if (!d.lunging) { d.lunging = true; d.alerted = 0.4 } target = me.x; vmax = 330; vy = S + 40 }
+            break
+          case 'pair':
+            target = d.tx; vmax = 180
+            break
         }
-        const ax2 = clamp((d.tx - d.x) * 7 - d.vx * 1.6, -L.accel, L.accel)
-        d.vx = clamp(d.vx + ax2 * dt, -L.vx, L.vx)
-        // il monte presser le porteur (en plus du défilement)
-        const press = d.y < me.y - 120 ? 40 : 15
-        d.vy = S + press
-        if (d.dribbled) { d.vx *= 0.9; d.vy = S * 0.9 }
-        if (d.y > me.y + 16) {
+        // au contact, les défenseurs « collants » ferment l'espace : il faut dribbler
+        // (lire le défenseur et partir tôt marche encore ; à la dernière seconde, non)
+        const stick = d.kind === 'charge' || d.kind === 'feint' ? 260
+          : d.kind === 'pair' ? 0
+          : level >= 3 ? 210 : level >= 2 ? 150 : 0
+        if (stick && gap < 70 && gap > 0 && Math.abs(me.x - d.x) < 80) { target = me.x; vmax = Math.max(vmax, stick) }
+        if (d.alerted > 0.6) { target = me.x; vmax = 300 }          // trop tôt : il se replace
+        const acc = clamp((target - d.x) * 9 - d.vx * 4, -1600, 1600)
+        d.vx = clamp(d.vx + acc * dt, -vmax, vmax)
+        // passé sans dribble : simple évitement = +1
+        if (gap < -16) {
           d.beaten = true
-          score = Math.min(MAX_SCORE, score + 1)
-          const before = score - 1
-          const tier = TIERS.find(([at]) => before < at && score >= at)
-          if (tier) cb.onTier(tier[1])
-          cb.onPoint(score)
+          addPoints(1)
+          txts.push({ s: '+1', x: d.x, y: d.y - 50, life: 0.7, c: '#e8f5e0', big: false })
         }
       } else {
-        d.vx *= 0.96; d.vy = S * 1.05   // dans le vent : il reste sur place pendant que tu files
+        d.vx *= 0.94
+        if (d.dribbled) { d.spin += dt * 9; vy = S * 1.05 }
       }
-      d.x = clamp(d.x + d.vx * dt, 18, W - 18); d.y += d.vy * dt
+      d.x = clamp(d.x + d.vx * dt, 18, W - 18); d.y += vy * dt
       // contact
-      if (!d.beaten && !d.dribbled) {
-        const dx = d.x - me.x, dy = (d.y - 6) - (me.y - 6)
-        if (dx * dx + dy * dy < (BODY_R * 2) ** 2) {
-          if (dribbleT > 0) { d.dribbled = true; d.vx = -Math.sign(dx || 1) * 60 }
-          else { lose(d); return }
-        }
+      if (!d.beaten) {
+        const dx = d.x - me.x, dy = d.y - me.y
+        if (dx * dx + dy * dy < (BODY_R * 2) ** 2 && spinT <= 0) { lose(d); return }
       }
     }
-    defs = defs.filter((d) => d.y < H + 80)
+    defs = defs.filter((d) => d.y < H + 90)
+    for (let i = pairs.length - 1; i >= 0; i--) if (!defs.some((d) => d.group === pairs[i].id)) pairs.splice(i, 1)
+    // effets
+    for (const p of dust) { p.x += p.vx * dt; p.y += (p.vy + S) * dt; p.life -= dt }
+    dust = dust.filter((p) => p.life > 0)
+    for (const t of txts) { t.y -= 40 * dt; t.life -= rawDt }
+    txts = txts.filter((t) => t.life > 0)
+  }
+
+  function puff(x: number, y: number, n: number, c: string) {
+    for (let i = 0; i < n; i++) dust.push({ x: x + (Math.random() - 0.5) * 16, y: y + Math.random() * 4, vx: (Math.random() - 0.5) * 70, vy: -Math.random() * 40, life: 0.35 + Math.random() * 0.25, c })
   }
 
   function lose(d: Def) {
@@ -157,67 +268,154 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     cb.onLose(score)
   }
 
+  // défenseur visé par un dribble : le plus proche devant toi, à portée
+  function duelTarget() {
+    let best: Def | null = null
+    for (const d of defs) {
+      if (d.beaten) continue
+      const gap = me.y - d.y
+      if (gap < -6 || gap > DUEL_MAX || Math.abs(d.x - me.x) > 55) continue
+      if (!best || gap < me.y - best.y) best = d
+    }
+    return best
+  }
+
+  function dribble() {
+    if (!playing || spinT > 0) return
+    const d = duelTarget()
+    if (!d) { cb.onDribble('none'); return }                    // rien à dribbler : rien ne se passe
+    if (stamina < STAMINA_COST) { cb.onDribble('tired'); return }
+    stamina -= STAMINA_COST; cb.onStamina(stamina)
+    const gap = me.y - d.y
+    if (gap > GOOD_MAX) {                                         // trop tôt : il se replace devant toi
+      d.alerted = 0.9
+      txts.push({ s: 'TROP TÔT', x: d.x, y: d.y - 60, life: 0.8, c: '#ffb36b', big: false })
+      cb.onDribble('early'); return
+    }
+    if (gap < PERFECT_MIN) {                                      // trop tard : il prend le ballon
+      cb.onDribble('late'); lose(d); return
+    }
+    const perfect = gap <= PERFECT_MAX
+    // groupe (paire) : le dribble passe celui qui est devant toi
+    d.beaten = true; d.dribbled = true; d.vx = (d.x < me.x ? -1 : 1) * 140
+    spinT = SPIN_TIME
+    me.ty = clamp(me.y - 30, yMin(), yMax())                       // petit rush vers l'avant
+    puff(me.x, me.y, perfect ? 14 : 8, '#d9c99e')
+    if (perfect) { slowT = 0.12; flashT = 0.18 }
+    const pts = perfect ? 2 : 1
+    txts.push({ s: perfect ? 'PARFAIT +2' : 'BIEN +1', x: me.x, y: me.y - 110, life: 0.9, c: perfect ? '#ffd84a' : '#e8f5e0', big: perfect })
+    addPoints(pts)
+    cb.onDribble(perfect ? 'perfect' : 'good')
+  }
+
   // ---------------- dessin
   function draw() {
     const g = ctx
     g.setTransform(scale, 0, 0, scale, 0, 0)
     g.imageSmoothingEnabled = false
-    // pelouse rayée qui défile
+    const pal = PALETTES[Math.min(PALETTES.length - 1, level - 1)]
     const band = 46, off = scroll % (band * 2)
-    g.fillStyle = '#1b5c20'; g.fillRect(0, 0, W, H)
-    g.fillStyle = '#226b27'
+    g.fillStyle = pal[0]; g.fillRect(0, 0, W, H)
+    g.fillStyle = pal[1]
     for (let y = -band * 2 + off; y < H; y += band * 2) g.fillRect(0, y, W, band)
-    // lignes : bords, et une ligne médiane + rond central qui passent de temps en temps
     g.strokeStyle = 'rgba(236,240,226,.85)'; g.lineWidth = 3
     g.strokeRect(6, -10, W - 12, H + 20)
     const every = 900, ly = (scroll % every) - 200
     g.beginPath(); g.moveTo(6, ly); g.lineTo(W - 6, ly); g.stroke()
     g.beginPath(); g.arc(W / 2, ly, 46, 0, Math.PI * 2); g.stroke()
-    g.fillStyle = 'rgba(236,240,226,.85)'; g.beginPath(); g.arc(W / 2, ly, 4, 0, Math.PI * 2); g.fill()
 
-    // ombres
     const shadow = (x: number, y: number, w: number) => { g.fillStyle = 'rgba(0,20,6,.4)'; g.beginPath(); g.ellipse(x, y, w, w * 0.32, 0, 0, Math.PI * 2); g.fill() }
-    // défenseurs (derrière le joueur s'ils sont plus haut)
+    // zones de duel : anneau au sol, doré quand c'est le moment parfait
+    for (const d of defs) {
+      if (d.beaten) continue
+      const gap = me.y - d.y
+      if (gap < -6 || gap > 190) continue
+      const aligned = Math.abs(d.x - me.x) < 55
+      const perfect = aligned && gap >= PERFECT_MIN && gap <= PERFECT_MAX
+      const good = aligned && gap > PERFECT_MAX && gap <= GOOD_MAX
+      g.lineWidth = perfect ? 3 : 2
+      g.strokeStyle = perfect ? 'rgba(255,216,74,.95)' : good ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)'
+      g.beginPath(); g.ellipse(d.x, d.y + 6, 44, 15, 0, 0, Math.PI * 2); g.stroke()
+    }
     const drawDef = (d: Def) => {
       const f = Math.floor(d.t * 10) % 4
       shadow(d.x, d.y + 2, 17)
       g.save()
-      if (d.dribbled || d.beaten) g.globalAlpha = d.beaten ? 0.85 : 1
-      if (d.dribbled) { g.translate(d.x, d.y); g.rotate(Math.sin(d.t * 20) * 0.3); g.translate(-d.x, -d.y) }
+      if (d.dribbled) { g.globalAlpha = 0.9; g.translate(d.x, d.y - 30); g.rotate(Math.sin(d.spin) * 0.35); g.translate(-d.x, -(d.y - 30)) }
+      else if (d.beaten) g.globalAlpha = 0.85
+      // couleur selon le comportement (lisible d'un coup d'œil)
+      if (d.kind === 'charge') g.filter = 'hue-rotate(22deg) saturate(1.3)'
+      else if (d.kind === 'feint') g.filter = 'hue-rotate(-35deg) saturate(1.2)'
+      else if (d.kind === 'lateral' || d.kind === 'switch') g.filter = 'brightness(1.15)'
       g.drawImage(imgs.def, f * DEF_FW, 0, DEF_FW, DEF_FH, d.x - DEF_FW * SPR / 2, d.y - DEF_FH * SPR + 8, DEF_FW * SPR, DEF_FH * SPR)
       g.restore()
-      // « ! » quand il fonce sur toi
-      if (!d.beaten && !d.dribbled && d.y > me.y - 170 && d.y < me.y - 30 && Math.abs(d.x - me.x) < 60) {
+      // « ! » quand il change de côté / tacle / se replace
+      if (!d.beaten && (d.alerted > 0 || (d.lunging && me.y - d.y < 150))) {
         g.fillStyle = '#ffd84a'; g.strokeStyle = '#15130f'; g.lineWidth = 2
         const bx = d.x, by = d.y - DEF_FH * SPR + 2 - (Math.floor(time * 8) % 2) * 3
         for (const [ox, oy, h] of [[-9, 4, 9], [0, 0, 11], [9, 4, 9]]) { g.save(); g.translate(bx + ox, by + oy); g.rotate(ox * 0.03); g.strokeRect(-2, -h, 4, h); g.fillRect(-2, -h, 4, h); g.restore() }
       }
+      // flèches pour le défenseur latéral
+      if (!d.beaten && d.kind === 'lateral') {
+        g.fillStyle = 'rgba(255,255,255,.6)'
+        g.beginPath(); g.moveTo(d.x - 30, d.y - 10); g.lineTo(d.x - 22, d.y - 15); g.lineTo(d.x - 22, d.y - 5); g.fill()
+        g.beginPath(); g.moveTo(d.x + 30, d.y - 10); g.lineTo(d.x + 22, d.y - 15); g.lineTo(d.x + 22, d.y - 5); g.fill()
+      }
     }
-    const before = defs.filter((d) => d.y <= me.y), after = defs.filter((d) => d.y > me.y)
-    before.forEach(drawDef)
+    defs.filter((d) => d.y <= me.y).forEach(drawDef)
+    // poussière
+    for (const p of dust) { g.globalAlpha = Math.min(1, p.life * 3); g.fillStyle = p.c; g.fillRect(Math.round(p.x), Math.round(p.y), 3, 3) }
+    g.globalAlpha = 1
     // joueur
     shadow(me.x, me.y + 2, 18)
-    let f = Math.floor(time * 11) % 4; f = [0, 1, 2, 1][f]
+    let f = [0, 1, 2, 1][Math.floor(time * 11) % 4]
     let ball = true
     if (me.vx > 120) { f = 3 + (Math.floor(time * 8) % 2); ball = false }
     else if (me.vx < -120) { f = 5 + (Math.floor(time * 8) % 2); ball = false }
     g.save()
-    if (dribbleT > 0) {
-      const k = 1 - dribbleT / DRIBBLE_TIME
+    if (spinT > 0) {
+      const k = 1 - spinT / SPIN_TIME
       g.translate(me.x, me.y - 30); g.rotate(k * Math.PI * 2); g.translate(-me.x, -(me.y - 30))
     }
     g.drawImage(imgs.runner, f * RUN_FW, 0, RUN_FW, RUN_FH, me.x - RUN_FW * SPR / 2, me.y - RUN_FH * SPR + 12, RUN_FW * SPR, RUN_FH * SPR)
     g.restore()
-    if (ball && dribbleT <= 0) {
+    if (ball && spinT <= 0) {
       const bob = Math.abs(Math.sin(time * 9)) * 4
       g.drawImage(imgs.ball, me.x - 10 + Math.sin(time * 4.5) * 3, me.y - RUN_FH * SPR + 14 - bob, 20, 18)
     }
-    if (dribbleT > 0) {
+    if (spinT > 0) {
       g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 3
       g.beginPath(); g.ellipse(me.x, me.y - 2, 30, 10, 0, 0.2, Math.PI - 0.2); g.stroke()
     }
-    after.forEach(drawDef)
-    // contact : éclair rouge
+    defs.filter((d) => d.y > me.y).forEach(drawDef)
+    // textes flottants
+    for (const t of txts) {
+      g.globalAlpha = Math.min(1, t.life * 2.5)
+      g.font = `700 ${t.big ? 26 : 16}px Oswald, 'Arial Narrow', sans-serif`; g.textAlign = 'center'
+      g.lineWidth = 4; g.strokeStyle = '#15130f'; g.strokeText(t.s, t.x, t.y); g.fillStyle = t.c; g.fillText(t.s, t.x, t.y)
+    }
+    g.globalAlpha = 1
+    // vignette qui se resserre avec les niveaux
+    const vig = Math.min(0.45, (level - 1) * 0.08)
+    if (vig > 0) {
+      const rg = g.createRadialGradient(W / 2, H * 0.6, H * 0.3, W / 2, H * 0.6, H * 0.85)
+      rg.addColorStop(0, 'rgba(0,0,0,0)'); rg.addColorStop(1, `rgba(0,8,4,${vig})`)
+      g.fillStyle = rg; g.fillRect(0, 0, W, H)
+    }
+    // flash blanc du dribble parfait
+    if (flashT > 0) { g.fillStyle = `rgba(255,248,220,${flashT * 2})`; g.fillRect(0, 0, W, H) }
+    // bandeau NIVEAU
+    if (bannerT > 0) {
+      const a = Math.min(1, bannerT * 2, (1.6 - bannerT) * 6)
+      g.globalAlpha = a
+      g.fillStyle = 'rgba(21,19,15,.85)'; g.fillRect(0, H * 0.3 - 34, W, 62)
+      g.fillStyle = '#e9c46a'; g.fillRect(0, H * 0.3 - 34, W, 3); g.fillRect(0, H * 0.3 + 25, W, 3)
+      g.font = "700 34px Oswald, 'Arial Narrow', sans-serif"; g.textAlign = 'center'
+      g.fillStyle = '#ffd84a'; g.fillText(bannerText, W / 2, H * 0.3 + 6)
+      g.font = "600 13px Oswald, 'Arial Narrow', sans-serif"; g.fillStyle = '#f4ecd4'
+      g.fillText((LEVEL_MSG[level] ?? 'Encore plus vite !').toUpperCase(), W / 2, H * 0.3 + 21)
+      g.globalAlpha = 1
+    }
     if (lost) {
       lost.t += 1 / 60
       g.fillStyle = `rgba(193,68,60,${Math.max(0, 0.6 - lost.t)})`
@@ -234,7 +432,7 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
 
   // aide aux tests automatiques (?debug dans l'adresse) : lecture seule
   if (typeof location !== 'undefined' && location.search.includes('debug')) {
-    (window as unknown as Record<string, unknown>).__dribbleDbg = { me, defs: () => defs, score: () => score, stamina: () => stamina, W, H: () => H }
+    (window as unknown as Record<string, unknown>).__dribbleDbg = { me, defs: () => defs, score: () => score, stamina: () => stamina, level: () => level, W, H: () => H }
   }
 
   return {
@@ -244,26 +442,17 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
     isPlaying: () => playing,
     resize() { resize(); draw() },
     redraw: draw,
-    // doigt sur le terrain : le joueur va vers le doigt (un peu au-dessus, pour le voir)
     pointer(xPx: number, yPx: number, down: boolean) {
-      const r = canvas.getBoundingClientRect()
       if (!down) return
+      const r = canvas.getBoundingClientRect()
       me.tx = clamp((xPx - r.left) / r.width * W, 24, W - 24)
       me.ty = clamp((yPx - r.top) / r.height * H - 40, yMin(), yMax())
     },
-    // ◀ ▶ : un appui = un pas franc sur le côté, garder appuyé = continuer à glisser.
-    // Au relâcher le joueur RESTE où il va (avant, il revenait en arrière).
+    // ◀ ▶ : un appui = un pas franc sur le côté, garder appuyé = continuer à glisser
     hold(dir: number) {
       if (dir && dir !== holdDir) me.tx = clamp((dir > 0 ? Math.max(me.tx, me.x) : Math.min(me.tx, me.x)) + dir * 70, 24, W - 24)
       holdDir = dir
     },
-    dribble(): boolean {
-      if (!playing || dribbleT > 0) return false
-      if (stamina < STAMINA_COST) { cb.onDribble(false); return false }
-      stamina -= STAMINA_COST; dribbleT = DRIBBLE_TIME
-      cb.onStamina(stamina); cb.onDribble(true)
-      return true
-    },
-    canDribble: () => stamina >= STAMINA_COST,
+    dribble,
   }
 }

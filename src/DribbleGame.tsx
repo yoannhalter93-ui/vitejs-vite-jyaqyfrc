@@ -271,16 +271,21 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         bumpScore(); playDodge()
       },
       onLose: (sc) => endGameRef.current(sc),
-      onDribble: (ok) => {
+      onDribble: (kind) => {
         const btn = dribbleBtnRef.current
-        if (ok) { playDribbleSuccess(); vibrate([20, 30, 20]) }
-        else if (btn) { btn.classList.remove('dribble-whiff'); void btn.offsetWidth; btn.classList.add('dribble-whiff'); showWallMsg('Plus assez d\'endurance !') }
+        if (kind === 'perfect') { playDribbleSuccess(); playCrowdRoar(); vibrate([20, 30, 40]) }
+        else if (kind === 'good') { playDribbleSuccess(); vibrate([20, 30, 20]) }
+        else if (kind === 'early') { playTick(); vibrate(40) }
+        else if (btn) {
+          btn.classList.remove('dribble-whiff'); void btn.offsetWidth; btn.classList.add('dribble-whiff')
+          if (kind === 'tired') showWallMsg('Plus assez d\'endurance !')
+        }
       },
       onStamina: (v) => {
         if (staminaBarRef.current) staminaBarRef.current.style.width = v + '%'
-        dribbleBtnRef.current?.classList.toggle('px-tired', v < 45)
+        dribbleBtnRef.current?.classList.toggle('px-tired', v < 35)
       },
-      onTier: (msg) => { showWallMsg(msg, 'success'); playHola(); playCrowdRoar() },
+      onLevel: (_lv, msg) => { void msg; playHola() },
       onSpeed: (pct) => setCrowdIntensity(pct),
     })
     engine.current = e
@@ -350,6 +355,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         setButtonsEnabled(true)
         startCrowdAmbience()
         engine.current?.start()
+        showWallMsg('DRIBBLE quand le cercle devient doré !')
         return
       }
       if (countdownEl) {
@@ -397,8 +403,8 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     if (endScoreRef.current) endScoreRef.current.textContent = String(finalStreak)
     if (endLabelRef.current) {
       endLabelRef.current.textContent = finalStreak <= 1
-        ? (finalStreak === 1 ? 'défenseur passé avant de perdre le ballon.' : 'Aucun défenseur passé.')
-        : 'défenseurs passés avant de perdre le ballon.'
+        ? (finalStreak === 1 ? 'point avant de perdre le ballon.' : 'Aucun point cette fois.')
+        : 'points avant de perdre le ballon.'
     }
     setTimeout(() => { if (endMsgRef.current) endMsgRef.current.style.display = 'flex' }, 700)
 
@@ -435,13 +441,13 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         </button>
         {showRules && (
           <p className="dribble-intro">
-            Ton joueur remonte le terrain sans fin : va le plus loin possible sans perdre le ballon. Glisse le doigt sur le terrain (ou garde ◀ / ▶ appuyé) pour te déplacer librement. Les défenseurs montent te presser et essaient de te couper la route : feinte d'un côté, pars de l'autre. DRIBBLE fait un crochet qui passe à travers un défenseur, mais il coûte de l'endurance, qui se recharge petit à petit (jauge sous les boutons). Contact = ballon perdu. Chaque défenseur passé = 1 point. Ça se corse par paliers : 2 défenseurs à 10, ils te prennent à deux à 25, ils lisent tes feintes à 45, mode légende à 70. Ton meilleur score de la semaine compte pour le classement.
+            Ton joueur remonte le terrain sans fin : va le plus loin possible sans perdre le ballon. Glisse le doigt (ou ◀ / ▶) pour te déplacer. Chaque défenseur a sa façon de défendre : planté, qui glisse de côté, qui change de ligne, qui charge, qui feinte puis tacle, ou deux qui ferment deux couloirs. Autour de chaque défenseur, un cercle au sol = la zone de duel : appuie sur DRIBBLE quand le cercle devient doré → PARFAIT +2 ; un peu avant (cercle blanc) → BIEN +1. Trop tôt, il se replace devant toi ; trop tard, il prend le ballon. L'éviter sans dribbler = +1. Le dribble coûte de l'endurance (jauge sous les boutons). Tous les 10 points : niveau suivant, un peu plus vite, avec de nouveaux défenseurs. Ton meilleur score de la semaine compte pour le classement.
           </p>
         )}
 
         <div className="px-scorebar">
           <svg className="px-laurel" viewBox="0 0 22 34" aria-hidden="true"><path fill="currentColor" d="M15 33C7 29 3 22 4 12l2 0c0 9 3 15 10 19zM3 9c-2-3-1-6 1-8 2 3 1 6-1 8zm1 7c-3-1-4-4-4-7 3 1 4 4 4 7zm2 7c-3 0-5-3-6-6 3 0 5 3 6 6zm4 6c-3 1-6-1-7-4 3-1 6 1 7 4zM8 13c-1-3 0-6 3-8 1 3 0 6-3 8zm1 7c-1-3 1-6 3-7 1 3-1 6-3 7z"/></svg>
-          <div className="px-score-lbl">Défenseurs<br />passés</div>
+          <div className="px-score-lbl">Score</div>
           <span className="px-sep" />
           <b className="px-score" ref={streakElRef as any}>0</b>
           <svg className="px-laurel r" viewBox="0 0 22 34" aria-hidden="true"><path fill="currentColor" d="M15 33C7 29 3 22 4 12l2 0c0 9 3 15 10 19zM3 9c-2-3-1-6 1-8 2 3 1 6-1 8zm1 7c-3-1-4-4-4-7 3 1 4 4 4 7zm2 7c-3 0-5-3-6-6 3 0 5 3 6 6zm4 6c-3 1-6-1-7-4 3-1 6 1 7 4zM8 13c-1-3 0-6 3-8 1 3 0 6-3 8zm1 7c-1-3 1-6 3-7 1 3-1 6-3 7z"/></svg>
@@ -461,7 +467,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
             </div>
             <div className="dribble-end-msg" ref={endMsgRef} style={{ display: 'none' }}>
               <span className="dribble-big" ref={endScoreRef}>0</span>
-              <p className="dribble-sub" ref={endLabelRef}>défenseurs passés avant de perdre le ballon.</p>
+              <p className="dribble-sub" ref={endLabelRef}>points avant de perdre le ballon.</p>
               <button className="dribble-cta" onPointerDown={startGame}>Rejouer</button>
             </div>
           </div>
