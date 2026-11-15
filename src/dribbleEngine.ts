@@ -359,6 +359,16 @@ export function createDribbleEngine(canvas: HTMLCanvasElement, imgs: { runner: H
         if (dx * dx + dy * dy < (BODY_R * 2) ** 2 && invulnT <= 0) { lose(d); return }
       }
     }
+    // deux défenseurs ne se superposent jamais : ils s'écartent l'un de l'autre
+    for (let i = 0; i < defs.length; i++) for (let j = i + 1; j < defs.length; j++) {
+      const a = defs[i], b = defs[j]
+      const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), min = 34
+      if (dist < min && dist > 0.01) {
+        const push = (min - dist) / 2, nx = dx / dist, ny = dy / dist
+        a.x = clamp(a.x - nx * push, 18, W - 18); b.x = clamp(b.x + nx * push, 18, W - 18)
+        a.y -= ny * push * 0.5; b.y += ny * push * 0.5
+      } else if (dist <= 0.01) { a.x = clamp(a.x - 17, 18, W - 18); b.x = clamp(b.x + 17, 18, W - 18) }
+    }
     defs = defs.filter((d) => d.y < H + 90)
     for (let i = pairs.length - 1; i >= 0; i--) if (!defs.some((d) => d.group === pairs[i].id)) pairs.splice(i, 1)
     // effets
