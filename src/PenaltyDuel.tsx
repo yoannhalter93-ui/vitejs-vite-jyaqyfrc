@@ -443,6 +443,7 @@ export default function PenaltyDuel({ groupId, groupName }: Props) {
               hudLabel={myTurnToShoot ? 'TIR' : 'ARRÊT'}
               done={myTurnToShoot ? shotsDone : savesDone}
               hint={myTurnToShoot ? '👆 Touche où tu tires' : '🧤 Touche où tu plonges'}
+              hideKeeper={myTurnToShoot}
             />
 
             {animStage === 'result' && animResult ? (

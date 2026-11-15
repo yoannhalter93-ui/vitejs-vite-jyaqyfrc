@@ -35,6 +35,7 @@ type Props = {
   hudLabel: string             // « TIR » ou « ARRÊT »
   done: number                 // tentatives déjà jouées (0 à 3)
   hint: string | null
+  hideKeeper?: boolean         // quand je tire : l'adversaire n'a pas encore plongé, cage vide
   ref?: Ref<PenaltySceneHandle>
 }
 
@@ -51,6 +52,7 @@ function preload() {
 function createEngine(root: HTMLDivElement) {
   const q = <T extends Element>(s: string) => root.querySelector(s) as T
   const ball = q<HTMLImageElement>('.pks-ball'), shadow = q<HTMLDivElement>('.pks-shadow')
+  const target = q<HTMLDivElement>('.pks-target')
   const banner = q<HTMLDivElement>('.pks-banner'), flash = q<HTMLDivElement>('.pks-flash'), ripple = q<HTMLDivElement>('.pks-ripple')
   const px = () => root.clientWidth / 941
   // perspective : sol au point de penalty (y 1042) et sur la ligne de but (y 762)
@@ -184,7 +186,7 @@ function createEngine(root: HTMLDivElement) {
     cancelAnimationFrame(raf); netImpact = null; drawNet(null, 0); kickAt(0)
     showFrames('hr', [1], 0, 0)
     ball.style.transform = ''; ball.style.opacity = '1'; ball.style.zIndex = '5'; shadow.style.opacity = '0'
-    banner.className = 'pks-banner'; flash.className = 'pks-flash'
+    banner.className = 'pks-banner'; flash.className = 'pks-flash'; target.className = 'pks-target'
     busy = false
     if (done) { const d = done; done = null; d() }
   }
@@ -219,7 +221,12 @@ function createEngine(root: HTMLDivElement) {
           const d = Math.min(t / T, 1)
           const fade = 1 - smooth(0.62, 0.86, d)
           drawBall(488 + (tx - 488) * d + curve * Math.sin(Math.PI * d), d, hT * d + arc * d * (1 - d), t * (lob ? 300 : 900), fade)
-          if (d > 0.7 && !blindShown) { blindShown = true; show('🤫 Tir envoyé !', true) }
+          if (d > 0.7 && !blindShown) {
+            blindShown = true; show('🤫 Tir envoyé !', true)
+            // cible blanche à l'endroit visé
+            target.style.left = (tx / 941 * 100) + '%'; target.style.top = (ty / 1410 * 100) + '%'
+            target.className = 'pks-target show'
+          }
         } else if (t < T) {
           const d = t / T
           drawBall(488 + (tx - 488) * d + curve * Math.sin(Math.PI * d), d, hT * d + arc * d * (1 - d), t * (lob ? 300 : 900))
@@ -267,7 +274,7 @@ function createEngine(root: HTMLDivElement) {
   }
 }
 
-export default function PenaltyScene({ canPick, allowSwipe, onPick, hudLabel, done, hint, ref }: Props) {
+export default function PenaltyScene({ canPick, allowSwipe, onPick, hudLabel, done, hint, hideKeeper, ref }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const engine = useRef<ReturnType<typeof createEngine> | null>(null)
   const pickRef = useRef({ canPick, onPick, allowSwipe })
@@ -311,7 +318,7 @@ export default function PenaltyScene({ canPick, allowSwipe, onPick, hudLabel, do
   }
 
   return (
-    <div className={'pks' + (canPick ? '' : ' off')} ref={rootRef} onPointerDown={onDown} onPointerUp={onUp}>
+    <div className={'pks' + (canPick ? '' : ' off') + (hideKeeper ? ' nokeeper' : '')} ref={rootRef} onPointerDown={onDown} onPointerUp={onUp}>
       <img className="pks-bg" src={IMG + 'stade.webp'} alt="" />
       <canvas className="pks-net" />
       {Object.keys(KF).map((a) => (
@@ -322,6 +329,7 @@ export default function PenaltyScene({ canPick, allowSwipe, onPick, hudLabel, do
       <div className="pks-shadow" />
       <img className="pks-ball" src={IMG + 'ballon.webp'} alt="" />
       <div className="pks-ripple" />
+      <div className="pks-target" />
       <div className="pks-kick">
         {KICK_FR.map((n) => <img key={n} src={`${IMG}tireur_${n}.webp`} alt="" />)}
       </div>
