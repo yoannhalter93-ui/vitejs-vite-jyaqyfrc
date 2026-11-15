@@ -1,0 +1,35 @@
+/* Tirs au but : vrai décor (stade, cage, gardien et tireur animés image par image).
+   Toutes les positions sont en % de l'image du décor (941 × 1410). */
+.pks { position: relative; width: 100%; max-width: 470px; margin: 0 auto; aspect-ratio: 941 / 1410; overflow: hidden; border-radius: 14px; user-select: none; -webkit-user-select: none; touch-action: none; background: #0f2a1d; font-family: Georgia, 'Times New Roman', serif; color: #f3e6c4; }
+.pks, .pks * { -webkit-tap-highlight-color: transparent; }
+.pks img { position: absolute; display: block; pointer-events: none; max-width: none; }
+.pks-bg { inset: 0; width: 100%; height: 100%; }
+.pks-net { position: absolute; left: calc(262 / 941 * 100%); top: calc(486 / 1410 * 100%); width: calc(640 / 941 * 100%); height: calc(273 / 1410 * 100%); z-index: 2; pointer-events: none; }
+.pks-kf { position: absolute; z-index: 3; pointer-events: none; will-change: transform; }
+.pks-kf img { left: 0; top: 0; width: 100%; opacity: 0; }
+.pks-ball { left: calc(436 / 941 * 100%); top: calc(938 / 1410 * 100%); width: calc(104 / 941 * 100%); transform-origin: 50% 50%; will-change: transform, opacity; z-index: 5; }
+.pks-shadow { position: absolute; left: calc(436 / 941 * 100%); top: calc(1029 / 1410 * 100%); width: calc(104 / 941 * 100%); height: calc(26 / 1410 * 100%); border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,.6), rgba(0,0,0,0) 70%); opacity: 0; z-index: 2; pointer-events: none; will-change: transform; }
+.pks-kick { position: absolute; z-index: 4; pointer-events: none; left: -18.145%; top: 18.451%; width: 83.447%; aspect-ratio: 487 / 525; }
+.pks-kick img { left: 0; top: 0; width: 100%; opacity: 0; }
+.pks-ripple { position: absolute; width: calc(60 / 941 * 100%); aspect-ratio: 1; border-radius: 50%; border: 3px solid rgba(255,255,255,.9); transform: translate(-50%, -50%) scale(.2); opacity: 0; z-index: 6; pointer-events: none; }
+.pks-ripple.go { animation: pks-ripple .6s ease-out; }
+@keyframes pks-ripple { 0% { opacity: 1; transform: translate(-50%, -50%) scale(.2) } 100% { opacity: 0; transform: translate(-50%, -50%) scale(2.6) } }
+.pks.shake { animation: pks-shake .35s ease-in-out; }
+@keyframes pks-shake { 25% { transform: translate(3px, -2px) } 50% { transform: translate(-3px, 2px) } 75% { transform: translate(2px, 1px) } }
+
+/* zones invisibles : on touche directement la cage */
+.pks-zone { position: absolute; width: calc(230 / 941 * 100%); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 30%; z-index: 7; cursor: pointer; background: transparent; outline: none; }
+.pks.off .pks-zone { pointer-events: none; }
+
+.pks-hud { position: absolute; z-index: 5; left: calc(36 / 941 * 100%); right: calc(36 / 941 * 100%); top: calc(18 / 1410 * 100%); height: calc(92 / 1410 * 100%); display: flex; align-items: center; justify-content: space-around; text-align: center; }
+.pks-hud .lbl { font: 600 clamp(9px, 2.6vw, 13px) system-ui, sans-serif; letter-spacing: 2px; color: #e8dcc0; }
+.pks-hud .val { font-size: clamp(20px, 6.5vw, 34px); font-weight: 700; color: #f3e6c4; line-height: 1.1; }
+.pks-hud .sep { width: 1px; align-self: stretch; margin: 10px 0; background: rgba(233,196,106,.5); }
+.pks-dots span { display: inline-block; width: .7em; height: .7em; border-radius: 50%; border: 2px solid #e9c46a; margin: 4px 2px 0; }
+.pks-dots span.on { background: #e9c46a; }
+.pks-banner { position: absolute; z-index: 8; left: 50%; top: calc(182 / 1410 * 100%); transform: translate(-50%, -50%) skewX(-8deg); background: #8e1b1b; border: 3px solid #e9c46a; padding: .25em 1.2em; font: italic 700 clamp(20px, 6vw, 32px) Georgia, serif; color: #f5d98b; white-space: nowrap; opacity: 0; transition: opacity .25s, transform .25s; box-shadow: 0 6px 20px rgba(0,0,0,.4); pointer-events: none; }
+.pks-banner.show { opacity: 1; transform: translate(-50%, -50%) skewX(-8deg) scale(1.05); }
+.pks-banner.save { background: #1f3b2a; }
+.pks-hint { position: absolute; z-index: 5; left: 50%; top: calc(1222 / 1410 * 100%); min-width: 72%; text-align: center; padding: .9em 1.2em; transform: translate(-50%, -50%); background: rgba(15,30,20,.92); border: 2px solid rgba(233,196,106,.6); border-radius: 999px; font: italic 700 clamp(15px, 4.6vw, 24px) Georgia, serif; color: #f3e6c4; white-space: nowrap; pointer-events: none; }
+.pks-flash { position: absolute; inset: 0; z-index: 6; background: rgba(255,220,120,.25); opacity: 0; transition: opacity .3s; pointer-events: none; }
+.pks-flash.on { opacity: 1; }
