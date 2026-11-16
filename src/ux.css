@@ -1511,3 +1511,20 @@ details.rules-section > :last-child {
 .freekick-px .dribble-stat span::after { content: ' :'; }
 .freekick-px .dribble-stat:last-child { background: #6e1a1a; }
 .freekick-px .dribble-stat:last-child b, .freekick-px .dribble-stat:last-child span { color: #f4ecd4; }
+
+/* ===== Coup franc (image de référence + moteur) ===== */
+.fk2 { padding-top: 0; }
+.fk2-stage { position: relative; width: 100%; max-width: 480px; margin: 0 auto; aspect-ratio: 941 / 1672; border-radius: 14px; overflow: hidden; background: #123321; }
+.fk2-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.fk2-fs .fk2-stage { position: fixed; inset: 0; z-index: 3000; max-width: none; aspect-ratio: auto; border-radius: 0; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+.fk2-card { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; width: min(80%, 320px); padding: 18px 16px; border-radius: 16px; text-align: center;
+  background: rgba(16, 40, 26, 0.94); border: 2px solid #d9b25a; box-shadow: 0 10px 30px rgba(0,0,0,.5); color: #f5e7c4; }
+.fk2-card-title { margin: 0 0 6px; font: 700 28px Oswald, sans-serif; color: #f5e7c4; }
+.fk2-card-sub { margin: 0 0 14px; font: 600 14px Oswald, sans-serif; color: #e8d7ad; }
+.fk2-cta { display: block; width: 100%; padding: 12px; border: 2px solid #f0cf7a; border-radius: 12px; background: linear-gradient(180deg, #a3262b, #6e1219); color: #fff1cf; font: 700 22px Oswald, sans-serif; letter-spacing: 1px; cursor: pointer; }
+.fk2-link { margin-top: 10px; background: none; border: none; color: #e8d7ad; text-decoration: underline; font: 600 14px Oswald, sans-serif; cursor: pointer; }
+.fk2-rules { position: absolute; inset: 0; z-index: 6; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; }
+.fk2-rules-box { width: min(88%, 360px); max-height: 80%; overflow: auto; padding: 16px; border-radius: 16px; background: #f4ead2; border: 2px solid #b9893a; color: #2a1a10; font: 500 14px/1.4 system-ui, sans-serif; text-align: left; }
+.fk2-rules-box .fk2-card-title { color: #7d1a1e; text-align: center; }
+.fk2-rules-box p { margin: 0 0 8px; }
+.fk2-board-toggle { margin-top: 10px; }
