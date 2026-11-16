@@ -63,7 +63,7 @@ const WALL_PLAYER_HALF_W = 0.25
 const WALL_HEIGHT = 1.8
 const WALL_JUMP = 0.38
 const KEEPER_LINE_OFFSET = 0.3 // le gardien se tient 30 cm devant sa ligne
-const MAX_CURL_ACCEL = 5.5 // m/s², effet maximal (non compensé : jusqu'à ~2-3 m de courbe)
+const MAX_CURL_ACCEL = 5.5 // m/s², effet maximal
 const MAX_SCORE = 2000
 
 // ---- caméra / écran (unités logiques : largeur fixe 360) ----
@@ -115,13 +115,13 @@ interface ShotConfig {
 //  3. 22-24 m : le mur saute, gardien plus rapide
 //  4. 25-27 m : ballon décalé à gauche ou à droite
 //  5. 28 m+   : très difficile (gros mur, gardien vif qui couvre plus) : il faut une grosse courbe dans les lucarnes
-// Simulation (tous les tirs cible x hauteur x effet x puissance) : ~15 %, ~9 %, ~4 %, ~1,8 %, ~0,7 % de tirs possibles.
+// Simulation (tous les tirs cible x hauteur x effet x puissance) : ~18 %, ~11,5 %, ~6 %, ~3 %, ~1,3 % de tirs possibles.
 const STAGES = [
-  { from: 0, dMin: 17, dMax: 18, walls: 3, jump: 0, kSpeed: 1.6, kReact: 0.5, lat: [0, 1.5], reach: 1.05, info: 'Apprentissage' },
-  { from: 3, dMin: 19, dMax: 21, walls: 4, jump: 0, kSpeed: 2.3, kReact: 0.4, lat: [0, 2.5], reach: 1.05, info: 'Mur de 4 : contourne-le' },
-  { from: 7, dMin: 22, dMax: 24, walls: 4, jump: 1, kSpeed: 2.8, kReact: 0.33, lat: [0, 2.5], reach: 1.05, info: 'Le mur saute, gardien plus vif' },
-  { from: 11, dMin: 25, dMax: 27, walls: 4, jump: 0.7, kSpeed: 3.0, kReact: 0.3, lat: [4, 8], reach: 1.05, info: 'Ballon décalé sur le côté' },
-  { from: 15, dMin: 28, dMax: 32, walls: 5, jump: 1, kSpeed: 3.3, kReact: 0.27, lat: [0, 8], reach: 1.15, info: 'Grosse courbe et lucarnes !' },
+  { from: 0, dMin: 17, dMax: 18, walls: 3, jump: 0, kSpeed: 1.4, kReact: 0.55, lat: [0, 1.5], reach: 1.0, info: 'Apprentissage' },
+  { from: 3, dMin: 19, dMax: 21, walls: 4, jump: 0, kSpeed: 2.0, kReact: 0.45, lat: [0, 2.5], reach: 1.0, info: 'Mur de 4 : contourne-le' },
+  { from: 7, dMin: 22, dMax: 24, walls: 4, jump: 1, kSpeed: 2.5, kReact: 0.37, lat: [0, 2.5], reach: 1.05, info: 'Le mur saute, gardien plus vif' },
+  { from: 11, dMin: 25, dMax: 27, walls: 4, jump: 0.7, kSpeed: 2.8, kReact: 0.33, lat: [4, 8], reach: 1.05, info: 'Ballon décalé sur le côté' },
+  { from: 15, dMin: 28, dMax: 32, walls: 5, jump: 1, kSpeed: 3.2, kReact: 0.29, lat: [0, 8], reach: 1.12, info: 'Grosse courbe et lucarnes !' },
 ]
 const stageOf = (goals: number) => { let k = 0; STAGES.forEach((st, i) => { if (goals >= st.from) k = i }); return k + 1 }
 
@@ -151,7 +151,7 @@ function shotConfig(weekSeed: number, n: number): ShotConfig {
 
 const levelOf = stageOf
 // jauge de puissance : monte en ~1 s puis redescend (aller-retour tant qu'on garde le doigt posé)
-const GAUGE_UP = 1.0
+const GAUGE_UP = 1.3
 const gaugeAt = (heldMs: number) => { const u = (heldMs / 1000 / GAUGE_UP) % 2; return u < 1 ? u : 2 - u }
 // réglages « extra » du tir : la cible bonus (+3), plus petite aux paliers élevés
 function extrasFor(level: number, r: () => number) {
@@ -515,14 +515,15 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const hx = (target.x - b.x) / horiz, hz = (target.z - b.z) / horiz
     const nx = hz, nz = -hx
     const a = { x: -curl * MAX_CURL_ACCEL * nx, y: grounder ? 0 : -G, z: -curl * MAX_CURL_ACCEL * nz }
-    // on vise une zone : l'effet n'est PAS compensé, il fait dévier le ballon
-    // (on vise à côté du poteau et la courbe le ramène) ; la puissance du geste
-    // change un peu la vitesse : fort = arrive plus tôt donc plus haut, doux = plus bas
-    const s = 0.86 + 0.28 * power
+    // on vise une zone : l'effet n'est compensé qu'à 70 %, le reste fait dévier
+    // le ballon (jusqu'à ~1 m) ; la puissance de la jauge change un peu la
+    // vitesse : fort = arrive plus tôt donc plus haut, faible = plus bas
+    const CURL_COMP = 0.7
+    const s = 0.92 + 0.16 * power
     const v = {
-      x: ((target.x - b.x) / T) * s,
+      x: ((target.x - b.x) / T - 0.5 * a.x * T * CURL_COMP) * s,
       y: (target.y - b.y) / T - 0.5 * a.y * T,
-      z: ((target.z - b.z) / T) * s,
+      z: ((target.z - b.z) / T - 0.5 * a.z * T * CURL_COMP) * s,
     }
     a.x += eng.ex.wind                       // le vent pousse le ballon (à toi de compenser)
     eng.flight = { o: { ...b }, v, a, t: 0, prevDepth: 0, trail: [] }
@@ -963,6 +964,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         grad.addColorStop(0, '#3fbf5f'); grad.addColorStop(0.55, '#ffd84a'); grad.addColorStop(1, '#ff4b3e')
         ctx.fillStyle = grad; ctx.fillRect(gx, gy - gh * g, gw, gh * g)
         ctx.strokeStyle = 'rgba(244,239,226,0.9)'; ctx.lineWidth = 1; ctx.strokeRect(gx - 2, gy - gh - 2, gw + 4, gh + 4)
+        // repère : puissance normale au milieu
+        ctx.fillStyle = '#fff'; ctx.fillRect(gx - 5, gy - gh * 0.5 - 1, gw + 10, 2)
       }
       // pendant que le doigt est posé : juste une petite traînée discrète
       // derrière le doigt (on ne montre pas la trajectoire finale)
@@ -1306,8 +1309,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
           <p className="dribble-intro">
             Garde le doigt sur le ballon : la jauge de puissance monte puis redescend. Quand elle est au bon
             niveau, glisse vers la zone du but que tu vises et relâche : le tir part tout de suite. Trop de
-            puissance = le ballon monte (attention à la barre), pas assez = il retombe. Un geste en arc donne
-            de l'effet : le ballon part du côté de l'arc puis revient, à toi de viser à côté pour qu'il rentre.
+            puissance = le ballon monte (attention à la barre), pas assez = il retombe. Le trait blanc de la jauge = puissance
+            normale. Un geste en arc donne de l'effet pour contourner le mur (le ballon dévie un peu de ta visée).
             Lève le doigt sous la ligne de but pour une frappe à ras de terre (elle passe sous le mur qui saute).
             But = 1 point, lucarne = 2, dans la cible jaune = 3. Au premier raté, la série s'arrête.
             Chaque partie est différente, et ça recule à chaque but : 17-18 m (mur de 3, gardien lent),
