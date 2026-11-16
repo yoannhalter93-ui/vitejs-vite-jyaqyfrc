@@ -1,0 +1,23 @@
+.ps-screen { align-items: flex-start; padding-top: max(24px, env(safe-area-inset-top)); }
+.ps-card { display: flex; flex-direction: column; gap: 6px; }
+.ps-photo { display: flex; align-items: center; gap: 14px; margin: 4px 0 6px; }
+.ps-photo-btns { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.ps-small-btn { padding: 9px 10px; border-radius: 8px; border: none; background: #D4A22C; color: #1B1B1F; font-weight: 600; font-size: 14px; cursor: pointer; text-align: left; }
+.ps-small-btn-2 { background: #E8E0CC; }
+.ps-small-btn:disabled { opacity: .6; }
+.ps-presets { max-height: 230px; overflow-y: auto; margin: 4px 0 0; }
+.ps-gender { display: flex; gap: 10px; margin-top: 2px; }
+.ps-gender-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 8px; border-radius: 10px;
+  border: 2px solid rgba(27, 27, 31, 0.15); background: #E8E0CC; color: #1B1B1F; font-size: 16px; font-weight: 600; cursor: pointer; }
+.ps-gender-btn.on { border-color: #D4A22C; background: #D4A22C; }
+.ps-gender-ico { font-size: 20px; line-height: 1; }
+.ps-submit { margin-top: 16px; }
+.ps-hint { margin: 6px 0 0; font-size: 12px; text-align: center; opacity: .75; }
+.ps-overlay { z-index: 4000; }
+.ps-modal h3 { text-align: center; }
+.ps-text { margin: 0 0 14px; font-size: 14px; line-height: 1.4; color: #1B1B1F; }
+.ps-modal .ps-submit { width: 100%; }
+/* Paramètres : Homme / Femme */
+.parametres-gender { display: inline-flex; gap: 6px; }
+.parametres-gender-btn { padding: 6px 10px; border-radius: 8px; border: 1.5px solid rgba(27,27,31,.2); background: transparent; color: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.parametres-gender-btn.on { background: #D4A22C; border-color: #D4A22C; color: #1B1B1F; }
