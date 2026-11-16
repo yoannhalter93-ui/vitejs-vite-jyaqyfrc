@@ -140,6 +140,33 @@ function shotConfig(weekSeed: number, n: number): ShotConfig {
   }
 }
 
+// ---- niveaux (1 niveau = 4 buts) : chaque niveau ajoute quelque chose ----
+const GOALS_PER_LEVEL = 4
+const LEVEL_INFO: Record<number, string> = {
+  1: 'Vise la cible pour +3',
+  2: 'Le mur peut sauter',
+  3: 'Le gardien bouge avant la frappe',
+  4: 'Attention au vent',
+  5: 'Le mur se décale à la frappe',
+  6: '4 secondes pour tirer',
+}
+const levelOf = (goals: number) => Math.floor(goals / GOALS_PER_LEVEL) + 1
+// réglages « extra » du tir selon le niveau (hasard propre à chaque partie)
+function extrasFor(level: number, r: () => number) {
+  const ang = r() * Math.PI * 2
+  return {
+    // cible bonus dans le but (x, hauteur) : plus petite aux niveaux élevés
+    target: { x: (r() * 2 - 1) * (GOAL_HALF_W - 0.7), y: 0.55 + r() * (GOAL_H - 1.0), r: Math.max(0.32, 0.55 - level * 0.03) },
+    keeperDance: level >= 3 ? 0.55 + Math.min(0.5, (level - 3) * 0.1) : 0,
+    danceFreq: 1.4 + r() * 1.2 + Math.max(0, level - 3) * 0.2,
+    wind: level >= 4 ? (r() < 0.5 ? -1 : 1) * (0.8 + r() * Math.min(2.2, 0.6 + (level - 4) * 0.4)) : 0,
+    wallSlide: level >= 5 && r() < Math.min(0.85, 0.5 + (level - 5) * 0.1),
+    shotClock: level >= 6 ? Math.max(2.6, 4 - (level - 6) * 0.25) : 0,
+    dancePhase: ang,
+  }
+}
+type Extras = ReturnType<typeof extrasFor>
+
 // ---- géométrie d'un coup franc (dérivée de la config) ----
 interface Scene {
   cfg: ShotConfig
@@ -187,7 +214,7 @@ function unprojectToGoalPlane(sc: Scene, sx: number, sy: number, cx: number, hy:
   return { x: sc.cam.x + t * dx, y: Math.max(-2, Math.min(6, sc.cam.y + t * yr)), z: sc.cfg.dist }
 }
 
-type Outcome = 'goal' | 'lucarne' | 'wall' | 'saved' | 'post' | 'bar' | 'wide' | 'over'
+type Outcome = 'goal' | 'lucarne' | 'cible' | 'wall' | 'saved' | 'post' | 'bar' | 'wide' | 'over' | 'late'
 
 interface Flight {
   // trajectoire analytique : pos(t) = o + v t + ½ a t²
@@ -223,6 +250,11 @@ interface Engine {
   lastW: number
   lastH: number
   audio: AudioContext | null
+  level: number
+  ex: Extras
+  aimAt: number
+  wallShift: number
+  bannerAt: number
 }
 
 function newEngine(seed: number): Engine {
@@ -233,11 +265,14 @@ function newEngine(seed: number): Engine {
     keeperX: -cfg.nearSide * 0.6, keeperJump: 0, wallJumpT: -1, netHit: null,
     swipe: [], swiping: false, particles: [], msg: null, spin: 0,
     crowd: [], lastW: 0, lastH: 0, audio: null,
+    level: 1, ex: extrasFor(1, mulberry32(seed)), aimAt: 0, wallShift: 0, bannerAt: -1e9,
   }
 }
 
 const OUTCOME_TEXT: Record<Outcome, { text: string; color: string }> = {
   goal: { text: 'BUT !', color: '#D4A22C' },
+  cible: { text: 'DANS LA CIBLE !', color: '#ffd84a' },
+  late: { text: 'Trop tard !', color: '#F4EFE2' },
   lucarne: { text: 'LUCARNE !', color: '#D4A22C' },
   wall: { text: 'Dans le mur !', color: '#F4EFE2' },
   saved: { text: 'Arrêt du gardien !', color: '#F4EFE2' },
@@ -407,6 +442,19 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     eng.swiping = false
     eng.msg = null
     eng.phase = 'aim'
+    const lv = levelOf(eng.goals)
+    if (lv > eng.level || eng.goals === 0) eng.bannerAt = performance.now()
+    eng.level = lv
+    eng.ex = extrasFor(lv, mulberry32(eng.weekSeed + eng.goals * 104729 + 17))
+    // la cible n'est jamais collée au gardien au départ (sinon elle est injouable)
+    {
+      const tg = eng.ex.target, kx = eng.scene.keeperX0
+      if (Math.abs(tg.x - kx) < 1.3) tg.x = Math.max(-(GOAL_HALF_W - 0.7), Math.min(GOAL_HALF_W - 0.7, kx + (tg.x >= kx ? 1 : -1) * 1.3))
+      if (Math.abs(tg.x - kx) < 1.3) tg.x = kx + (kx > 0 ? -1.6 : 1.6)
+    }
+    eng.aimAt = performance.now()
+    eng.wallShift = 0
+    eng.keeperX = eng.scene.keeperX0
     setDistance(Math.round(cfg.dist))
     sfxWhistle()
   }
@@ -414,7 +462,9 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
   const startGame = () => {
     ensureAudio()
     const eng = engineRef.current
-    eng.weekSeed = hashString('coup-franc:' + monday())
+    // chaque partie est différente (même difficulté pour tous à chaque niveau)
+    eng.weekSeed = (Math.random() * 4294967296) >>> 0
+    eng.level = 1
     eng.goals = 0
     eng.points = 0
     eng.particles = []
@@ -466,6 +516,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       y: (target.y - b.y) / T - 0.5 * a.y * T,
       z: (target.z - b.z) / T - 0.5 * a.z * T,
     }
+    a.x += eng.ex.wind                       // le vent pousse le ballon (à toi de compenser)
     eng.flight = { o: { ...b }, v, a, t: 0, prevDepth: 0, trail: [] }
     eng.phase = 'flight'
     eng.wallJumpT = 0
@@ -500,6 +551,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     switch (outcome) {
       case 'goal':
       case 'lucarne':
+      case 'cible':
         nv = { x: v.x * 0.25, y: v.y * 0.2, z: v.z * 0.12 }
         eng.netHit = { ...p }
         break
@@ -521,14 +573,14 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     eng.free = { p: { ...p }, v: nv, t: 0 }
 
     const txt = OUTCOME_TEXT[outcome]
-    const isGoal = outcome === 'goal' || outcome === 'lucarne'
+    const isGoal = outcome === 'goal' || outcome === 'lucarne' || outcome === 'cible'
     if (isGoal) {
-      const pts = outcome === 'lucarne' ? 2 : 1
+      const pts = outcome === 'cible' ? 3 : outcome === 'lucarne' ? 2 : 1
       eng.goals += 1
       eng.points += pts
       setGoals(eng.goals)
       setPoints(eng.points)
-      eng.msg = { text: txt.text, sub: outcome === 'lucarne' ? '+2 points' : '+1 point', color: txt.color, at: performance.now() }
+      eng.msg = { text: txt.text, sub: `+${pts} point${pts > 1 ? 's' : ''}`, color: txt.color, at: performance.now() }
       sfxNet(); sfxRoar(); vibrate([30, 40, 60])
       // confettis
       const { cx, hy } = layout()
@@ -563,8 +615,20 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     }
     eng.particles = eng.particles.filter((p) => p.life > 0)
 
+    // avant la frappe : le gardien bouge (niveau 3+) ; chrono de tir (niveau 6+)
+    if (eng.phase === 'aim') {
+      const tAim = (performance.now() - eng.aimAt) / 1000
+      if (eng.ex.keeperDance) eng.keeperX = sc.keeperX0 + Math.sin(tAim * eng.ex.danceFreq + eng.ex.dancePhase) * eng.ex.keeperDance
+      if (eng.ex.shotClock && tAim > eng.ex.shotClock && !eng.swiping) { resolve('late', sc.ball0, { x: 0, y: 0, z: 0 }); return }
+    }
     if (eng.phase === 'flight' && eng.flight) {
       const f = eng.flight
+      // le mur se décale vers le côté où part le ballon (niveau 5+)
+      if (eng.ex.wallSlide && f.t > 0.08) {
+        const v0 = f.v.x * sc.w.x + f.v.z * sc.w.z
+        const want = Math.sign(v0) * 0.45
+        eng.wallShift += (want - eng.wallShift) * Math.min(1, dt * 7)
+      }
       const SUB = 8
       for (let i = 0; i < SUB && eng.phase === 'flight'; i++) {
         const t0 = f.t
@@ -597,7 +661,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
           const pc = { x: p0.x + (p1.x - p0.x) * u, y: p0.y + (p1.y - p0.y) * u, z: p0.z + (p1.z - p0.z) * u }
           const lat = (pc.x - sc.ball0.x) * sc.w.x + (pc.z - sc.ball0.z) * sc.w.z
           const top = wallTop(t1)
-          const inWall = sc.wallLats.some((l) => Math.abs(lat - l) <= WALL_PLAYER_HALF_W + BALL_R)
+          const inWall = sc.wallLats.some((l) => Math.abs(lat - (l + eng.wallShift)) <= WALL_PLAYER_HALF_W + BALL_R)
           const under = pc.y + BALL_R < wallLift(t1) // passe sous le mur qui saute
           if (inWall && pc.y <= top + BALL_R && !under) {
             resolve('wall', pc, flightVel(f, t1))
@@ -646,8 +710,10 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
           } else if (nearPost && !(ax < GOAL_HALF_W - BALL_R)) {
             resolve('post', pc, v)
           } else if (ax < GOAL_HALF_W - BALL_R && pc.y < GOAL_H - BALL_R) {
+            const tg = eng.ex.target
+            const inTarget = Math.hypot(pc.x - tg.x, pc.y - tg.y) <= tg.r
             const lucarne = ax > GOAL_HALF_W - 1.1 && pc.y > 1.6
-            resolve(lucarne ? 'lucarne' : 'goal', pc, v)
+            resolve(inTarget ? 'cible' : lucarne ? 'lucarne' : 'goal', pc, v)
           } else if (pc.y >= GOAL_H - BALL_R && ax < GOAL_HALF_W + 1.5) {
             resolve('over', pc, v)
           } else {
@@ -671,7 +737,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       fb.p.x += fb.v.x * dt
       fb.p.y += fb.v.y * dt
       fb.p.z += fb.v.z * dt
-      const isGoal = eng.outcome === 'goal' || eng.outcome === 'lucarne'
+      const isGoal = eng.outcome === 'goal' || eng.outcome === 'lucarne' || eng.outcome === 'cible'
       if (isGoal && fb.p.z > sc.cfg.dist + 1.6) { fb.p.z = sc.cfg.dist + 1.6; fb.v.z = 0; fb.v.x *= 0.5 }
       if (fb.p.y < BALL_R) { fb.p.y = BALL_R; fb.v.y = Math.abs(fb.v.y) * 0.4; fb.v.x *= 0.7; fb.v.z *= 0.7 }
       // le gardien retombe
@@ -714,7 +780,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       const palette = ['#C1443C', '#D4A22C', '#F4EFE2', '#2F8F5B', '#3b5a8c', '#8a6f4a']
       eng.crowd = Array.from({ length: 520 }, () => ({ x: r() * LW, y: r(), c: palette[Math.floor(r() * palette.length)] }))
     }
-    const celebrate = (eng.outcome === 'goal' || eng.outcome === 'lucarne') && now - eng.outcomeAt < 1500
+    const celebrate = (eng.outcome === 'goal' || eng.outcome === 'lucarne' || eng.outcome === 'cible') && now - eng.outcomeAt < 1500
     for (const c of eng.crowd) {
       const yy = standTop + 6 + c.y * (boardY - standTop - 22)
       const bob = celebrate ? Math.sin(now / 90 + c.x) * 2.5 : 0
@@ -801,13 +867,30 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
 
     // but + filet
     items.push({ depth: P({ x: 0, y: 0, z: D }).depth + 1, draw: () => drawGoal(ctx, P, D, eng) })
+    // cible bonus (+3) dans le but
+    if (eng.phase === 'aim' || eng.phase === 'flight') items.push({ depth: P({ x: 0, y: 0, z: D }).depth + 0.5, draw: () => {
+      const tg = eng.ex.target, c = P({ x: tg.x, y: tg.y, z: D }), rr = tg.r * c.k
+      const pulse = 0.75 + 0.25 * Math.sin(now / 160)
+      ctx.save()
+      ctx.globalAlpha = 0.9 * pulse
+      ctx.lineWidth = 2.5
+      for (const [k, col] of [[1, '#ffd84a'], [0.62, '#ffffff'], [0.28, '#ffd84a']] as const) {
+        ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(c.x, c.y, rr * k, 0, Math.PI * 2); ctx.stroke()
+      }
+      ctx.fillStyle = 'rgba(255,216,74,.18)'; ctx.beginPath(); ctx.arc(c.x, c.y, rr, 0, Math.PI * 2); ctx.fill()
+      ctx.globalAlpha = 1
+      ctx.font = '700 10px Oswald, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffd84a'
+      ctx.fillText('+3', c.x, c.y - rr - 5)
+      ctx.restore()
+    } })
     // gardien
     const kz = D - KEEPER_LINE_OFFSET
     items.push({ depth: P({ x: eng.keeperX, y: 0, z: kz }).depth, draw: () => drawKeeper(ctx, P, eng, kz) })
     // mur
     const top = eng.phase === 'flight' || eng.phase === 'after' ? wallTop(eng.wallJumpT) : WALL_HEIGHT
     const jump = top - WALL_HEIGHT
-    for (const lat of sc.wallLats) {
+    for (const lat0 of sc.wallLats) {
+      const lat = lat0 + eng.wallShift
       const wx = sc.ball0.x + sc.hc.x * WALL_DIST + sc.w.x * lat
       const wz = sc.ball0.z + sc.hc.z * WALL_DIST + sc.w.z * lat
       items.push({ depth: P({ x: wx, y: 0, z: wz }).depth, draw: () => drawWallPlayer(ctx, P, wx, wz, jump) })
@@ -890,13 +973,46 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       ctx.restore()
     }
 
-    // infos du coup franc (mur qui saute)
-    if (eng.phase === 'aim' && sc.cfg.wallJumps) {
-      ctx.fillStyle = 'rgba(193,68,60,0.9)'
-      ctx.font = '700 11px "Space Mono", monospace'
+    // infos du coup franc : mur qui saute, vent, chrono
+    if (eng.phase === 'aim') {
       ctx.textAlign = 'center'
-      ctx.fillText('⚠ Le mur saute !', cx, 18)
+      const tags: string[] = []
+      if (sc.cfg.wallJumps) tags.push('⚠ Le mur saute')
+      if (eng.ex.wallSlide) tags.push('⚠ Le mur se décale')
+      if (tags.length) {
+        ctx.fillStyle = 'rgba(255,120,100,0.95)'
+        ctx.font = '700 11px "Space Mono", monospace'
+        ctx.fillText(tags.join(' · '), cx, 18)
+      }
+      if (eng.ex.wind) {
+        // flèche de vent (taille = force)
+        const w = eng.ex.wind, len = 14 + Math.abs(w) * 12, y = 36, dir = Math.sign(w)
+        ctx.strokeStyle = '#cfe8ff'; ctx.fillStyle = '#cfe8ff'; ctx.lineWidth = 3
+        ctx.beginPath(); ctx.moveTo(cx - dir * len / 2, y); ctx.lineTo(cx + dir * len / 2, y); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(cx + dir * (len / 2 + 7), y); ctx.lineTo(cx + dir * len / 2, y - 6); ctx.lineTo(cx + dir * len / 2, y + 6); ctx.fill()
+        ctx.font = '700 10px "Space Mono", monospace'
+        ctx.fillText('VENT ' + Math.abs(w).toFixed(1), cx, y + 18)
+      }
+      if (eng.ex.shotClock) {
+        const left = Math.max(0, eng.ex.shotClock - (now - eng.aimAt) / 1000), k = left / eng.ex.shotClock
+        ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(20, lh - 10, LW - 40, 5)
+        ctx.fillStyle = k > 0.35 ? '#ffd84a' : '#ff5a4e'; ctx.fillRect(20, lh - 10, (LW - 40) * k, 5)
+      }
       ctx.textAlign = 'left'
+    }
+    // bandeau NIVEAU
+    const ba = (now - eng.bannerAt) / 1000
+    if (ba >= 0 && ba < 1.8 && eng.phase !== 'over' && eng.phase !== 'idle') {
+      const a = Math.min(1, ba * 5, (1.8 - ba) * 4)
+      ctx.save(); ctx.globalAlpha = a
+      const by = hy - 120
+      ctx.fillStyle = 'rgba(21,19,15,.88)'; ctx.fillRect(0, by - 30, LW, 56)
+      ctx.fillStyle = '#e9c46a'; ctx.fillRect(0, by - 30, LW, 3); ctx.fillRect(0, by + 23, LW, 3)
+      ctx.textAlign = 'center'; ctx.font = '700 28px Oswald, sans-serif'; ctx.fillStyle = '#ffd84a'
+      ctx.fillText('NIVEAU ' + eng.level, cx, by + 2)
+      ctx.font = '600 12px Oswald, sans-serif'; ctx.fillStyle = '#f4ecd4'
+      ctx.fillText((LEVEL_INFO[eng.level] ?? 'Encore plus dur !').toUpperCase(), cx, by + 18)
+      ctx.restore()
     }
   }
 
@@ -1083,8 +1199,15 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         canvas.dataset.goal = `${gl.x.toFixed(1)},${gl.y.toFixed(1)},${gr.x.toFixed(1)},${gr.y.toFixed(1)}`
         canvas.dataset.near = String(eng.scene.cfg.nearSide)
         canvas.dataset.jumps = eng.scene.cfg.wallJumps ? '1' : '0'
+        const tp = project(eng.scene, { x: eng.ex.target.x, y: eng.ex.target.y, z: eng.scene.cfg.dist }, cx, hy)
+        canvas.dataset.target = `${tp.x.toFixed(1)},${tp.y.toFixed(1)}`
+        canvas.dataset.level = String(eng.level)
       }
       raf = requestAnimationFrame(loop)
+    }
+    // tests automatiques (?debug) : choisir le nombre de buts de départ
+    if (location.search.includes('debug')) (window as unknown as Record<string, unknown>).__fkStart = (goals: number) => {
+      const eng = engineRef.current; eng.goals = goals; eng.points = goals; eng.level = levelOf(goals) - 1; setupShot()
     }
     raf = requestAnimationFrame(loop)
     return () => { cancelAnimationFrame(raf); ro.disconnect() }
@@ -1157,12 +1280,12 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         {showRules && (
           <p className="dribble-intro">
             Pose le doigt sur le ballon et glisse vers l'endroit du but où tu veux le mettre : le ballon arrive
-            là où tu lèves le doigt. Trace un geste en arc pour donner de l'effet (un arc vers la droite part à
-            droite puis revient) et contourner le mur. Lève le doigt sous la ligne de but pour une frappe à ras
-            de terre : elle passe sous le mur quand il saute. Le mur couvre un poteau, le gardien l'autre ; plus
-            tu marques, plus c'est loin, excentré, et plus le gardien est vif — et le mur finit par sauter.
-            But = 1 point, lucarne = 2 points. Au premier raté, la série s'arrête. Même série de coups francs
-            pour tout le monde cette semaine.
+            là où tu lèves le doigt. Trace un geste en arc pour donner de l'effet et contourner le mur ; lève le
+            doigt sous la ligne de but pour une frappe à ras de terre (elle passe sous le mur qui saute).
+            But = 1 point, lucarne = 2, dans la cible jaune = 3. Au premier raté, la série s'arrête.
+            Chaque partie est différente. Tous les 4 buts, niveau suivant : mur qui saute (2), gardien qui bouge
+            avant la frappe (3), vent à compenser (4), mur qui se décale à la frappe (5), 4 secondes pour tirer (6)…
+            et c'est de plus en plus loin, excentré, avec un gardien plus vif.
           </p>
         )}
 
