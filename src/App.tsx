@@ -40,6 +40,8 @@ import { useAppUpdate } from './useAppUpdate'
 import Announcement from './Announcement'
 import ChampionshipEnd from './ChampionshipEnd'
 import WaitingRoom from './WaitingRoom'
+import ProfileSetup from './ProfileSetup'
+import type { Gender } from './ProfileSetup'
 
 // Photos "presets" proposées pour l'avatar (remplacent l'ancien choix
 // d'emoji) : des images toutes faites, stockées dans public/avatar-presets,
@@ -359,6 +361,10 @@ function App() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null)
   const [autoApplyAllLeagues, setAutoApplyAllLeagues] = useState(false)
+  // homme / femme (accord des notifs) et profil créé à la 1re connexion ;
+  // undefined = pas encore chargé
+  const [gender, setGender] = useState<Gender | null | undefined>(undefined)
+  const [onboarded, setOnboarded] = useState<boolean | undefined>(undefined)
   const [autoApplySaving, setAutoApplySaving] = useState(false)
   const [editingPseudo, setEditingPseudo] = useState(false)
   const [pseudoInput, setPseudoInput] = useState('')
@@ -464,7 +470,7 @@ function App() {
     if (!session?.user?.id) return
     supabase
       .from('profiles')
-      .select('pseudo, avatar_url, avatar_emoji, auto_apply_all_leagues')
+      .select('pseudo, avatar_url, avatar_emoji, auto_apply_all_leagues, gender, onboarded')
       .eq('id', session.user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -472,6 +478,9 @@ function App() {
         setAvatarUrl(data?.avatar_url ?? null)
         setAvatarEmoji(data?.avatar_emoji ?? null)
         setAutoApplyAllLeagues(data?.auto_apply_all_leagues ?? false)
+        // ligne absente ou colonnes pas encore en base : on ne bloque personne
+        setGender((data?.gender as Gender | null | undefined) ?? (data && 'gender' in data ? null : undefined))
+        setOnboarded(data && 'onboarded' in data ? !!data.onboarded : true)
       })
   }, [session?.user?.id])
 
@@ -500,6 +509,26 @@ function App() {
     }
     setMyPseudo(trimmed)
     setEditingPseudo(false)
+  }
+
+  // Création du profil (1re connexion) ou simple choix homme / femme
+  const handleProfileSetup = async ({ pseudo, gender: g }: { pseudo: string; gender: Gender }) => {
+    if (!session?.user?.id) return 'Session expirée, reconnecte-toi.'
+    const patch: { gender: Gender; onboarded: boolean; pseudo?: string } = { gender: g, onboarded: true }
+    if (!onboarded) patch.pseudo = pseudo
+    const { error } = await supabase.from('profiles').update(patch).eq('id', session.user.id)
+    if (error) return error.message
+    if (patch.pseudo) setMyPseudo(patch.pseudo)
+    setGender(g)
+    setOnboarded(true)
+    return null
+  }
+  const handleSetGender = async (g: Gender) => {
+    if (!session?.user?.id || g === gender) return
+    const prev = gender
+    setGender(g)
+    const { error } = await supabase.from('profiles').update({ gender: g }).eq('id', session.user.id)
+    if (error) setGender(prev)
   }
 
   // Pronostics appliqués automatiquement à toutes les ligues : simple mise à
@@ -1442,6 +1471,24 @@ function App() {
     return <Login />;
   }
 
+  // 1re connexion : on crée son profil avant d'entrer dans l'appli
+  if (onboarded === false) {
+    return (
+      <ProfileSetup
+        mode="full"
+        initialPseudo={myPseudo ?? ''}
+        avatarUrl={avatarUrl}
+        avatarEmoji={avatarEmoji}
+        presets={AVATAR_PRESETS}
+        avatarSaving={avatarSaving}
+        avatarError={avatarError}
+        onPickPreset={handleSelectPreset}
+        onUploadPhoto={handlePhotoInputChange}
+        onSubmit={handleProfileSetup}
+      />
+    )
+  }
+
   // Chaque mini-jeu (jonglage, dribble, But en or) doit se sentir comme un
   // vrai jeu en plein ecran une fois lance depuis le selecteur (pas juste
   // un bout de contenu au milieu de l'appli) : on masque l'en-tete et la
@@ -1466,6 +1513,20 @@ function App() {
 
   return (
     <div className="home-screen">
+      {onboarded && gender === null && (
+        <ProfileSetup
+          mode="gender"
+          initialPseudo={myPseudo ?? ''}
+          avatarUrl={avatarUrl}
+          avatarEmoji={avatarEmoji}
+          presets={AVATAR_PRESETS}
+          avatarSaving={avatarSaving}
+          avatarError={avatarError}
+          onPickPreset={handleSelectPreset}
+          onUploadPhoto={handlePhotoInputChange}
+          onSubmit={handleProfileSetup}
+        />
+      )}
       {!isActionMinigame && !isFullChat && (
       <header className="home-header">
         <button type="button" className="brand-block brand-block-btn" onClick={() => setScreen('accueil')}>
@@ -1868,6 +1929,14 @@ function App() {
 
             <div className="parametres-card">
               <h3 className="parametres-card-title">Préférences</h3>
+              <div className="parametres-row parametres-row-static">
+                <span className="parametres-row-icon">🙂</span>
+                <span className="parametres-row-label">Je suis</span>
+                <span className="parametres-gender">
+                  <button className={'parametres-gender-btn' + (gender === 'h' ? ' on' : '')} onClick={() => handleSetGender('h')}>Homme</button>
+                  <button className={'parametres-gender-btn' + (gender === 'f' ? ' on' : '')} onClick={() => handleSetGender('f')}>Femme</button>
+                </span>
+              </div>
               <div className="parametres-row parametres-row-static">
                 <span className="parametres-row-icon">🏆</span>
                 <span className="parametres-row-label">Compétition</span>
