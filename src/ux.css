@@ -1498,3 +1498,14 @@ details.rules-section > :last-child {
 .fk-next-level { display: inline-block; padding: 2px 14px; border-radius: 6px; background: #F4EFE2; color: #1b1b1f; font: 700 14px Oswald, sans-serif; }
 .fk-next-info { margin-top: 8px; font: 600 13px Oswald, sans-serif; color: #f4ecd4; }
 .fk-next-btn { padding: 10px 28px; border: none; border-radius: 10px; background: #ffd84a; color: #1b1b1f; font: 700 18px Oswald, sans-serif; letter-spacing: 1px; box-shadow: 0 4px 0 #a07a10; cursor: pointer; }
+/* cadrage serré comme la vidéo de référence : scène presque carrée */
+.dribble-px.freekick-px .freekick-stage { min-height: 0; flex: none; aspect-ratio: 360 / 410; }
+/* bandeau du haut façon vidéo : barre sombre bordée d'or */
+.freekick-px .dribble-stat-row { gap: 0; background: #f4ecd4; border: 2px solid #c9a24a; border-radius: 10px; padding: 0; overflow: hidden; box-shadow: 0 3px 0 rgba(0,0,0,.35); }
+.freekick-px .dribble-stat { display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 6px; background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 8px 4px; }
+.freekick-px .dribble-stat + .dribble-stat { border-left: 2px solid #c9a24a; }
+.freekick-px .dribble-stat b { display: inline; order: 2; font: 700 20px Oswald, sans-serif; color: #1b1b1f; }
+.freekick-px .dribble-stat span { order: 1; font: 700 13px Oswald, sans-serif; letter-spacing: 1px; color: #1b1b1f; text-transform: uppercase; }
+.freekick-px .dribble-stat span::after { content: ' :'; }
+.freekick-px .dribble-stat:last-child { background: #6e1a1a; }
+.freekick-px .dribble-stat:last-child b, .freekick-px .dribble-stat:last-child span { color: #f4ecd4; }
