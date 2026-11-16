@@ -516,11 +516,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
       </div>
 
       {!fs && rulesBlock}
-      {fs ? createPortal(
-        <div className="dribble-page dribble-px px-fs" style={dribbleSpriteVars() as CSSProperties}>{gameBlock}</div>,
-        document.body,
-      ) : gameBlock}
-
+      {!fs && (<>
       {(allTimeBest || lastWeekBest || scores.length > 0) && (
         <button type="button" className="dribble-rules-toggle" onClick={() => setShowBoard((v) => !v)}>
           {showBoard ? 'Masquer le classement ▲' : '🏆 Voir le classement ▼'}
@@ -552,6 +548,12 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
           </ul>
         </div>
       )}
+      </>)}
+      {fs ? createPortal(
+        <div className="dribble-page dribble-px px-fs" style={dribbleSpriteVars() as CSSProperties}>{gameBlock}</div>,
+        document.body,
+      ) : gameBlock}
+
     </div>
   )
 }
