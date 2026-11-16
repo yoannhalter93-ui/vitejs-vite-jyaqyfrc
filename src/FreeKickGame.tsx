@@ -1154,7 +1154,9 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const PIX = 0.5
+    // finesse du décor : ~1,4 pixel de jeu par px logique (avant 0,5 = trop pixelisé) ;
+    // les personnages restent en pixel art (sprites agrandis sans lissage)
+    const PIX = 1.4
     const off = document.createElement('canvas')
     const octx = off.getContext('2d')
     if (!octx) return
