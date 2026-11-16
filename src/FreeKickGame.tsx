@@ -4,6 +4,8 @@ import { supabase } from './supabaseClient'
 import { previousGameWeek } from './minigameWeeks'
 import { useAuth } from './AuthContext'
 import { useWizzChannel } from './wizzChannel'
+import { dribbleSpriteVars, dribbleImages } from './dribblePixel'
+import './dribble-pixel.css'
 
 // ============================================================================
 // Coup franc — mini-jeu hebdomadaire.
@@ -752,7 +754,9 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
   }
 
   // ------------------------------------------------------------ rendu ------
-  const drawScene = (ctx: CanvasRenderingContext2D) => {
+  // world = décor + joueurs (dessiné en basse résolution => pixel art) ; ui = textes, geste, bandeaux (net)
+  const drawScene = (world: CanvasRenderingContext2D, ui: CanvasRenderingContext2D, flush: () => void) => {
+    let ctx = world
     const eng = engineRef.current
     const sc = eng.scene
     const { cx, hy, lh } = layout()
@@ -813,7 +817,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     ctx.beginPath()
     ctx.rect(0, boardY, LW, lh - boardY)
     ctx.clip()
-    ctx.fillStyle = '#16563f'
+    ctx.fillStyle = '#1b5c20'
     ctx.fillRect(0, boardY, LW, lh - boardY)
     const zNear = sc.cam.z + 1.5
     for (let z = Math.floor(zNear / 4) * 4; z < boardZ; z += 4) {
@@ -821,7 +825,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       const a = P({ x: -60, y: 0, z }), b = P({ x: 60, y: 0, z })
       const c2 = P({ x: 60, y: 0, z: Math.min(z + 4, boardZ) }), d = P({ x: -60, y: 0, z: Math.min(z + 4, boardZ) })
       if (a.depth <= 0.3 || d.depth <= 0.3) continue
-      ctx.fillStyle = '#1b6649'
+      ctx.fillStyle = '#226b27'
       ctx.beginPath()
       ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c2.x, c2.y); ctx.lineTo(d.x, d.y)
       ctx.closePath()
@@ -913,6 +917,9 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       ctx.stroke()
     }
 
+    // ---- au-dessus : interface nette (pas pixelisée)
+    flush()
+    ctx = ui
     // geste en cours
     if (eng.phase === 'aim') {
       const bs = ballScreen()
@@ -1063,34 +1070,13 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const feet = P({ x, y: jump, z })
     const k = feet.k
     if (feet.depth < 0.5) return
-    // ombre
     const g = P({ x, y: 0, z })
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'
-    ctx.beginPath(); ctx.ellipse(g.x, g.y, 0.3 * k, 0.08 * k, 0, 0, Math.PI * 2); ctx.fill()
-    const w = 0.46 * k
-    // jambes
-    ctx.fillStyle = '#e8c9a8'
-    ctx.fillRect(feet.x - w * 0.34, feet.y - 0.85 * k, w * 0.22, 0.85 * k)
-    ctx.fillRect(feet.x + w * 0.12, feet.y - 0.85 * k, w * 0.22, 0.85 * k)
-    ctx.fillStyle = '#1b1b1f'
-    ctx.fillRect(feet.x - w * 0.38, feet.y - 0.08 * k, w * 0.3, 0.08 * k)
-    ctx.fillRect(feet.x + w * 0.08, feet.y - 0.08 * k, w * 0.3, 0.08 * k)
-    // short
-    ctx.fillStyle = '#2a1a17'
-    ctx.fillRect(feet.x - w / 2, feet.y - 1.02 * k, w, 0.24 * k)
-    // maillot
-    ctx.fillStyle = '#C1443C'
-    ctx.beginPath()
-    ctx.roundRect(feet.x - w / 2, feet.y - 1.58 * k, w, 0.6 * k, 0.06 * k)
-    ctx.fill()
-    // bras croisés devant (protection)
-    ctx.fillStyle = '#a8352f'
-    ctx.fillRect(feet.x - w * 0.46, feet.y - 1.12 * k, w * 0.92, 0.1 * k)
-    // tête
-    ctx.fillStyle = '#e8c9a8'
-    ctx.beginPath(); ctx.arc(feet.x, feet.y - 1.68 * k, 0.12 * k, 0, Math.PI * 2); ctx.fill()
-    ctx.fillStyle = '#2b1d14'
-    ctx.beginPath(); ctx.arc(feet.x, feet.y - 1.72 * k, 0.12 * k, Math.PI, 0); ctx.fill()
+    ctx.fillStyle = 'rgba(0,20,6,0.4)'
+    ctx.beginPath(); ctx.ellipse(g.x, g.y, 0.32 * k, 0.09 * k, 0, 0, Math.PI * 2); ctx.fill()
+    // défenseur en pixels (le même que dans le Dribble), mains devant
+    const img = dribbleImages().def
+    const h = 1.95 * k, w = h * 35 / 40
+    if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, 35, 40, feet.x - w / 2, feet.y - h * 0.97, w, h)
   }
 
   // -- dessin : gardien (plonge en tournant vers le côté où il va)
@@ -1105,6 +1091,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     ctx.save()
     ctx.translate(feet.x, feet.y)
     ctx.rotate(dive * 1.05)
+    ctx.shadowColor = '#0e100c'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0.6; ctx.shadowOffsetY = 0.6
     const w = 0.5 * k
     ctx.fillStyle = '#e8c9a8'
     ctx.fillRect(-w * 0.34, -0.85 * k, w * 0.22, 0.85 * k)
@@ -1136,24 +1123,12 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const r = Math.max(1.5, s.k * BALL_R)
     ctx.fillStyle = `rgba(0,0,0,${Math.max(0.08, 0.35 - (pos.y - BALL_R) * 0.06)})`
     ctx.beginPath(); ctx.ellipse(shadow.x, shadow.y, r * 1.1, r * 0.35, 0, 0, Math.PI * 2); ctx.fill()
-    ctx.save()
-    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.clip()
-    const grad = ctx.createRadialGradient(s.x - r * 0.35, s.y - r * 0.4, r * 0.1, s.x, s.y, r)
-    grad.addColorStop(0, '#ffffff')
-    grad.addColorStop(1, '#bdbdbd')
-    ctx.fillStyle = grad
-    ctx.fillRect(s.x - r, s.y - r, r * 2, r * 2)
-    ctx.fillStyle = '#1b1b1f'
-    for (let i = 0; i < 5; i++) {
-      const a = eng.spin + (i * Math.PI * 2) / 5
-      const px = s.x + Math.cos(a) * r * 0.62, py = s.y + Math.sin(a) * r * 0.62
-      ctx.beginPath(); ctx.arc(px, py, r * 0.22, 0, Math.PI * 2); ctx.fill()
+    // ballon en pixels (le même que dans le Dribble)
+    const img = dribbleImages().ball
+    if (img.complete && img.naturalWidth) {
+      ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(Math.round(eng.spin / (Math.PI / 2)) * (Math.PI / 2))
+      ctx.drawImage(img, -r * 1.15, -r * 1.05, r * 2.3, r * 2.1); ctx.restore()
     }
-    ctx.beginPath(); ctx.arc(s.x, s.y, r * 0.26, 0, Math.PI * 2); ctx.fill()
-    ctx.restore()
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)'
-    ctx.lineWidth = 0.8
-    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.stroke()
   }
 
   // ------------------------------------------------ boucle d'animation -----
@@ -1164,6 +1139,10 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    const PIX = 0.5
+    const off = document.createElement('canvas')
+    const octx = off.getContext('2d')
+    if (!octx) return
     const resize = () => {
       const rect = stage.getBoundingClientRect()
       const dpr = Math.min(window.devicePixelRatio || 1, 2.5)
@@ -1174,6 +1153,10 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       eng.lastH = (rect.height / rect.width) * LW
       const k = (rect.width / LW) * dpr
       ctx.setTransform(k, 0, 0, k, 0, 0)
+      // décor en basse résolution (≈ 1 pixel de jeu = 2 px logiques) -> rendu pixel art
+      off.width = Math.round(LW * PIX); off.height = Math.round(eng.lastH * PIX)
+      octx.setTransform(PIX, 0, 0, PIX, 0, 0)
+      octx.imageSmoothingEnabled = false
     }
     resize()
     const ro = new ResizeObserver(resize)
@@ -1185,7 +1168,13 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       const dt = Math.min(0.05, (ts - last) / 1000)
       last = ts
       step(dt)
-      drawScene(ctx)
+      octx.clearRect(0, 0, LW, engineRef.current.lastH)
+      // l'interface est dessinée après le décor : on dessine d'abord le décor pixelisé
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.restore()
+      drawScene(octx, ctx, () => {
+        ctx.imageSmoothingEnabled = false
+        ctx.drawImage(off, 0, 0, LW, engineRef.current.lastH)
+      })
       // repères lisibles de l'extérieur (tests automatisés du geste)
       const eng = engineRef.current
       const bs = ballScreen()
@@ -1267,7 +1256,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
   }
 
   return (
-    <div className="predictions-screen dribble-page" ref={wrapperRef}>
+    <div className="predictions-screen dribble-page dribble-px freekick-px" ref={wrapperRef} style={dribbleSpriteVars() as React.CSSProperties}>
       <div className="predictions-header">
         <button className="predictions-back" onClick={onExit}>← Accueil</button>
         <h2>Coup franc — {groupName}</h2>
