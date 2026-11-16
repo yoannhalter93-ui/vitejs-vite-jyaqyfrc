@@ -4,18 +4,21 @@ import { supabase } from './supabaseClient'
 import { previousGameWeek } from './minigameWeeks'
 import { useAuth } from './AuthContext'
 import { useWizzChannel } from './wizzChannel'
-import { dribbleSpriteVars, dribbleImages } from './dribblePixel'
+import { dribbleSpriteVars } from './dribblePixel'
 import './dribble-pixel.css'
 import standsSrc from './assets/freekick/stands.png'
 import shooterSrc from './assets/freekick/shooter.png'
+import wallSrc from './assets/freekick/wall.png'
+import keeperSrc from './assets/freekick/keeper.png'
+import ballSrc from './assets/freekick/ball.png'
 
-// images en pixels (tribunes et tireur n°10, découpés dans la vidéo de référence)
+// images en pixels (tribunes, tireur n°10, joueur du mur, gardien, ballon), découpés dans la vidéo de référence
 const fkImgs = (() => {
-  let c: { stands: HTMLImageElement; shooter: HTMLImageElement } | null = null
+  let c: { stands: HTMLImageElement; shooter: HTMLImageElement; wall: HTMLImageElement; keeper: HTMLImageElement; ball: HTMLImageElement } | null = null
   return () => {
     if (c) return c
     const load = (src: string) => { const im = new Image(); im.src = src; return im }
-    c = { stands: load(standsSrc), shooter: load(shooterSrc) }
+    c = { stands: load(standsSrc), shooter: load(shooterSrc), wall: load(wallSrc), keeper: load(keeperSrc), ball: load(ballSrc) }
     return c
   }
 })()
@@ -1103,10 +1106,10 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const g = P({ x, y: 0, z })
     ctx.fillStyle = 'rgba(0,20,6,0.4)'
     ctx.beginPath(); ctx.ellipse(g.x, g.y, 0.32 * k, 0.09 * k, 0, 0, Math.PI * 2); ctx.fill()
-    // défenseur en pixels (le même que dans le Dribble), mains devant
-    const img = dribbleImages().def
-    const h = 1.95 * k * 1.3, w = h * 35 / 40
-    if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, 35, 40, feet.x - w / 2, feet.y - h * 0.97, w, h)
+    // joueur du mur de la vidéo (maillot rouge, mains devant)
+    const img = fkImgs().wall
+    const h = 2.35 * k, w = h * 22 / 52
+    if (img.complete && img.naturalWidth) ctx.drawImage(img, feet.x - w / 2, feet.y - h, w, h)
   }
 
   // -- dessin : gardien (plonge en tournant vers le côté où il va)
@@ -1118,19 +1121,18 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     ctx.fillStyle = 'rgba(0,0,0,0.3)'
     ctx.beginPath(); ctx.ellipse(g.x, g.y, 0.35 * k, 0.09 * k, 0, 0, Math.PI * 2); ctx.fill()
     const dive = Math.max(-1, Math.min(1, (x - eng.scene.keeperX0) / 1.6))
-    // gardien en pixels : le défenseur du Dribble en tenue bleue, qui plonge en tournant
-    const img = dribbleImages().def
+    // gardien : le joueur de la vidéo en tenue bleue, qui plonge en tournant
+    const img = fkImgs().keeper
     if (!img.complete || !img.naturalWidth) return
-    const h = 2.0 * k * 1.3, w = h * 35 / 40
+    const h = 2.4 * k, w = h * 22 / 52
     ctx.save()
-    ctx.translate(feet.x, feet.y - h * 0.45)
+    ctx.translate(feet.x, feet.y - h * 0.5)
     ctx.rotate(dive * 1.05)
-    ctx.filter = 'hue-rotate(205deg) saturate(1.25) brightness(1.05)'
-    ctx.drawImage(img, 0, 0, 35, 40, -w / 2, -h * 0.52, w, h)
-    ctx.filter = 'none'
+    ctx.drawImage(img, -w / 2, -h * 0.5, w, h)
     // gants
+    const px = w / 22
     ctx.fillStyle = '#f4f1e8'
-    ctx.fillRect(-w * 0.52, -h * 0.12, w * 0.14, h * 0.08); ctx.fillRect(w * 0.38, -h * 0.12, w * 0.14, h * 0.08)
+    ctx.fillRect(-w / 2, -h * 0.06, px * 3, px * 3); ctx.fillRect(w / 2 - px * 3, -h * 0.06, px * 3, px * 3)
     ctx.restore()
   }
 
@@ -1142,11 +1144,11 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const r = Math.max(1.5, s.k * BALL_R)
     ctx.fillStyle = `rgba(0,0,0,${Math.max(0.08, 0.35 - (pos.y - BALL_R) * 0.06)})`
     ctx.beginPath(); ctx.ellipse(shadow.x, shadow.y, r * 1.1, r * 0.35, 0, 0, Math.PI * 2); ctx.fill()
-    // ballon en pixels (le même que dans le Dribble)
-    const img = dribbleImages().ball
+    // ballon en pixels de la vidéo
+    const img = fkImgs().ball
     if (img.complete && img.naturalWidth) {
       ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(Math.round(eng.spin / (Math.PI / 2)) * (Math.PI / 2))
-      ctx.drawImage(img, -r * 2.6, -r * 2.4, r * 5.2, r * 4.8); ctx.restore()
+      ctx.drawImage(img, -r * 2.3, -r * 2.3, r * 4.6, r * 4.6); ctx.restore()
     }
   }
 
