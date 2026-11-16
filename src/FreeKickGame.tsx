@@ -6,6 +6,20 @@ import { useAuth } from './AuthContext'
 import { useWizzChannel } from './wizzChannel'
 import { dribbleSpriteVars, dribbleImages } from './dribblePixel'
 import './dribble-pixel.css'
+import standsSrc from './assets/freekick/stands.png'
+import shooterSrc from './assets/freekick/shooter.png'
+
+// images en pixels (tribunes et tireur n°10, découpés dans la vidéo de référence)
+const fkImgs = (() => {
+  let c: { stands: HTMLImageElement; shooter: HTMLImageElement } | null = null
+  return () => {
+    if (c) return c
+    const load = (src: string) => { const im = new Image(); im.src = src; return im }
+    c = { stands: load(standsSrc), shooter: load(shooterSrc) }
+    return c
+  }
+})()
+const SHOOT_FW = 83, SHOOT_FH = 85, SHOOT_FEET = 78   // planche du tireur : debout, élan, frappe, joie
 
 // ============================================================================
 // Coup franc — mini-jeu hebdomadaire.
@@ -257,6 +271,7 @@ interface Engine {
   aimAt: number
   wallShift: number
   bannerAt: number
+  kickAt: number
 }
 
 function newEngine(seed: number): Engine {
@@ -267,7 +282,7 @@ function newEngine(seed: number): Engine {
     keeperX: -cfg.nearSide * 0.6, keeperJump: 0, wallJumpT: -1, netHit: null,
     swipe: [], swiping: false, particles: [], msg: null, spin: 0,
     crowd: [], lastW: 0, lastH: 0, audio: null,
-    level: 1, ex: extrasFor(1, mulberry32(seed)), aimAt: 0, wallShift: 0, bannerAt: -1e9,
+    level: 1, ex: extrasFor(1, mulberry32(seed)), aimAt: 0, wallShift: 0, bannerAt: -1e9, kickAt: -1e9,
   }
 }
 
@@ -522,6 +537,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     eng.flight = { o: { ...b }, v, a, t: 0, prevDepth: 0, trail: [] }
     eng.phase = 'flight'
     eng.wallJumpT = 0
+    eng.kickAt = performance.now()
     sfxKick()
     vibrate(15)
   }
@@ -774,43 +790,34 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const boardZ = sc.cfg.dist + 8
     const boardY = P({ x: 0, y: 0, z: boardZ }).y
     const standTop = Math.max(34, boardY - 250)
-    const stand = ctx.createLinearGradient(0, standTop, 0, boardY)
-    stand.addColorStop(0, '#0b1a15')
-    stand.addColorStop(1, '#1a2c25')
-    ctx.fillStyle = stand
-    ctx.fillRect(0, standTop, LW, boardY - standTop)
-    if (eng.crowd.length === 0 || eng.lastH !== lh) {
-      const r = mulberry32(42)
-      const palette = ['#C1443C', '#D4A22C', '#F4EFE2', '#2F8F5B', '#3b5a8c', '#8a6f4a']
-      eng.crowd = Array.from({ length: 520 }, () => ({ x: r() * LW, y: r(), c: palette[Math.floor(r() * palette.length)] }))
-    }
+    // ciel + tribune sombre au-dessus, puis la bande de supporters en pixels (vidéo de référence)
+    ctx.fillStyle = '#0c1a16'
+    ctx.fillRect(0, 0, LW, boardY)
+    const st = fkImgs().stands
     const celebrate = (eng.outcome === 'goal' || eng.outcome === 'lucarne' || eng.outcome === 'cible') && now - eng.outcomeAt < 1500
-    for (const c of eng.crowd) {
-      const yy = standTop + 6 + c.y * (boardY - standTop - 22)
-      const bob = celebrate ? Math.sin(now / 90 + c.x) * 2.5 : 0
-      ctx.globalAlpha = 0.25 + c.y * 0.45
-      ctx.fillStyle = c.c
-      ctx.fillRect(c.x, yy + bob, 2.2, 2.2)
+    if (st.complete && st.naturalWidth) {
+      const scale = 1.6
+      const w = st.naturalWidth * scale, h = st.naturalHeight * scale
+      const bob = celebrate ? Math.round(Math.sin(now / 80) * 1.5) : 0
+      // haut de la tribune : on étire la première rangée de supporters vers le ciel (assombrie)
+      ctx.globalAlpha = 0.45
+      for (let x = -((cx * 0.3) % w) - w; x < LW; x += w) ctx.drawImage(st, 0, st.naturalHeight * 0.3, st.naturalWidth, st.naturalHeight * 0.35, x, boardY - h * 1.55, w, h * 0.6)
+      ctx.globalAlpha = 1
+      for (let x = -((cx * 0.3) % w) - w; x < LW; x += w) ctx.drawImage(st, x, boardY - h + 2 + bob, w, h)
     }
-    ctx.globalAlpha = 1
-    // projecteurs
-    for (const lx of [24, LW - 24]) {
-      const glow = ctx.createRadialGradient(lx, standTop - 24, 1, lx, standTop - 24, 70)
-      glow.addColorStop(0, 'rgba(255,248,220,0.5)')
-      glow.addColorStop(0.25, 'rgba(255,248,220,0.14)')
-      glow.addColorStop(1, 'rgba(255,248,220,0)')
-      ctx.fillStyle = glow
-      ctx.fillRect(lx - 70, standTop - 94, 140, 140)
-      ctx.fillStyle = 'rgba(255,250,235,0.95)'
-      ctx.fillRect(lx - 7, standTop - 27, 14, 5)
+    void standTop
+    // gros projecteurs dans le ciel (comme dans la vidéo)
+    for (const [lx, side] of [[30, 1], [LW - 30, -1]] as const) {
+      const ly = Math.max(26, boardY - 210)
+      const glow = ctx.createRadialGradient(lx, ly, 2, lx, ly, 80)
+      glow.addColorStop(0, 'rgba(255,230,150,0.45)'); glow.addColorStop(1, 'rgba(255,230,150,0)')
+      ctx.fillStyle = glow; ctx.fillRect(lx - 80, ly - 80, 160, 160)
+      ctx.fillStyle = '#2a2f2a'; ctx.fillRect(lx - 2 + side * 6, ly + 10, 4, boardY - ly)        // mât
+      ctx.save(); ctx.translate(lx, ly); ctx.rotate(side * 0.25)
+      ctx.fillStyle = '#1d211d'; ctx.fillRect(-22, -11, 44, 22)
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { ctx.fillStyle = (i + j) % 2 ? '#ffe9a6' : '#fff6d6'; ctx.fillRect(-20 + i * 10, -9 + j * 10, 8, 8) }
+      ctx.restore()
     }
-    // panneaux publicitaires
-    ctx.fillStyle = '#0F3B2E'
-    ctx.fillRect(0, boardY - 11, LW, 11)
-    ctx.fillStyle = '#D4A22C'
-    ctx.font = '700 8px Oswald, sans-serif'
-    ctx.textBaseline = 'middle'
-    for (let x = -((now / 40) % 90); x < LW; x += 90) ctx.fillText('ENTRE NOUS', x, boardY - 5.5)
 
     // pelouse : bandes de tonte parallèles à la ligne de but
     ctx.save()
@@ -905,6 +912,25 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     else if (eng.phase === 'after' && eng.free) ballPos = eng.free.p
     items.push({ depth: P(ballPos).depth - 0.01, draw: () => drawBall(ctx, P, ballPos, eng) })
 
+    // le tireur n°10, à gauche et un peu derrière le ballon
+    {
+      const fx = sc.cam.sin, fz = sc.cam.cos, rx = fz, rz = -fx
+      const pos = { x: sc.ball0.x - rx * 0.9 - fx * 0.15, y: 0, z: sc.ball0.z - rz * 0.9 - fz * 0.15 }
+      items.push({ depth: P(pos).depth, draw: () => {
+        const im = fkImgs().shooter
+        if (!im.complete || !im.naturalWidth) return
+        const g = P(pos), k = g.k
+        const tk = (now - eng.kickAt) / 1000
+        const isGoal = eng.outcome === 'goal' || eng.outcome === 'lucarne' || eng.outcome === 'cible'
+        let f = 0                                                  // debout
+        if (eng.phase === 'aim' && eng.swiping) f = 1             // élan
+        else if (tk >= 0 && tk < 0.45 && eng.phase !== 'aim') f = 2 // frappe
+        else if (eng.phase === 'after' && isGoal) f = 3           // joie
+        const h = Math.min(190, 1.85 * k * (SHOOT_FH / 72) * 0.8), w = h * SHOOT_FW / SHOOT_FH
+        const feetY = g.y + h * (SHOOT_FH - SHOOT_FEET) / SHOOT_FH
+        ctx.drawImage(im, f * SHOOT_FW, 0, SHOOT_FW, SHOOT_FH, g.x - w / 2, feetY - h, w, h)
+      } })
+    }
     items.sort((a, b) => b.depth - a.depth)
     for (const it of items) it.draw()
 
@@ -1088,30 +1114,19 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     ctx.fillStyle = 'rgba(0,0,0,0.3)'
     ctx.beginPath(); ctx.ellipse(g.x, g.y, 0.35 * k, 0.09 * k, 0, 0, Math.PI * 2); ctx.fill()
     const dive = Math.max(-1, Math.min(1, (x - eng.scene.keeperX0) / 1.6))
+    // gardien en pixels : le défenseur du Dribble en tenue bleue, qui plonge en tournant
+    const img = dribbleImages().def
+    if (!img.complete || !img.naturalWidth) return
+    const h = 2.0 * k, w = h * 35 / 40
     ctx.save()
-    ctx.translate(feet.x, feet.y)
+    ctx.translate(feet.x, feet.y - h * 0.45)
     ctx.rotate(dive * 1.05)
-    ctx.shadowColor = '#0e100c'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0.6; ctx.shadowOffsetY = 0.6
-    const w = 0.5 * k
-    ctx.fillStyle = '#e8c9a8'
-    ctx.fillRect(-w * 0.34, -0.85 * k, w * 0.22, 0.85 * k)
-    ctx.fillRect(w * 0.12, -0.85 * k, w * 0.22, 0.85 * k)
-    ctx.fillStyle = '#1b1b1f'
-    ctx.fillRect(-w / 2, -1.02 * k, w, 0.24 * k)
-    ctx.fillStyle = '#E8C547'
-    ctx.beginPath(); ctx.roundRect(-w / 2, -1.6 * k, w, 0.62 * k, 0.06 * k); ctx.fill()
-    // bras levés, gants
-    ctx.strokeStyle = '#E8C547'
-    ctx.lineWidth = 0.1 * k
-    ctx.lineCap = 'round'
-    ctx.beginPath()
-    ctx.moveTo(-w * 0.45, -1.5 * k); ctx.lineTo(-w * 1.05, -2.0 * k)
-    ctx.moveTo(w * 0.45, -1.5 * k); ctx.lineTo(w * 1.05, -2.0 * k)
-    ctx.stroke()
-    ctx.fillStyle = '#1b1b1f'
-    ctx.beginPath(); ctx.arc(-w * 1.08, -2.05 * k, 0.08 * k, 0, Math.PI * 2); ctx.arc(w * 1.08, -2.05 * k, 0.08 * k, 0, Math.PI * 2); ctx.fill()
-    ctx.fillStyle = '#e8c9a8'
-    ctx.beginPath(); ctx.arc(0, -1.72 * k, 0.12 * k, 0, Math.PI * 2); ctx.fill()
+    ctx.filter = 'hue-rotate(205deg) saturate(1.25) brightness(1.05)'
+    ctx.drawImage(img, 0, 0, 35, 40, -w / 2, -h * 0.52, w, h)
+    ctx.filter = 'none'
+    // gants
+    ctx.fillStyle = '#f4f1e8'
+    ctx.fillRect(-w * 0.52, -h * 0.12, w * 0.14, h * 0.08); ctx.fillRect(w * 0.38, -h * 0.12, w * 0.14, h * 0.08)
     ctx.restore()
   }
 
