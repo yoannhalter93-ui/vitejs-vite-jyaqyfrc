@@ -320,18 +320,39 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
     btn.classList.add('is-pressed')
     setTimeout(() => btn.classList.remove('is-pressed'), 120)
   }
+  // plusieurs doigts : chaque doigt garde sa direction, et c'est le DERNIER
+  // appuyé (encore posé) qui commande — on peut passer de ▶ à ◀ sans lâcher ▶
+  const held = useRef<{ id: number; dir: number }[]>([])
+  const applyHeld = () => {
+    const last = held.current[held.current.length - 1]
+    const dir = last ? last.dir : 0
+    leftBtnRef.current?.classList.toggle('is-held', dir < 0)
+    rightBtnRef.current?.classList.toggle('is-held', dir > 0)
+    engine.current?.hold(dir)
+  }
+  const zoneDir = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const third = (e.clientX - rect.left) / rect.width
+    return third < 1 / 3 ? -1 : third > 2 / 3 ? 1 : 0
+  }
   const onControlsDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!playingRef.current) return
     e.preventDefault()
-    const rect = e.currentTarget.getBoundingClientRect()
-    const third = (e.clientX - rect.left) / rect.width
-    if (third < 1 / 3) { leftBtnRef.current?.classList.add('is-held'); engine.current?.hold(-1) }
-    else if (third > 2 / 3) { rightBtnRef.current?.classList.add('is-held'); engine.current?.hold(1) }
-    else { flashButton(dribbleBtnRef.current); engine.current?.dribble() }
+    const dir = zoneDir(e)
+    if (dir === 0) { flashButton(dribbleBtnRef.current); engine.current?.dribble(); return }
+    held.current = held.current.filter((h) => h.id !== e.pointerId).concat({ id: e.pointerId, dir })
+    applyHeld()
   }
-  const onControlsUp = () => {
-    leftBtnRef.current?.classList.remove('is-held'); rightBtnRef.current?.classList.remove('is-held')
-    engine.current?.hold(0)
+  // un doigt qui glisse d'un bouton à l'autre change de direction
+  const onControlsMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const h = held.current.find((x) => x.id === e.pointerId)
+    if (!h) return
+    const dir = zoneDir(e)
+    if (dir !== 0 && dir !== h.dir) { h.dir = dir; applyHeld() }
+  }
+  const onControlsUp = (e?: ReactPointerEvent<HTMLDivElement>) => {
+    held.current = e ? held.current.filter((h) => h.id !== e.pointerId) : []
+    applyHeld()
   }
 
   useEffect(() => {
@@ -492,7 +513,7 @@ export default function DribbleGame({ groupId, groupName, autoApplyAllLeagues, o
         </div>
 
         {/* bande tactile coupée en 3 : ◀ (maintenir) · DRIBBLE · ▶ (maintenir) */}
-        <div className="dribble-lanes-ctl" onPointerDown={onControlsDown} onPointerUp={onControlsUp} onPointerCancel={onControlsUp} onPointerLeave={onControlsUp}>
+        <div className="dribble-lanes-ctl" onPointerDown={onControlsDown} onPointerMove={onControlsMove} onPointerUp={onControlsUp} onPointerCancel={onControlsUp} onPointerLeave={onControlsUp}>
           <button ref={leftBtnRef} className="dribble-lane-btn" disabled tabIndex={-1}>◀</button>
           <button ref={dribbleBtnRef} className="dribble-lane-btn dribble-roulette-btn" disabled tabIndex={-1}>
             <svg className="px-spiral-svg" viewBox="0 0 32 32" aria-hidden="true"><path fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" d="M16 16.5c0-1.4 1.6-1.9 2.6-1 1.5 1.3.6 4-1.6 4.4-3 .6-5.2-2.4-4.4-5.2 1-3.6 5.6-4.7 8.4-2.6 3.6 2.6 3.2 8.2-.4 10.6-4.4 2.9-10.6.9-12.4-4-2-5.6 1.8-11.6 7.6-12.4"/></svg>
