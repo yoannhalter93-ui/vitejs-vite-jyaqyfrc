@@ -150,6 +150,9 @@ function shotConfig(weekSeed: number, n: number): ShotConfig {
 }
 
 const levelOf = stageOf
+// jauge de puissance : monte en ~1 s puis redescend (aller-retour tant qu'on garde le doigt posé)
+const GAUGE_UP = 1.0
+const gaugeAt = (heldMs: number) => { const u = (heldMs / 1000 / GAUGE_UP) % 2; return u < 1 ? u : 2 - u }
 // réglages « extra » du tir : la cible bonus (+3), plus petite aux paliers élevés
 function extrasFor(level: number, r: () => number) {
   return {
@@ -240,6 +243,8 @@ interface Engine {
   netHit: Vec3 | null
   swipe: { x: number; y: number; t: number }[]
   swiping: boolean
+  chargeAt: number // doigt posé sur le ballon : la jauge de puissance monte
+  power: number | null // puissance figée dès que le doigt part vers le but
   particles: { x: number; y: number; vx: number; vy: number; life: number; c: string }[]
   msg: { text: string; sub: string; color: string; at: number } | null
   spin: number
@@ -261,7 +266,7 @@ function newEngine(seed: number): Engine {
     phase: 'idle', weekSeed: seed, goals: 0, points: 0,
     scene: buildScene(cfg), flight: null, free: null, outcome: null, outcomeAt: 0,
     keeperX: -cfg.nearSide * 0.6, keeperJump: 0, wallJumpT: -1, netHit: null,
-    swipe: [], swiping: false, particles: [], msg: null, spin: 0,
+    swipe: [], swiping: false, chargeAt: 0, power: null, particles: [], msg: null, spin: 0,
     crowd: [], lastW: 0, lastH: 0, audio: null,
     level: 1, ex: extrasFor(1, mulberry32(seed)), aimAt: 0, wallShift: 0, bannerAt: -1e9, kickAt: -1e9,
   }
@@ -438,6 +443,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     eng.wallJumpT = -1
     eng.swipe = []
     eng.swiping = false
+    eng.power = null
     eng.msg = null
     eng.phase = 'aim'
     const lv = levelOf(eng.goals)
@@ -911,7 +917,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         const tk = (now - eng.kickAt) / 1000
         const isGoal = eng.outcome === 'goal' || eng.outcome === 'lucarne' || eng.outcome === 'cible'
         let f = 0                                                  // debout
-        if (eng.phase === 'aim' && eng.swiping) f = 1             // élan
+        if (eng.phase === 'aim' && eng.swiping && eng.power !== null) f = 1             // élan
         else if (tk >= 0 && tk < 0.45 && eng.phase !== 'aim') f = 2 // frappe
         else if (eng.phase === 'after' && isGoal) f = 3           // joie
         const h = 1.85 * k * (SHOOT_FH / 72) * 1.45, w = h * SHOOT_FW / SHOOT_FH
@@ -945,8 +951,18 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         ctx.fillStyle = 'rgba(244,239,226,0.85)'
         ctx.font = '600 12px "Space Mono", monospace'
         ctx.textAlign = 'center'
-        ctx.fillText('Glisse du ballon vers le but', cx, Math.min(lh - 16, bs.y + 42))
+        ctx.fillText('Appuie sur le ballon, puis glisse vers le but', cx, Math.min(lh - 16, bs.y + 42))
         ctx.textAlign = 'left'
+      }
+      // jauge de puissance à côté du ballon (monte tant que le doigt reste posé)
+      if (eng.swiping) {
+        const g = eng.power ?? gaugeAt(now - eng.chargeAt)
+        const gx = Math.min(LW - 16, bs.x + 30), gh = 74, gw = 9, gy = bs.y + 8
+        ctx.fillStyle = 'rgba(7,19,15,0.7)'; ctx.fillRect(gx - 2, gy - gh - 2, gw + 4, gh + 4)
+        const grad = ctx.createLinearGradient(0, gy, 0, gy - gh)
+        grad.addColorStop(0, '#3fbf5f'); grad.addColorStop(0.55, '#ffd84a'); grad.addColorStop(1, '#ff4b3e')
+        ctx.fillStyle = grad; ctx.fillRect(gx, gy - gh * g, gw, gh * g)
+        ctx.strokeStyle = 'rgba(244,239,226,0.9)'; ctx.lineWidth = 1; ctx.strokeRect(gx - 2, gy - gh - 2, gw + 4, gh + 4)
       }
       // pendant que le doigt est posé : juste une petite traînée discrète
       // derrière le doigt (on ne montre pas la trajectoire finale)
@@ -1227,12 +1243,21 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     e.currentTarget.setPointerCapture(e.pointerId)
     eng.swiping = true
     eng.swipe = [p]
+    eng.chargeAt = p.t
+    eng.power = null
   }
 
   const onPointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const eng = engineRef.current
     if (!eng.swiping) return
     const p = { ...toLogical(e), t: performance.now() }
+    // le doigt part vers le but : la jauge se fige, et le geste commence ici
+    if (eng.power === null) {
+      const p0 = eng.swipe[0]
+      if (Math.hypot(p.x - p0.x, p.y - p0.y) < 10) return
+      eng.power = gaugeAt(p.t - eng.chargeAt)
+      eng.swipe = [{ ...p0, t: p.t }]
+    }
     const lastP = eng.swipe[eng.swipe.length - 1]
     if (Math.hypot(p.x - lastP.x, p.y - lastP.y) >= 2) eng.swipe.push(p)
   }
@@ -1259,10 +1284,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     let curl = bow / len / 0.22
     if (Math.abs(bow / len) < 0.03) curl = 0
     curl = Math.max(-1, Math.min(1, curl))
-    // puissance : vitesse du geste (px logiques / ms), un peu la longueur aussi
-    const dur = Math.max(40, b.t - a.t)
-    const speed = len / dur
-    const power = Math.max(0, Math.min(1, (speed - 0.35) / 1.3 * 0.8 + Math.min(1, len / 600) * 0.2))
+    // puissance : celle de la jauge au moment où le doigt est parti
+    const power = eng.power ?? 0.5
     const { cx, hy } = layout()
     const target = unprojectToGoalPlane(eng.scene, b.x, b.y, cx, hy)
     shoot(target, curl, power)
@@ -1281,10 +1304,11 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         </button>
         {showRules && (
           <p className="dribble-intro">
-            Pose le doigt sur le ballon, glisse vers la zone du but que tu vises et relâche : le tir part tout
-            de suite. Un geste en arc donne de l'effet : le ballon part du côté de l'arc puis revient, à toi de
-            viser à côté pour qu'il rentre. Un geste plus rapide frappe plus fort (le ballon monte un peu plus) ;
-            lève le doigt sous la ligne de but pour une frappe à ras de terre (elle passe sous le mur qui saute).
+            Garde le doigt sur le ballon : la jauge de puissance monte puis redescend. Quand elle est au bon
+            niveau, glisse vers la zone du but que tu vises et relâche : le tir part tout de suite. Trop de
+            puissance = le ballon monte (attention à la barre), pas assez = il retombe. Un geste en arc donne
+            de l'effet : le ballon part du côté de l'arc puis revient, à toi de viser à côté pour qu'il rentre.
+            Lève le doigt sous la ligne de but pour une frappe à ras de terre (elle passe sous le mur qui saute).
             But = 1 point, lucarne = 2, dans la cible jaune = 3. Au premier raté, la série s'arrête.
             Chaque partie est différente, et ça recule à chaque but : 17-18 m (mur de 3, gardien lent),
             19-21 m (mur de 4), 22-24 m (le mur saute, gardien plus vif), 25-27 m (ballon décalé sur le côté),
