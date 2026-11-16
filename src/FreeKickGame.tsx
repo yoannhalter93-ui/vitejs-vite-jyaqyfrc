@@ -63,7 +63,7 @@ const WALL_PLAYER_HALF_W = 0.25
 const WALL_HEIGHT = 1.8
 const WALL_JUMP = 0.38
 const KEEPER_LINE_OFFSET = 0.3 // le gardien se tient 30 cm devant sa ligne
-const MAX_CURL_ACCEL = 7 // m/s², effet maximal
+const MAX_CURL_ACCEL = 5.5 // m/s², effet maximal (non compensé : jusqu'à ~2-3 m de courbe)
 const MAX_SCORE = 2000
 
 // ---- caméra / écran (unités logiques : largeur fixe 360) ----
@@ -106,83 +106,60 @@ interface ShotConfig {
   wallJumps: boolean
   keeperSpeed: number
   keeperReaction: number
+  keeperReach: number
 }
 
-// Taille du mur : il couvre une part fixe de l'ANGLE du but vu du ballon
-// (≈ la moitié côté poteau, un peu plus aux niveaux avancés). Un nombre fixe
-// de joueurs masquait tout le but de loin : à 26 m, 5 joueurs à 9,15 m ont le
-// même angle apparent que le but entier.
-function wallSize(ballX: number, dist: number, n: number): number {
-  const angleCos = dist / Math.hypot(ballX, dist)
-  const goalAtWall = 2 * GOAL_HALF_W * angleCos * (WALL_DIST / dist)
-  const coverage = n < 6 ? 0.5 : 0.62
-  return Math.max(2, Math.min(5, Math.round((coverage * goalAtWall) / 0.55)))
-}
-
-// Difficulté progressive selon le nombre de coups francs déjà réussis.
-// Courbe adoucie depuis la semaine du 28 septembre 2026 (avant : au-delà
-// du 9e but, moins d'1 % des tirs possibles marquaient, et le 13e était
-// quasi impossible). Simulation de tous les tirs (cible x hauteur x effet)
-// sur 6 semaines : ~25 % au 1er, puis jamais moins de ~2,5 % ensuite. La
-// ancienne courbe reste pour les semaines passées.
-const SOFT_CURVE_FROM = '2026-09-28'
-// À partir du 5 octobre 2026 : la courbe adoucie plafonnait vers le 12e but
-// (un bon joueur enchaînait ensuite indéfiniment, ~5 % de tirs possibles à
-// chaque niveau). Désormais, après le 12e but, gardien, distance et saut du
-// mur continuent de progresser doucement : ~3,5 % au 18e, ~2 % au 21e, puis
-// palier autour de 1 % (jamais impossible). Mesuré par simulation.
-const RISING_CURVE_FROM = '2026-10-05'
+// ---- paliers : la distance monte avec les buts, chaque palier ajoute une difficulté ----
+//  1. 17-18 m : mur de 3, gardien lent (apprentissage)
+//  2. 19-21 m : mur de 4, gardien normal, on peut contourner le mur
+//  3. 22-24 m : le mur saute, gardien plus rapide
+//  4. 25-27 m : ballon décalé à gauche ou à droite
+//  5. 28 m+   : très difficile (gros mur, gardien vif qui couvre plus) : il faut une grosse courbe dans les lucarnes
+// Simulation (tous les tirs cible x hauteur x effet x puissance) : ~15 %, ~9 %, ~4 %, ~1,8 %, ~0,7 % de tirs possibles.
+const STAGES = [
+  { from: 0, dMin: 17, dMax: 18, walls: 3, jump: 0, kSpeed: 1.6, kReact: 0.5, lat: [0, 1.5], reach: 1.05, info: 'Apprentissage' },
+  { from: 3, dMin: 19, dMax: 21, walls: 4, jump: 0, kSpeed: 2.3, kReact: 0.4, lat: [0, 2.5], reach: 1.05, info: 'Mur de 4 : contourne-le' },
+  { from: 7, dMin: 22, dMax: 24, walls: 4, jump: 1, kSpeed: 2.8, kReact: 0.33, lat: [0, 2.5], reach: 1.05, info: 'Le mur saute, gardien plus vif' },
+  { from: 11, dMin: 25, dMax: 27, walls: 4, jump: 0.7, kSpeed: 3.0, kReact: 0.3, lat: [4, 8], reach: 1.05, info: 'Ballon décalé sur le côté' },
+  { from: 15, dMin: 28, dMax: 32, walls: 5, jump: 1, kSpeed: 3.3, kReact: 0.27, lat: [0, 8], reach: 1.15, info: 'Grosse courbe et lucarnes !' },
+]
+const stageOf = (goals: number) => { let k = 0; STAGES.forEach((st, i) => { if (goals >= st.from) k = i }); return k + 1 }
 
 function shotConfig(weekSeed: number, n: number): ShotConfig {
-  const week = monday()
-  const soft = week >= SOFT_CURVE_FROM
-  const rising = week >= RISING_CURVE_FROM
-  const x = rising ? Math.max(0, n - 11) : 0 // niveaux au-delà du 12e but
+  const lv = stageOf(n)
+  const st = STAGES[lv - 1]
+  const next = STAGES[lv]
   const r = mulberry32(weekSeed + n * 7919)
   const side = r() < 0.5 ? -1 : 1
-  const lateral = r() * (rising ? Math.min(7.5, 1.2 + n * 0.6) : soft ? Math.min(6.5, 1.2 + n * 0.6) : Math.min(8.5, 1.2 + n * 0.8))
+  const lateral = st.lat[0] + r() * (st.lat[1] - st.lat[0])
   const ballX = side * lateral
-  const dist = soft ? 17 + Math.min(7, n * 0.65) + Math.min(3, x * 0.2) + r() * 2 : 17 + Math.min(10, n * 0.9) + r() * 2
-  const jumpChance = rising
-    ? Math.min(0.55 + x * 0.02, 0.3 + (n - 4) * 0.05)
-    : soft ? Math.min(0.55, 0.3 + (n - 4) * 0.05) : Math.min(0.8, 0.3 + (n - 4) * 0.1)
+  // la distance avance dans le palier (dernier palier : +0,25 m par but, jusqu'à 32 m)
+  const span = next ? next.from - st.from : 16
+  const u = Math.min(1, (n - st.from) / Math.max(1, span - 1))
+  const dist = Math.min(st.dMax, st.dMin + u * (st.dMax - st.dMin) + (r() - 0.5) * 0.6)
   return {
     ballX,
-    dist,
+    dist: Math.max(st.dMin, dist),
     nearSide: lateral < 1 ? side : Math.sign(ballX),
-    // adouci : le mur ne grandit plus au-delà du niveau 6
-    wallCount: wallSize(ballX, dist, soft ? Math.min(n, 5) : n),
-    wallJumps: n >= 4 && r() < jumpChance,
-    // début accessible (un coin bien placé passe), puis le gardien devient
-    // plus vif ; au-delà du 12e but il continue de progresser (max 3,85 m/s)
-    keeperSpeed: soft ? Math.min(3.85, 2.4 + Math.min(0.9, n * 0.1) + x * 0.04) : 2.4 + Math.min(1.45, n * 0.16),
-    keeperReaction: soft ? Math.max(0.2, Math.max(0.25, 0.38 - n * 0.015) - x * 0.004) : Math.max(0.18, 0.38 - n * 0.022),
+    wallCount: st.walls,
+    wallJumps: r() < st.jump,
+    keeperSpeed: st.kSpeed,
+    keeperReaction: st.kReact,
+    keeperReach: st.reach,
   }
 }
 
-// ---- niveaux (1 niveau = 4 buts) : chaque niveau ajoute quelque chose ----
-const GOALS_PER_LEVEL = 4
-const LEVEL_INFO: Record<number, string> = {
-  1: 'Vise la cible pour +3',
-  2: 'Le mur peut sauter',
-  3: 'Le gardien bouge avant la frappe',
-  4: 'Attention au vent',
-  5: 'Le mur se décale à la frappe',
-  6: '4 secondes pour tirer',
-}
-const levelOf = (goals: number) => Math.floor(goals / GOALS_PER_LEVEL) + 1
-// réglages « extra » du tir selon le niveau (hasard propre à chaque partie)
+const levelOf = stageOf
+// réglages « extra » du tir : la cible bonus (+3), plus petite aux paliers élevés
 function extrasFor(level: number, r: () => number) {
-  const ang = r() * Math.PI * 2
   return {
-    // cible bonus dans le but (x, hauteur) : plus petite aux niveaux élevés
-    target: { x: (r() * 2 - 1) * (GOAL_HALF_W - 0.7), y: 0.55 + r() * (GOAL_H - 1.0), r: Math.max(0.32, 0.55 - level * 0.03) },
-    keeperDance: level >= 3 ? 0.55 + Math.min(0.5, (level - 3) * 0.1) : 0,
-    danceFreq: 1.4 + r() * 1.2 + Math.max(0, level - 3) * 0.2,
-    wind: level >= 4 ? (r() < 0.5 ? -1 : 1) * (0.8 + r() * Math.min(2.2, 0.6 + (level - 4) * 0.4)) : 0,
-    wallSlide: level >= 5 && r() < Math.min(0.85, 0.5 + (level - 5) * 0.1),
-    shotClock: level >= 6 ? Math.max(2.6, 4 - (level - 6) * 0.25) : 0,
-    dancePhase: ang,
+    target: { x: (r() * 2 - 1) * (GOAL_HALF_W - 0.7), y: 0.55 + r() * (GOAL_H - 1.0), r: Math.max(0.32, 0.55 - level * 0.04) },
+    keeperDance: 0,
+    danceFreq: 0,
+    wind: 0,
+    wallSlide: false,
+    shotClock: 0,
+    dancePhase: 0,
   }
 }
 type Extras = ReturnType<typeof extrasFor>
@@ -261,7 +238,7 @@ interface Engine {
   keeperJump: number
   wallJumpT: number // temps depuis la frappe (pour l'animation du saut)
   netHit: Vec3 | null
-  swipe: { x: number; y: number }[]
+  swipe: { x: number; y: number; t: number }[]
   swiping: boolean
   particles: { x: number; y: number; vx: number; vy: number; life: number; c: string }[]
   msg: { text: string; sub: string; color: string; at: number } | null
@@ -517,7 +494,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
   }
 
   // Frappe : cible = point visé dans le plan du but ; effet = courbure du geste
-  const shoot = (aimed: Vec3, curl: number) => {
+  const shoot = (aimed: Vec3, curl: number, power: number) => {
     let target = aimed
     const eng = engineRef.current
     const sc = eng.scene
@@ -532,10 +509,14 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const hx = (target.x - b.x) / horiz, hz = (target.z - b.z) / horiz
     const nx = hz, nz = -hx
     const a = { x: -curl * MAX_CURL_ACCEL * nx, y: grounder ? 0 : -G, z: -curl * MAX_CURL_ACCEL * nz }
+    // on vise une zone : l'effet n'est PAS compensé, il fait dévier le ballon
+    // (on vise à côté du poteau et la courbe le ramène) ; la puissance du geste
+    // change un peu la vitesse : fort = arrive plus tôt donc plus haut, doux = plus bas
+    const s = 0.86 + 0.28 * power
     const v = {
-      x: (target.x - b.x) / T - 0.5 * a.x * T,
+      x: ((target.x - b.x) / T) * s,
       y: (target.y - b.y) / T - 0.5 * a.y * T,
-      z: (target.z - b.z) / T - 0.5 * a.z * T,
+      z: ((target.z - b.z) / T) * s,
     }
     a.x += eng.ex.wind                       // le vent pousse le ballon (à toi de compenser)
     eng.flight = { o: { ...b }, v, a, t: 0, prevDepth: 0, trail: [] }
@@ -709,7 +690,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
           const u = (kz - p0.z) / (p1.z - p0.z)
           const pc = { x: p0.x + (p1.x - p0.x) * u, y: p0.y + (p1.y - p0.y) * u, z: kz }
           const dx = pc.x - eng.keeperX
-          const reachX = 1.05
+          const reachX = sc.cfg.keeperReach
           const reachY = 2.35 + eng.keeperJump
           const ny = Math.max(0, pc.y - 0.9) / (reachY - 0.9)
           if ((dx / reachX) ** 2 + ny * ny <= 1 && pc.y >= -0.1) {
@@ -967,18 +948,23 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         ctx.fillText('Glisse du ballon vers le but', cx, Math.min(lh - 16, bs.y + 42))
         ctx.textAlign = 'left'
       }
-      if (eng.swipe.length > 1) {
-        ctx.beginPath()
-        eng.swipe.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y) })
-        ctx.strokeStyle = 'rgba(212,162,44,0.9)'
-        ctx.lineWidth = 3
+      // pendant que le doigt est posé : juste une petite traînée discrète
+      // derrière le doigt (on ne montre pas la trajectoire finale)
+      if (eng.swiping && eng.swipe.length > 1) {
+        const pts: { x: number; y: number }[] = []
+        let acc = 0
+        for (let i = eng.swipe.length - 1; i >= 0; i--) {
+          const p = eng.swipe[i]
+          if (pts.length) acc += Math.hypot(p.x - pts[pts.length - 1].x, p.y - pts[pts.length - 1].y)
+          pts.push(p)
+          if (acc > 45) break
+        }
         ctx.lineCap = 'round'
-        ctx.stroke()
-        const last = eng.swipe[eng.swipe.length - 1]
-        ctx.strokeStyle = 'rgba(244,239,226,0.9)'
-        ctx.lineWidth = 1.5
-        ctx.beginPath(); ctx.arc(last.x, last.y, 7, 0, Math.PI * 2); ctx.stroke()
-        ctx.beginPath(); ctx.moveTo(last.x - 11, last.y); ctx.lineTo(last.x + 11, last.y); ctx.moveTo(last.x, last.y - 11); ctx.lineTo(last.x, last.y + 11); ctx.stroke()
+        for (let i = 1; i < pts.length; i++) {
+          ctx.strokeStyle = `rgba(244,239,226,${0.45 * (1 - i / pts.length)})`
+          ctx.lineWidth = 3 * (1 - i / pts.length) + 0.5
+          ctx.beginPath(); ctx.moveTo(pts[i - 1].x, pts[i - 1].y); ctx.lineTo(pts[i].x, pts[i].y); ctx.stroke()
+        }
       }
     }
 
@@ -1049,9 +1035,9 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       ctx.fillStyle = 'rgba(21,19,15,.88)'; ctx.fillRect(0, by - 30, LW, 56)
       ctx.fillStyle = '#e9c46a'; ctx.fillRect(0, by - 30, LW, 3); ctx.fillRect(0, by + 23, LW, 3)
       ctx.textAlign = 'center'; ctx.font = '700 28px Oswald, sans-serif'; ctx.fillStyle = '#ffd84a'
-      ctx.fillText('NIVEAU ' + eng.level, cx, by + 2)
+      ctx.fillText('PALIER ' + eng.level + ' · ' + Math.round(sc.cfg.dist) + ' M', cx, by + 2)
       ctx.font = '600 12px Oswald, sans-serif'; ctx.fillStyle = '#f4ecd4'
-      ctx.fillText((LEVEL_INFO[eng.level] ?? 'Encore plus dur !').toUpperCase(), cx, by + 18)
+      ctx.fillText(STAGES[eng.level - 1].info.toUpperCase(), cx, by + 18)
       ctx.restore()
     }
   }
@@ -1235,7 +1221,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const eng = engineRef.current
     if (eng.phase !== 'aim') return
-    const p = toLogical(e)
+    const p = { ...toLogical(e), t: performance.now() }
     const bs = ballScreen()
     if (Math.hypot(p.x - bs.x, p.y - bs.y) > TOUCH_RADIUS) return
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -1246,7 +1232,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
   const onPointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const eng = engineRef.current
     if (!eng.swiping) return
-    const p = toLogical(e)
+    const p = { ...toLogical(e), t: performance.now() }
     const lastP = eng.swipe[eng.swipe.length - 1]
     if (Math.hypot(p.x - lastP.x, p.y - lastP.y) >= 2) eng.swipe.push(p)
   }
@@ -1273,9 +1259,13 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     let curl = bow / len / 0.22
     if (Math.abs(bow / len) < 0.03) curl = 0
     curl = Math.max(-1, Math.min(1, curl))
+    // puissance : vitesse du geste (px logiques / ms), un peu la longueur aussi
+    const dur = Math.max(40, b.t - a.t)
+    const speed = len / dur
+    const power = Math.max(0, Math.min(1, (speed - 0.35) / 1.3 * 0.8 + Math.min(1, len / 600) * 0.2))
     const { cx, hy } = layout()
     const target = unprojectToGoalPlane(eng.scene, b.x, b.y, cx, hy)
-    shoot(target, curl)
+    shoot(target, curl, power)
   }
 
   return (
@@ -1291,13 +1281,14 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         </button>
         {showRules && (
           <p className="dribble-intro">
-            Pose le doigt sur le ballon et glisse vers l'endroit du but où tu veux le mettre : le ballon arrive
-            là où tu lèves le doigt. Trace un geste en arc pour donner de l'effet et contourner le mur ; lève le
-            doigt sous la ligne de but pour une frappe à ras de terre (elle passe sous le mur qui saute).
+            Pose le doigt sur le ballon, glisse vers la zone du but que tu vises et relâche : le tir part tout
+            de suite. Un geste en arc donne de l'effet : le ballon part du côté de l'arc puis revient, à toi de
+            viser à côté pour qu'il rentre. Un geste plus rapide frappe plus fort (le ballon monte un peu plus) ;
+            lève le doigt sous la ligne de but pour une frappe à ras de terre (elle passe sous le mur qui saute).
             But = 1 point, lucarne = 2, dans la cible jaune = 3. Au premier raté, la série s'arrête.
-            Chaque partie est différente. Tous les 4 buts, niveau suivant : mur qui saute (2), gardien qui bouge
-            avant la frappe (3), vent à compenser (4), mur qui se décale à la frappe (5), 4 secondes pour tirer (6)…
-            et c'est de plus en plus loin, excentré, avec un gardien plus vif.
+            Chaque partie est différente, et ça recule à chaque but : 17-18 m (mur de 3, gardien lent),
+            19-21 m (mur de 4), 22-24 m (le mur saute, gardien plus vif), 25-27 m (ballon décalé sur le côté),
+            puis 28 m et plus : grosse courbe obligatoire et lucarnes.
           </p>
         )}
 
