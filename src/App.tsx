@@ -930,6 +930,7 @@ function App() {
 
   const [notifications, setNotifications] = useState<any[]>([])
   const [showNotifPanel, setShowNotifPanel] = useState(false)
+  const [freshNotifIds, setFreshNotifIds] = useState<Set<string>>(new Set())
 
   // Un appui en dehors du panneau jetons / notifications le ferme. Cet
   // appui-là ne fait rien d'autre (pas d'ouverture de jeu par erreur).
@@ -1473,20 +1474,25 @@ function App() {
         </button>
         <div className="header-actions">
           <div className="notif-bell-wrap">
-            <button className="notif-bell-btn" aria-label="Notifications" onClick={() => setShowNotifPanel((v) => !v)}>
+            <button className="notif-bell-btn" aria-label="Notifications" onClick={() => {
+              // ouvrir la cloche = tout est vu : le point rouge disparaît tout de suite
+              // (les nouvelles restent surlignées le temps de cette ouverture)
+              if (!showNotifPanel) {
+                setFreshNotifIds(new Set(notifications.filter((n) => !n.read).map((n) => n.id)))
+                if (unreadNotifCount > 0) markAllNotifsRead()
+              }
+              setShowNotifPanel((v) => !v)
+            }}>
               <WhistleIcon size={32} />{unreadNotifCount > 0 && <span className="notif-badge">{unreadNotifCount}</span>}
             </button>
             {showNotifPanel && (
               <div className="notif-panel">
                 <div className="notif-panel-header">
                   <span>Notifications</span>
-                  {unreadNotifCount > 0 && (
-                    <button className="notif-markall-btn" onClick={markAllNotifsRead}>Tout marquer comme lu</button>
-                  )}
                 </div>
                 {notifications.length === 0 && <div className="notif-empty">Aucune notification</div>}
                 {notifications.map((n) => (
-                  <div key={n.id} className={`notif-row ${n.read ? '' : 'notif-unread'}`} onClick={() => goToNotification(n)}>
+                  <div key={n.id} className={`notif-row ${!n.read || freshNotifIds.has(n.id) ? 'notif-unread' : ''}`} onClick={() => goToNotification(n)}>
                     <div className="notif-text">{n.text}</div>
                     <div className="notif-date">{friendlyDate(n.created_at)}</div>
                     {(n.type === 'toro' || n.type === 'jongle') && n.related_profile_id && (
