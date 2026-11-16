@@ -1489,3 +1489,12 @@ details.rules-section > :last-child {
 /* Quiz / penalty : ton duel de la semaine, toujours en haut */
 .my-duel-card { border: 2px solid #D4A22E !important; box-shadow: 0 4px 16px rgba(212,162,46,.25); }
 .duel-history-toggle { display: block; width: 100%; margin: 4px 0 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(244,239,226,.25); background: transparent; color: inherit; font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
+
+/* Coup franc : carte « Prochain tir » entre deux tirs */
+.fk-next { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(5, 14, 9, 0.35); }
+.fk-next-card { min-width: 190px; padding: 12px 22px 14px; border-radius: 14px; background: rgba(10, 26, 18, 0.94); border: 2px solid #e9c46a; text-align: center; color: #F4EFE2; box-shadow: 0 8px 26px rgba(0,0,0,.45); }
+.fk-next-title { font: 700 18px Oswald, sans-serif; letter-spacing: 1px; }
+.fk-next-dist { font: 700 30px Oswald, sans-serif; color: #ffd84a; margin: 2px 0 6px; }
+.fk-next-level { display: inline-block; padding: 2px 14px; border-radius: 6px; background: #F4EFE2; color: #1b1b1f; font: 700 14px Oswald, sans-serif; }
+.fk-next-info { margin-top: 8px; font: 600 13px Oswald, sans-serif; color: #f4ecd4; }
+.fk-next-btn { padding: 10px 28px; border: none; border-radius: 10px; background: #ffd84a; color: #1b1b1f; font: 700 18px Oswald, sans-serif; letter-spacing: 1px; box-shadow: 0 4px 0 #a07a10; cursor: pointer; }

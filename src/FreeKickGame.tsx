@@ -22,6 +22,10 @@ const fkImgs = (() => {
     return c
   }
 })()
+function fkRound(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r)
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath()
+}
 const SHOOT_FW = 83, SHOOT_FH = 85, SHOOT_FEET = 78   // planche du tireur : debout, élan, frappe, joie
 
 // ============================================================================
@@ -228,7 +232,7 @@ interface FreeBall {
 }
 
 interface Engine {
-  phase: 'idle' | 'aim' | 'flight' | 'after' | 'over'
+  phase: 'idle' | 'aim' | 'flight' | 'after' | 'next' | 'over'
   weekSeed: number
   goals: number
   points: number
@@ -243,10 +247,13 @@ interface Engine {
   netHit: Vec3 | null
   swipe: { x: number; y: number; t: number }[]
   swiping: boolean
-  chargeAt: number // doigt posé sur le ballon : la jauge de puissance monte
-  power: number | null // puissance figée dès que le doigt part vers le but
+  chargeAt: number // début du défilement de la barre de puissance
+  power: number | null // puissance choisie (barre arrêtée) : le tireur prend son élan
+  // tir tracé (étape 1) : cible + effet, et le tracé du doigt affiché pendant la puissance
+  aimShot: { target: Vec3; curl: number; path: { x: number; y: number }[] } | null
+  runAt: number // début de l'élan (la frappe part 0,35 s après)
   particles: { x: number; y: number; vx: number; vy: number; life: number; c: string }[]
-  msg: { text: string; sub: string; color: string; at: number } | null
+  msg: { text: string; sub: string; color: string; at: number; ribbon?: string } | null
   spin: number
   crowd: { x: number; y: number; c: string }[]
   lastW: number
@@ -266,7 +273,7 @@ function newEngine(seed: number): Engine {
     phase: 'idle', weekSeed: seed, goals: 0, points: 0,
     scene: buildScene(cfg), flight: null, free: null, outcome: null, outcomeAt: 0,
     keeperX: -cfg.nearSide * 0.6, keeperJump: 0, wallJumpT: -1, netHit: null,
-    swipe: [], swiping: false, chargeAt: 0, power: null, particles: [], msg: null, spin: 0,
+    swipe: [], swiping: false, chargeAt: 0, power: null, aimShot: null, runAt: 0, particles: [], msg: null, spin: 0,
     crowd: [], lastW: 0, lastH: 0, audio: null,
     level: 1, ex: extrasFor(1, mulberry32(seed)), aimAt: 0, wallShift: 0, bannerAt: -1e9, kickAt: -1e9,
   }
@@ -293,6 +300,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
   const engineRef = useRef<Engine>(newEngine(hashString('coup-franc:' + monday())))
 
   const [phase, setPhase] = useState<'idle' | 'playing' | 'over'>('idle')
+  const [nextCard, setNextCard] = useState<{ dist: number; level: number; info: string } | null>(null)
   const [points, setPoints] = useState(0)
   const [goals, setGoals] = useState(0)
   const [distance, setDistance] = useState(Math.round(engineRef.current.scene.cfg.dist))
@@ -444,10 +452,11 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     eng.swipe = []
     eng.swiping = false
     eng.power = null
+    eng.aimShot = null
     eng.msg = null
     eng.phase = 'aim'
     const lv = levelOf(eng.goals)
-    if (lv > eng.level || eng.goals === 0) eng.bannerAt = performance.now()
+    if (eng.goals === 0) eng.bannerAt = performance.now()
     eng.level = lv
     eng.ex = extrasFor(lv, mulberry32(eng.weekSeed + eng.goals * 104729 + 17))
     // la cible n'est jamais collée au gardien au départ (sinon elle est injouable)
@@ -475,6 +484,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     setPoints(0)
     setGoals(0)
     setPhase('playing')
+    setNextCard(null)
     wrapperRef.current?.classList.add('dribble-locked')
     setupShot()
     if (user) {
@@ -590,7 +600,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       eng.points += pts
       setGoals(eng.goals)
       setPoints(eng.points)
-      eng.msg = { text: txt.text, sub: `+${pts} point${pts > 1 ? 's' : ''}`, color: txt.color, at: performance.now() }
+      eng.msg = { text: 'BUT !', ribbon: outcome === 'goal' ? '' : txt.text, sub: `+${pts} PT${pts > 1 ? 'S' : ''}`, color: '#ffd84a', at: performance.now() }
       sfxNet(); sfxRoar(); vibrate([30, 40, 60])
       // confettis
       const { cx, hy } = layout()
@@ -625,6 +635,12 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     }
     eng.particles = eng.particles.filter((p) => p.life > 0)
 
+    // puissance choisie : petit élan du tireur, puis frappe
+    if (eng.phase === 'aim' && eng.aimShot && eng.power !== null && performance.now() - eng.runAt > 350) {
+      const a = eng.aimShot
+      shoot(a.target, a.curl, eng.power)
+      return
+    }
     // avant la frappe : le gardien bouge (niveau 3+) ; chrono de tir (niveau 6+)
     if (eng.phase === 'aim') {
       const tAim = (performance.now() - eng.aimAt) / 1000
@@ -755,8 +771,13 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
 
       const elapsed = (performance.now() - eng.outcomeAt) / 1000
       if (elapsed > (isGoal ? 1.7 : 1.5)) {
-        if (isGoal) setupShot()
-        else endGame()
+        if (isGoal) {
+          eng.phase = 'next'
+          eng.msg = null
+          const cfgN = shotConfig(eng.weekSeed, eng.goals)
+          const lvN = stageOf(eng.goals)
+          setNextCard({ dist: Math.round(cfgN.dist), level: lvN, info: lvN > eng.level ? STAGES[lvN - 1].info : '' })
+        } else endGame()
       }
     }
   }
@@ -904,7 +925,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     // ballon
     let ballPos: Vec3 = sc.ball0
     if (eng.phase === 'flight' && eng.flight) ballPos = flightPos(eng.flight, eng.flight.t)
-    else if (eng.phase === 'after' && eng.free) ballPos = eng.free.p
+    else if ((eng.phase === 'after' || eng.phase === 'next') && eng.free) ballPos = eng.free.p
     items.push({ depth: P(ballPos).depth - 0.01, draw: () => drawBall(ctx, P, ballPos, eng) })
 
     // le tireur n°10, à gauche et un peu derrière le ballon
@@ -918,9 +939,9 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         const tk = (now - eng.kickAt) / 1000
         const isGoal = eng.outcome === 'goal' || eng.outcome === 'lucarne' || eng.outcome === 'cible'
         let f = 0                                                  // debout
-        if (eng.phase === 'aim' && eng.swiping && eng.power !== null) f = 1             // élan
+        if (eng.phase === 'aim' && eng.power !== null) f = 1             // élan
         else if (tk >= 0 && tk < 0.45 && eng.phase !== 'aim') f = 2 // frappe
-        else if (eng.phase === 'after' && isGoal) f = 3           // joie
+        else if ((eng.phase === 'after' || eng.phase === 'next') && isGoal) f = 3 // joie
         const h = 1.85 * k * (SHOOT_FH / 72) * 1.45, w = h * SHOOT_FW / SHOOT_FH
         const feetY = g.y + h * (SHOOT_FH - SHOOT_FEET) / SHOOT_FH
         ctx.drawImage(im, f * SHOOT_FW, 0, SHOOT_FW, SHOOT_FH, g.x - w / 2, feetY - h, w, h)
@@ -941,49 +962,69 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     // ---- au-dessus : interface nette (pas pixelisée)
     flush()
     ctx = ui
-    // geste en cours
+    // badge distance (en haut à gauche)
+    if (eng.phase !== 'idle' && eng.phase !== 'over') {
+      const txt = Math.round(sc.cfg.dist) + ' m'
+      ctx.font = '700 15px Oswald, sans-serif'
+      const w = ctx.measureText(txt).width + 30
+      fkRound(ctx, 8, 8, w, 26, 8); ctx.fillStyle = 'rgba(10,26,18,0.85)'; ctx.fill()
+      ctx.strokeStyle = '#e9c46a'; ctx.lineWidth = 1.5; ctx.stroke()
+      ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.arc(20, 18, 4, 0, Math.PI * 2); ctx.fill()
+      ctx.beginPath(); ctx.moveTo(16.5, 19.5); ctx.lineTo(20, 27); ctx.lineTo(23.5, 19.5); ctx.fill()
+      ctx.fillStyle = '#F4EFE2'; ctx.textAlign = 'left'; ctx.fillText(txt, 28, 27)
+    }
+    // tir tracé : trait jaune du doigt + viseur au bout
+    const drawAim = (path: { x: number; y: number }[], alpha: number) => {
+      if (path.length < 2) return
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+      ctx.strokeStyle = `rgba(120,80,0,${0.5 * alpha})`; ctx.lineWidth = 7
+      ctx.beginPath(); path.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.stroke()
+      ctx.strokeStyle = `rgba(255,205,60,${alpha})`; ctx.lineWidth = 4
+      ctx.beginPath(); path.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.stroke()
+      const e = path[path.length - 1]
+      ctx.strokeStyle = `rgba(255,216,74,${alpha})`; ctx.lineWidth = 2
+      ctx.beginPath(); ctx.arc(e.x, e.y, 9, 0, Math.PI * 2); ctx.stroke()
+      ctx.beginPath(); ctx.arc(e.x, e.y, 3, 0, Math.PI * 2); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(e.x - 14, e.y); ctx.lineTo(e.x - 6, e.y); ctx.moveTo(e.x + 6, e.y); ctx.lineTo(e.x + 14, e.y)
+      ctx.moveTo(e.x, e.y - 14); ctx.lineTo(e.x, e.y - 6); ctx.moveTo(e.x, e.y + 6); ctx.lineTo(e.x, e.y + 14); ctx.stroke()
+    }
+    // encadré en bas de l'écran
+    const bottomBox = (l1: string, l2: string) => {
+      const bw = Math.min(LW - 40, 270), bh = 40, bx = (LW - bw) / 2, by = lh - bh - 10
+      fkRound(ctx, bx, by, bw, bh, 9); ctx.fillStyle = 'rgba(10,26,18,0.9)'; ctx.fill()
+      ctx.strokeStyle = '#e9c46a'; ctx.lineWidth = 1.5; ctx.stroke()
+      ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('☝️', bx + 22, by + 29)
+      ctx.fillStyle = '#F4EFE2'; ctx.font = '700 12px Oswald, sans-serif'
+      ctx.fillText(l1, bx + bw / 2 + 12, by + 17); ctx.fillText(l2, bx + bw / 2 + 12, by + 32)
+      ctx.textAlign = 'left'
+    }
     if (eng.phase === 'aim') {
       const bs = ballScreen()
-      if (!eng.swiping) {
+      if (!eng.swiping && !eng.aimShot) {
         const pulse = 0.5 + 0.5 * Math.sin(now / 220)
-        ctx.strokeStyle = `rgba(212,162,44,${0.35 + pulse * 0.5})`
+        ctx.strokeStyle = `rgba(255,216,74,${0.35 + pulse * 0.5})`
         ctx.lineWidth = 2
         ctx.beginPath(); ctx.arc(bs.x, bs.y, bs.k * BALL_R + 8 + pulse * 5, 0, Math.PI * 2); ctx.stroke()
-        ctx.fillStyle = 'rgba(244,239,226,0.85)'
-        ctx.font = '600 12px "Space Mono", monospace'
-        ctx.textAlign = 'center'
-        ctx.fillText('Appuie sur le ballon, puis glisse vers le but', cx, Math.min(lh - 16, bs.y + 42))
-        ctx.textAlign = 'left'
+        bottomBox('Trace ton tir', "pour viser et donner de l'effet !")
       }
-      // jauge de puissance à côté du ballon (monte tant que le doigt reste posé)
-      if (eng.swiping) {
+      if (eng.swiping) drawAim(eng.swipe, 1)
+      if (eng.aimShot) {
+        drawAim(eng.aimShot.path, eng.power === null ? 1 : 0.6)
+        // barre de puissance horizontale (le curseur va et vient, on appuie pour l'arrêter)
         const g = eng.power ?? gaugeAt(now - eng.chargeAt)
-        const gx = Math.min(LW - 16, bs.x + 30), gh = 74, gw = 9, gy = bs.y + 8
-        ctx.fillStyle = 'rgba(7,19,15,0.7)'; ctx.fillRect(gx - 2, gy - gh - 2, gw + 4, gh + 4)
-        const grad = ctx.createLinearGradient(0, gy, 0, gy - gh)
-        grad.addColorStop(0, '#3fbf5f'); grad.addColorStop(0.55, '#ffd84a'); grad.addColorStop(1, '#ff4b3e')
-        ctx.fillStyle = grad; ctx.fillRect(gx, gy - gh * g, gw, gh * g)
-        ctx.strokeStyle = 'rgba(244,239,226,0.9)'; ctx.lineWidth = 1; ctx.strokeRect(gx - 2, gy - gh - 2, gw + 4, gh + 4)
-        // repère : puissance normale au milieu
-        ctx.fillStyle = '#fff'; ctx.fillRect(gx - 5, gy - gh * 0.5 - 1, gw + 10, 2)
-      }
-      // pendant que le doigt est posé : juste une petite traînée discrète
-      // derrière le doigt (on ne montre pas la trajectoire finale)
-      if (eng.swiping && eng.swipe.length > 1) {
-        const pts: { x: number; y: number }[] = []
-        let acc = 0
-        for (let i = eng.swipe.length - 1; i >= 0; i--) {
-          const p = eng.swipe[i]
-          if (pts.length) acc += Math.hypot(p.x - pts[pts.length - 1].x, p.y - pts[pts.length - 1].y)
-          pts.push(p)
-          if (acc > 45) break
-        }
-        ctx.lineCap = 'round'
-        for (let i = 1; i < pts.length; i++) {
-          ctx.strokeStyle = `rgba(244,239,226,${0.45 * (1 - i / pts.length)})`
-          ctx.lineWidth = 3 * (1 - i / pts.length) + 0.5
-          ctx.beginPath(); ctx.moveTo(pts[i - 1].x, pts[i - 1].y); ctx.lineTo(pts[i].x, pts[i].y); ctx.stroke()
-        }
+        const bw = Math.min(LW - 70, 240), bh = 14, bx = (LW - bw) / 2, by = lh - 44
+        fkRound(ctx, bx - 4, by - 4, bw + 8, bh + 8, 11); ctx.fillStyle = 'rgba(10,26,18,0.9)'; ctx.fill()
+        ctx.strokeStyle = '#e9c46a'; ctx.lineWidth = 1.5; ctx.stroke()
+        const grad = ctx.createLinearGradient(bx, 0, bx + bw, 0)
+        grad.addColorStop(0, '#2fae4f'); grad.addColorStop(0.5, '#ffd84a'); grad.addColorStop(1, '#e8382c')
+        fkRound(ctx, bx, by, bw, bh, 7); ctx.fillStyle = grad; ctx.fill()
+        ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillRect(bx + bw / 2 - 1, by - 3, 2, bh + 6) // puissance normale
+        const mx = bx + bw * g
+        ctx.fillStyle = '#fff'; ctx.strokeStyle = '#1b1b1f'; ctx.lineWidth = 1.5
+        fkRound(ctx, mx - 3.5, by - 6, 7, bh + 12, 3); ctx.fill(); ctx.stroke()
+        ctx.textAlign = 'center'; ctx.font = '700 11px Oswald, sans-serif'; ctx.fillStyle = '#F4EFE2'
+        ctx.fillText(eng.power === null ? 'PUISSANCE · APPUIE POUR FRAPPER' : 'PUISSANCE', LW / 2, by + bh + 17)
+        ctx.textAlign = 'left'
       }
     }
 
@@ -995,25 +1036,40 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     }
     ctx.globalAlpha = 1
 
-    // message d'issue
+    // message d'issue (BUT ! + ruban LUCARNE / CIBLE + points)
     if (eng.msg) {
       const age = (now - eng.msg.at) / 1000
       const s = age < 0.18 ? 0.6 + (age / 0.18) * 0.5 : age < 0.3 ? 1.1 - ((age - 0.18) / 0.12) * 0.1 : 1
       ctx.save()
-      ctx.translate(cx, hy - 40)
+      ctx.translate(cx, lh * 0.4) // (l'horizon est hors écran avec la caméra haute)
       ctx.scale(s, s)
       ctx.textAlign = 'center'
-      ctx.font = '700 38px Oswald, sans-serif'
-      ctx.lineWidth = 5
-      ctx.strokeStyle = 'rgba(7,19,15,0.85)'
+      const big = eng.msg.text === 'BUT !'
+      if (big) {
+        const glow = ctx.createRadialGradient(0, 4, 4, 0, 4, 95)
+        glow.addColorStop(0, 'rgba(255,214,90,0.55)'); glow.addColorStop(1, 'rgba(255,214,90,0)')
+        ctx.fillStyle = glow; ctx.fillRect(-100, -90, 200, 190)
+        ctx.fillStyle = '#ffd84a'; ctx.font = '26px sans-serif'; ctx.fillText('👑', 0, -44)
+      }
+      ctx.font = big ? 'italic 700 50px Oswald, sans-serif' : '700 36px Oswald, sans-serif'
+      ctx.lineWidth = 6
+      ctx.strokeStyle = 'rgba(7,19,15,0.9)'
       ctx.strokeText(eng.msg.text, 0, 0)
       ctx.fillStyle = eng.msg.color
       ctx.fillText(eng.msg.text, 0, 0)
+      let y = 26
+      if (eng.msg.ribbon) {
+        ctx.font = '700 14px Oswald, sans-serif'
+        const rw = ctx.measureText(eng.msg.ribbon).width + 28
+        fkRound(ctx, -rw / 2, y - 14, rw, 22, 5); ctx.fillStyle = '#5b3a00'; ctx.fill()
+        ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 1.5; ctx.stroke()
+        ctx.fillStyle = '#ffd84a'; ctx.fillText(eng.msg.ribbon, 0, y + 2)
+        y += 30
+      }
       if (eng.msg.sub) {
-        ctx.font = '700 14px "Space Mono", monospace'
-        ctx.strokeText(eng.msg.sub, 0, 26)
-        ctx.fillStyle = '#F4EFE2'
-        ctx.fillText(eng.msg.sub, 0, 26)
+        ctx.font = '700 22px Oswald, sans-serif'
+        ctx.lineWidth = 4; ctx.strokeText(eng.msg.sub, 0, y)
+        ctx.fillStyle = '#F4EFE2'; ctx.fillText(eng.msg.sub, 0, y)
       }
       ctx.restore()
     }
@@ -1050,7 +1106,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     if (ba >= 0 && ba < 1.8 && eng.phase !== 'over' && eng.phase !== 'idle') {
       const a = Math.min(1, ba * 5, (1.8 - ba) * 4)
       ctx.save(); ctx.globalAlpha = a
-      const by = hy - 120
+      const by = lh * 0.4
       ctx.fillStyle = 'rgba(21,19,15,.88)'; ctx.fillRect(0, by - 30, LW, 56)
       ctx.fillStyle = '#e9c46a'; ctx.fillRect(0, by - 30, LW, 3); ctx.fillRect(0, by + 23, LW, 3)
       ctx.textAlign = 'center'; ctx.font = '700 28px Oswald, sans-serif'; ctx.fillStyle = '#ffd84a'
@@ -1237,30 +1293,32 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     return { x: ((e.clientX - rect.left) / rect.width) * LW, y: ((e.clientY - rect.top) / rect.width) * LW }
   }
 
+  // 1) on trace le tir depuis le ballon (cible + effet) ; 2) la barre de
+  // puissance défile, on appuie pour l'arrêter ; 3) élan et frappe
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const eng = engineRef.current
     if (eng.phase !== 'aim') return
     const p = { ...toLogical(e), t: performance.now() }
+    if (eng.aimShot) {
+      // étape puissance : un appui n'importe où arrête la barre
+      if (eng.power === null) {
+        eng.power = gaugeAt(p.t - eng.chargeAt)
+        eng.runAt = p.t
+        sfxWhistle()
+      }
+      return
+    }
     const bs = ballScreen()
     if (Math.hypot(p.x - bs.x, p.y - bs.y) > TOUCH_RADIUS) return
     e.currentTarget.setPointerCapture(e.pointerId)
     eng.swiping = true
     eng.swipe = [p]
-    eng.chargeAt = p.t
-    eng.power = null
   }
 
   const onPointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const eng = engineRef.current
     if (!eng.swiping) return
     const p = { ...toLogical(e), t: performance.now() }
-    // le doigt part vers le but : la jauge se fige, et le geste commence ici
-    if (eng.power === null) {
-      const p0 = eng.swipe[0]
-      if (Math.hypot(p.x - p0.x, p.y - p0.y) < 10) return
-      eng.power = gaugeAt(p.t - eng.chargeAt)
-      eng.swipe = [{ ...p0, t: p.t }]
-    }
     const lastP = eng.swipe[eng.swipe.length - 1]
     if (Math.hypot(p.x - lastP.x, p.y - lastP.y) >= 2) eng.swipe.push(p)
   }
@@ -1287,11 +1345,17 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     let curl = bow / len / 0.22
     if (Math.abs(bow / len) < 0.03) curl = 0
     curl = Math.max(-1, Math.min(1, curl))
-    // puissance : celle de la jauge au moment où le doigt est parti
-    const power = eng.power ?? 0.5
     const { cx, hy } = layout()
     const target = unprojectToGoalPlane(eng.scene, b.x, b.y, cx, hy)
-    shoot(target, curl, power)
+    // le tir est tracé : place à la barre de puissance
+    eng.aimShot = { target, curl, path: pts.map((q) => ({ x: q.x, y: q.y })) }
+    eng.power = null
+    eng.chargeAt = performance.now()
+  }
+
+  const continueNext = () => {
+    setNextCard(null)
+    setupShot()
   }
 
   return (
@@ -1307,11 +1371,11 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         </button>
         {showRules && (
           <p className="dribble-intro">
-            Garde le doigt sur le ballon : la jauge de puissance monte puis redescend. Quand elle est au bon
-            niveau, glisse vers la zone du but que tu vises et relâche : le tir part tout de suite. Trop de
-            puissance = le ballon monte (attention à la barre), pas assez = il retombe. Le trait blanc de la jauge = puissance
-            normale. Un geste en arc donne de l'effet pour contourner le mur (le ballon dévie un peu de ta visée).
-            Lève le doigt sous la ligne de but pour une frappe à ras de terre (elle passe sous le mur qui saute).
+            1. Trace ton tir : pose le doigt sur le ballon et glisse jusqu'à l'endroit du but visé. Un tracé en
+            arc donne de l'effet pour contourner le mur (le ballon dévie un peu de ta visée).
+            2. La barre de puissance défile : appuie pour l'arrêter. Le trait blanc = puissance normale ; trop
+            fort, le ballon monte (attention à la barre), pas assez, il retombe. Le tireur s'élance et frappe.
+            Termine ton tracé sous la ligne de but pour une frappe à ras de terre (elle passe sous le mur qui saute).
             But = 1 point, lucarne = 2, dans la cible jaune = 3. Au premier raté, la série s'arrête.
             Chaque partie est différente, et ça recule à chaque but : 17-18 m (mur de 3, gardien lent),
             19-21 m (mur de 4), 22-24 m (le mur saute, gardien plus vif), 25-27 m (ballon décalé sur le côté),
@@ -1334,10 +1398,21 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
           />
+          {phase === 'playing' && nextCard && (
+            <div className="fk-next">
+              <div className="fk-next-card">
+                <div className="fk-next-title">PROCHAIN TIR</div>
+                <div className="fk-next-dist">📍 {nextCard.dist} m</div>
+                <div className="fk-next-level">PALIER {nextCard.level}</div>
+                {nextCard.info && <div className="fk-next-info">{nextCard.info}</div>}
+              </div>
+              <button className="fk-next-btn" onClick={continueNext}>▶ CONTINUER</button>
+            </div>
+          )}
           {phase === 'idle' && (
             <div className="dribble-idle-msg">
               <span style={{ fontSize: 30 }}>🧱</span>
-              <p className="dribble-sub">Glisse du ballon vers la lucarne. Le mur et le gardien t'attendent.</p>
+              <p className="dribble-sub">Trace ton tir depuis le ballon, puis arrête la barre de puissance. Le mur et le gardien t'attendent.</p>
               <button className="dribble-cta" onClick={startGame}>Commencer</button>
             </div>
           )}
