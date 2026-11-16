@@ -6,7 +6,7 @@ import { useAuth } from './AuthContext'
 import { useWizzChannel } from './wizzChannel'
 import plateSrc from './assets/freekick/fk_plate.jpg'
 import wallSrc from './assets/freekick/fk_wall.png'
-import keeperSrc from './assets/freekick/fk_keeper.png'
+import keeperSrc from './assets/freekick/fk_keeper_anim.png'
 import ballSrc from './assets/freekick/fk_ball.png'
 
 // ============================================================================
@@ -63,7 +63,9 @@ const IMG = {
 const SX = [125, 109, 58.7]  // px par mètre (latéral) : ballon, mur, but
 const SY = [100, 88, 63.5]   // px par mètre (hauteur)
 const WALL_BOX = { x: 352, y: 428 } // position de la découpe du mur dans l'image
-const KEEPER_FEET_X_OFF = 39        // milieu des pieds dans la découpe du gardien
+// gardien animé (vidéo fond vert) : en place, pas chassé, appel, envol, plongeon (vers la droite ; miroir à gauche)
+const KF_W = 322, KF_H = 265
+const KF_SCALE = 107 / 211 // la pose « en place » fait 211 px sur la planche, 107 px sur l'image
 // zones cliquables de l'image
 const ZONE = {
   back: { x0: 22, y0: 18, x1: 104, y1: 90 },
@@ -589,19 +591,21 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     if (im.plate.complete && im.plate.naturalWidth) ctx.drawImage(im.plate, 0, 0, IW, IH)
     const P = (p: Vec3) => project(sc, p)
 
-    // gardien (dessiné derrière le ballon)
+    // gardien (dessiné derrière le ballon) : la pose suit son déplacement
     {
       const kz = sc.cfg.dist - KEEPER_LINE_OFFSET
-      const feet = P({ x: eng.keeperX, y: eng.keeperJump, z: kz })
-      const k = feet.k / SY[2]
+      const c = P({ x: eng.keeperX, y: eng.keeperJump + 0.84, z: kz }) // centre du corps
       const img = im.keeper
       if (img.complete && img.naturalWidth) {
-        const w = img.naturalWidth * k, h = img.naturalHeight * k
-        const dive = Math.max(-1, Math.min(1, (eng.keeperX - sc.keeperX0) / 1.6))
+        const d = eng.keeperX - sc.keeperX0
+        const m = Math.abs(d) + eng.keeperJump * 1.2
+        const f = m < 0.12 ? 0 : m < 0.45 ? 1 : m < 0.85 ? 2 : m < 1.3 ? 3 : 4
+        const k = KF_SCALE * (c.k / SY[2])
+        const w = KF_W * k, h = KF_H * k
         ctx.save()
-        ctx.translate(feet.x - (KEEPER_FEET_X_OFF - img.naturalWidth / 2) * k, feet.y - h * 0.5)
-        ctx.rotate(dive * 1.0)
-        ctx.drawImage(img, -w / 2, -h * 0.5, w, h)
+        ctx.translate(c.x, c.y)
+        if (d < 0 && f > 0) ctx.scale(-1, 1)
+        ctx.drawImage(img, f * KF_W, 0, KF_W, KF_H, -w / 2, -h / 2, w, h)
         ctx.restore()
       }
     }
