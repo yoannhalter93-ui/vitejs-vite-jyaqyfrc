@@ -1499,7 +1499,9 @@ details.rules-section > :last-child {
 .fk-next-info { margin-top: 8px; font: 600 13px Oswald, sans-serif; color: #f4ecd4; }
 .fk-next-btn { padding: 10px 28px; border: none; border-radius: 10px; background: #ffd84a; color: #1b1b1f; font: 700 18px Oswald, sans-serif; letter-spacing: 1px; box-shadow: 0 4px 0 #a07a10; cursor: pointer; }
 /* cadrage serré comme la vidéo de référence : scène presque carrée */
-.dribble-px.freekick-px .freekick-stage { min-height: 0; flex: none; aspect-ratio: 360 / 410; }
+.dribble-px.freekick-px .freekick-stage { min-height: 0; flex: none; aspect-ratio: 720 / 710; }
+/* pendant la partie : l'image de la vidéo prend tout l'écran (son bandeau remplace celui de la page) */
+.dribble-px.freekick-px.fk-fs .freekick-stage { position: fixed; inset: 0; z-index: 3000; border-radius: 0; aspect-ratio: auto; box-shadow: none; background: #0a1622; }
 /* bandeau du haut façon vidéo : barre sombre bordée d'or */
 .freekick-px .dribble-stat-row { gap: 0; background: #f4ecd4; border: 2px solid #c9a24a; border-radius: 10px; padding: 0; overflow: hidden; box-shadow: 0 3px 0 rgba(0,0,0,.35); }
 .freekick-px .dribble-stat { display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 6px; background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 8px 4px; }
