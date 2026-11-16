@@ -65,9 +65,10 @@ const MAX_SCORE = 2000
 
 // ---- caméra / écran (unités logiques : largeur fixe 360) ----
 const LW = 360
-const FOCAL = 780
-const CAM_BACK = 6.5
-const CAM_H = 2.1
+// cadrage repris de la vidéo de référence : caméra haute et reculée, but au centre
+const FOCAL = 876
+const CAM_BACK = 15.6
+const CAM_H = 9.5
 const TOUCH_RADIUS = 75 // px logiques autour du ballon pour lancer le geste
 
 function monday(): string {
@@ -432,7 +433,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const lh = eng.lastH || 540
     // cadrage : le ballon à ~85 px du bas, l'horizon en découle (le but
     // occupe alors le tiers central de l'écran)
-    const ballY = lh - 85
+    const ballY = lh - 95
     const hy = ballY - (FOCAL * (CAM_H - BALL_R)) / CAM_BACK
     return { cx: LW / 2, hy, lh }
   }
@@ -787,7 +788,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     ctx.fillRect(0, 0, LW, lh)
 
     // tribunes derrière le but (un mur de supporters)
-    const boardZ = sc.cfg.dist + 8
+    const boardZ = sc.cfg.dist + 1.2
     const boardY = P({ x: 0, y: 0, z: boardZ }).y
     const standTop = Math.max(34, boardY - 250)
     // ciel + tribune sombre au-dessus, puis la bande de supporters en pixels (vidéo de référence)
@@ -796,14 +797,17 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const st = fkImgs().stands
     const celebrate = (eng.outcome === 'goal' || eng.outcome === 'lucarne' || eng.outcome === 'cible') && now - eng.outcomeAt < 1500
     if (st.complete && st.naturalWidth) {
-      const scale = 1.6
+      const gl = P({ x: -GOAL_HALF_W, y: 0, z: sc.cfg.dist }), gr = P({ x: GOAL_HALF_W, y: 0, z: sc.cfg.dist })
+      // dans la vidéo : tribune (150 px) pour un but de 334 px de large ; image enregistrée à 1/2
+      // tribune à l'échelle du but, mais assez haute pour remplir le haut de l'écran
+      const scale = Math.max(((gr.x - gl.x) / 334) * 2, (boardY * 0.62) / st.naturalHeight)
       const w = st.naturalWidth * scale, h = st.naturalHeight * scale
       const bob = celebrate ? Math.round(Math.sin(now / 80) * 1.5) : 0
       // haut de la tribune : on étire la première rangée de supporters vers le ciel (assombrie)
       ctx.globalAlpha = 0.45
-      for (let x = -((cx * 0.3) % w) - w; x < LW; x += w) ctx.drawImage(st, 0, st.naturalHeight * 0.3, st.naturalWidth, st.naturalHeight * 0.35, x, boardY - h * 1.55, w, h * 0.6)
+      for (let x = gl.x - Math.ceil(gl.x / w + 1) * w; x < LW; x += w) ctx.drawImage(st, 0, st.naturalHeight * 0.3, st.naturalWidth, st.naturalHeight * 0.35, x, boardY - h * 1.55, w, h * 0.6)
       ctx.globalAlpha = 1
-      for (let x = -((cx * 0.3) % w) - w; x < LW; x += w) ctx.drawImage(st, x, boardY - h + 2 + bob, w, h)
+      for (let x = gl.x - Math.ceil(gl.x / w + 1) * w; x < LW; x += w) ctx.drawImage(st, x, boardY - h + 3 + bob, w, h)
     }
     void standTop
     // gros projecteurs dans le ciel (comme dans la vidéo)
@@ -824,7 +828,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     ctx.beginPath()
     ctx.rect(0, boardY, LW, lh - boardY)
     ctx.clip()
-    ctx.fillStyle = '#1b5c20'
+    ctx.fillStyle = '#074712'
     ctx.fillRect(0, boardY, LW, lh - boardY)
     const zNear = sc.cam.z + 1.5
     for (let z = Math.floor(zNear / 4) * 4; z < boardZ; z += 4) {
@@ -832,7 +836,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       const a = P({ x: -60, y: 0, z }), b = P({ x: 60, y: 0, z })
       const c2 = P({ x: 60, y: 0, z: Math.min(z + 4, boardZ) }), d = P({ x: -60, y: 0, z: Math.min(z + 4, boardZ) })
       if (a.depth <= 0.3 || d.depth <= 0.3) continue
-      ctx.fillStyle = '#226b27'
+      ctx.fillStyle = '#186513'
       ctx.beginPath()
       ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c2.x, c2.y); ctx.lineTo(d.x, d.y)
       ctx.closePath()
@@ -847,8 +851,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         if (s.depth < 0.5) { started = false; continue }
         if (!started) { ctx.moveTo(s.x, s.y); started = true } else ctx.lineTo(s.x, s.y)
       }
-      ctx.strokeStyle = 'rgba(244,239,226,0.8)'
-      ctx.lineWidth = width
+      ctx.strokeStyle = 'rgba(232,240,214,0.95)'
+      ctx.lineWidth = width * 1.6
       ctx.stroke()
     }
     const D = sc.cfg.dist
@@ -915,7 +919,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     // le tireur n°10, à gauche et un peu derrière le ballon
     {
       const fx = sc.cam.sin, fz = sc.cam.cos, rx = fz, rz = -fx
-      const pos = { x: sc.ball0.x - rx * 0.9 - fx * 0.15, y: 0, z: sc.ball0.z - rz * 0.9 - fz * 0.15 }
+      const pos = { x: sc.ball0.x - rx * 1.3 - fx * 0.9, y: 0, z: sc.ball0.z - rz * 1.3 - fz * 0.9 }
       items.push({ depth: P(pos).depth, draw: () => {
         const im = fkImgs().shooter
         if (!im.complete || !im.naturalWidth) return
@@ -926,7 +930,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         if (eng.phase === 'aim' && eng.swiping) f = 1             // élan
         else if (tk >= 0 && tk < 0.45 && eng.phase !== 'aim') f = 2 // frappe
         else if (eng.phase === 'after' && isGoal) f = 3           // joie
-        const h = Math.min(190, 1.85 * k * (SHOOT_FH / 72) * 0.8), w = h * SHOOT_FW / SHOOT_FH
+        const h = 1.85 * k * (SHOOT_FH / 72) * 1.45, w = h * SHOOT_FW / SHOOT_FH
         const feetY = g.y + h * (SHOOT_FH - SHOOT_FEET) / SHOOT_FH
         ctx.drawImage(im, f * SHOOT_FW, 0, SHOOT_FW, SHOOT_FH, g.x - w / 2, feetY - h, w, h)
       } })
@@ -1101,7 +1105,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     ctx.beginPath(); ctx.ellipse(g.x, g.y, 0.32 * k, 0.09 * k, 0, 0, Math.PI * 2); ctx.fill()
     // défenseur en pixels (le même que dans le Dribble), mains devant
     const img = dribbleImages().def
-    const h = 1.95 * k, w = h * 35 / 40
+    const h = 1.95 * k * 1.3, w = h * 35 / 40
     if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, 35, 40, feet.x - w / 2, feet.y - h * 0.97, w, h)
   }
 
@@ -1117,7 +1121,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     // gardien en pixels : le défenseur du Dribble en tenue bleue, qui plonge en tournant
     const img = dribbleImages().def
     if (!img.complete || !img.naturalWidth) return
-    const h = 2.0 * k, w = h * 35 / 40
+    const h = 2.0 * k * 1.3, w = h * 35 / 40
     ctx.save()
     ctx.translate(feet.x, feet.y - h * 0.45)
     ctx.rotate(dive * 1.05)
@@ -1142,7 +1146,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const img = dribbleImages().ball
     if (img.complete && img.naturalWidth) {
       ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(Math.round(eng.spin / (Math.PI / 2)) * (Math.PI / 2))
-      ctx.drawImage(img, -r * 1.15, -r * 1.05, r * 2.3, r * 2.1); ctx.restore()
+      ctx.drawImage(img, -r * 2.6, -r * 2.4, r * 5.2, r * 4.8); ctx.restore()
     }
   }
 
