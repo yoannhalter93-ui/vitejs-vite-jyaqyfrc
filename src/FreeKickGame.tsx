@@ -47,7 +47,7 @@ const WALL_DIST = 9.15
 const WALL_PLAYER_HALF_W = 0.25
 const WALL_HEIGHT = 2.0
 const KEEPER_LINE_OFFSET = 0.3
-const MAX_CURL_ACCEL = 10 // m/s² (courbe bien visible)
+const MAX_CURL_ACCEL = 11 // m/s² : effet de côté ≈ 3 m de courbe, enroulée ≈ 5 m
 const MAX_SCORE = 100000
 const LIVES = 3
 const BALL_X = -3 // position du ballon sur l'image d'origine (référence de l'affichage)
@@ -423,32 +423,31 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     // point d'impact (continu) : côté = effet, bas = le ballon monte, haut = il plonge
     const bb = IMG.bigBall
     const ix = Math.max(-1, Math.min(1, (eng.pick.x - bb.x) / bb.r)), iy = Math.max(-1, Math.min(1, (eng.pick.y - bb.y) / bb.r))
-    const kind = shotKind(ix, iy)
-    const curl = Math.max(-1, Math.min(1, ix * 1.15))
-    const miss = 0
-    // visée : la direction du swipe, prolongée depuis la flèche jusqu'au but = là où le ballon finit
-    const screenX = IMG.aimFrom.x + dirX * (IMG.aimFrom.y - 460) * 0.6 // moins sensible : le but entier ≈ un swipe de ±35°
-    const tx = Math.max(-7, Math.min(7, (screenX - IMG.goal.x) / SX[2]))
-    // hauteur à l'arrivée : la puissance (≈ 75 % = lucarne, au-delà de 85 % = au-dessus)
-    const ty = 0.3 + power * 2.6 + (kind === 'lob' ? 0.35 : 0)
-    const target = { x: tx + miss * (Math.random() * 2 - 1) * 1.3, y: Math.max(0.2, ty + miss * (Math.random() * 2 - 1) * 0.7), z: sc.cfg.dist }
+    // Le swipe donne la direction de DÉPART du ballon ; le point d'impact fait la trajectoire :
+    //  - côté : effet, le ballon part tout droit puis tourne vers l'autre côté (pas compensé) ;
+    //    plus on tape bas sur le côté, plus il tourne et monte (frappe enroulée) ;
+    //  - bas (centre) : le ballon monte haut ; haut : frappe sèche et basse.
+    const low = Math.max(0, iy), high = Math.max(0, -iy)
+    const curl = ix * (1 + 0.6 * low)                      // jusqu'à ±1,6
+    // départ : la direction du swipe, vers un point du but
+    // swipe tout droit = le ballon part droit devant lui (vers le but à l'écran, depuis sa position)
+    const bx0 = project(sc, b).x
+    const screenX = bx0 + dirX * (IMG.ball.y - IMG.goal.y) * 0.75
+    const tx = Math.max(-9, Math.min(9, (screenX - IMG.goal.x) / SX[2]))
+    // hauteur visée : la puissance, puis le point d'impact (bas = monte, haut = rase)
+    const ty = Math.max(0.15, 0.35 + power * 1.9 + low * 1.3 - high * 0.9)
+    const target = { x: tx, y: ty, z: sc.cfg.dist }
     const horiz = Math.hypot(target.x - b.x, target.z - b.z)
-    // vitesse : forte = rapide (le gardien a moins de temps), douce = lente
-    let T = (0.55 + horiz * 0.018) * (1.3 - 0.5 * power)
-    if (kind === 'straight') T *= 0.9   // frappe sèche
-    if (kind === 'lob') T *= 1.18       // ballon piqué, plus lent
+    // vitesse : la puissance ; frappe sèche (haut du ballon) plus rapide, dessous plus lent
+    const T = (0.55 + horiz * 0.018) * (1.3 - 0.5 * power) * (1 + 0.15 * low - 0.12 * high)
     const hx = (target.x - b.x) / horiz, hz = (target.z - b.z) / horiz
     const nx = hz, nz = -hx
-    // gravité « apparente » : l'enroulée et le piqué montent puis plongent (passent au-dessus du mur)
-    const gy = kind === 'curler' ? G + 4 : kind === 'lob' ? G + 2.5 : kind === 'side' ? G + 1.5 : G
-    const a = { x: -curl * MAX_CURL_ACCEL * nx, y: -gy, z: -curl * MAX_CURL_ACCEL * nz }
+    const a = { x: -curl * MAX_CURL_ACCEL * nx, y: -G, z: -curl * MAX_CURL_ACCEL * nz }
     eng.spinDir = curl || 0.15
-    // l'effet est compensé à 85 % : le ballon arrive presque où on vise, la courbe sert à contourner le mur
-    const C = 0.85
     const v = {
-      x: (target.x - b.x) / T - 0.5 * a.x * T * C,
+      x: (target.x - b.x) / T,
       y: (target.y - b.y) / T - 0.5 * a.y * T,
-      z: (target.z - b.z) / T - 0.5 * a.z * T * C,
+      z: (target.z - b.z) / T,
     }
     eng.flight = { o: { ...b }, v, a, t: 0, trail: [] }
     eng.phase = 'flight'
@@ -918,6 +917,14 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         eng.pick = { i: 0, prec: 1, x: IMG.bigBall.x + cx * IMG.bigBall.r, y: IMG.bigBall.y + cy * IMG.bigBall.r }; eng.shot = { dirX, power }; shoot()
         for (let i = 0; i < 600 && eng.phase === 'flight'; i++) step(1 / 120)
         return { o: eng.outcome, spot: eng.scene.cfg.ballX }
+      },
+      path: (cx: number, cy: number, dirX: number, power: number, seed = 3) => {
+        const eng = engineRef.current
+        eng.lives = 99; eng.seed = seed; eng.goals = 0; setupShot()
+        eng.pick = { i: 0, prec: 1, x: IMG.bigBall.x + cx * IMG.bigBall.r, y: IMG.bigBall.y + cy * IMG.bigBall.r }; eng.shot = { dirX, power }; shoot()
+        const pts: number[][] = []
+        for (let i = 0; i < 600 && eng.phase === 'flight' && eng.flight; i++) { const q = project(eng.scene, flightPos(eng.flight, eng.flight.t)); pts.push([q.x, q.y]); step(1 / 120) }
+        return { pts, o: eng.outcome }
       },
       state: () => { const e = engineRef.current; return { phase: e.phase, outcome: e.outcome, goals: e.goals, points: e.points, lives: e.lives, combo: e.combo } },
     }
