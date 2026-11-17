@@ -420,11 +420,12 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     if (eng.phase !== 'aim' || !eng.shot || !eng.pick) return
     const sc = eng.scene, b = sc.ball0
     const { dirX, power } = eng.shot
-    const dot = DOTS[eng.pick.i]
-    const kind = dot.kind
-    const curl = dot.curl
-    // précision : toucher pile le point rouge = le ballon va exactement où on vise
-    const miss = 1 - eng.pick.prec
+    // point d'impact (continu) : côté = effet, bas = le ballon monte, haut = il plonge
+    const bb = IMG.bigBall
+    const ix = Math.max(-1, Math.min(1, (eng.pick.x - bb.x) / bb.r)), iy = Math.max(-1, Math.min(1, (eng.pick.y - bb.y) / bb.r))
+    const kind = shotKind(ix, iy)
+    const curl = Math.max(-1, Math.min(1, ix * 1.15))
+    const miss = 0
     // visée : la direction du swipe, prolongée depuis la flèche jusqu'au but = là où le ballon finit
     const screenX = IMG.aimFrom.x + dirX * (IMG.aimFrom.y - 460) * 0.6 // moins sensible : le but entier ≈ un swipe de ±35°
     const tx = Math.max(-7, Math.min(7, (screenX - IMG.goal.x) / SX[2]))
@@ -712,26 +713,19 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       roundRect(ctx, z.x0 + 4, z.y0 + 4, z.x1 - z.x0 - 8, z.y1 - z.y0 - 8, 12); ctx.stroke()
     }
 
-    // ---- point rouge choisi sur le gros ballon ----
+    // ---- point d'impact choisi sur le gros ballon ----
     if (eng.pick) {
-      const d = DOTS[eng.pick.i]
       const pulse = 0.5 + 0.5 * Math.sin(now / 180)
-      ctx.strokeStyle = `rgba(255,214,90,${0.6 + 0.4 * pulse})`; ctx.lineWidth = 7
-      ctx.beginPath(); ctx.arc(d.x, d.y, 34 + pulse * 6, 0, Math.PI * 2); ctx.stroke()
-      // là où le doigt a touché
-      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#1b1b1f'; ctx.lineWidth = 3
-      ctx.beginPath(); ctx.arc(eng.pick.x, eng.pick.y, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke()
-    } else if (eng.phase === 'aim' && eng.help) {
-      // invite : les points rouges clignotent
-      const pulse = 0.5 + 0.5 * Math.sin(now / 200)
-      ctx.strokeStyle = `rgba(255,214,90,${0.25 + 0.5 * pulse})`; ctx.lineWidth = 5
-      for (const d of DOTS) { ctx.beginPath(); ctx.arc(d.x, d.y, 30, 0, Math.PI * 2); ctx.stroke() }
+      ctx.fillStyle = '#d8262c'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 5
+      ctx.beginPath(); ctx.arc(eng.pick.x, eng.pick.y, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke()
+      ctx.strokeStyle = `rgba(255,214,90,${0.5 + 0.5 * pulse})`; ctx.lineWidth = 5
+      ctx.beginPath(); ctx.arc(eng.pick.x, eng.pick.y, 26 + pulse * 5, 0, Math.PI * 2); ctx.stroke()
     }
     // ---- guide des 3 étapes (sur la pelouse) ----
     if (eng.phase === 'aim' && !eng.runAt && eng.help) {
       const step = !eng.pick ? 1 : !eng.shot ? 2 : 3
-      const l1 = step === 1 ? '① Touche un point rouge du ballon' : step === 2 ? '② Swipe vers le haut : direction + puissance' : '③ Appuie sur TIRER'
-      const l3 = eng.pick ? `${DOTS[eng.pick.i].label} · ${precLabel(eng.pick.prec)}${eng.shot ? ` · ${Math.round(eng.shot.power * 100)} %` : ''}` : 'il choisit ta frappe'
+      const l1 = step === 1 ? '① Touche le ballon' : step === 2 ? '② Swipe vers le haut : direction + puissance' : '③ Appuie sur TIRER'
+      const l3 = eng.pick ? `${SHOT_NAME[shotKind((eng.pick.x - IMG.bigBall.x) / IMG.bigBall.r, (eng.pick.y - IMG.bigBall.y) / IMG.bigBall.r)]}${eng.shot ? ` · ${Math.round(eng.shot.power * 100)} %` : ''}` : 'là où tu frappes le ballon'
       const lines = [l1, l3]
       ctx.font = '700 30px Oswald, sans-serif'
       const w = Math.max(...lines.map((t) => ctx.measureText(t).width)) + 44, h = 20 + lines.length * 36
@@ -741,7 +735,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
       lines.forEach((t, i) => {
         ctx.font = i === 0 ? '700 30px Oswald, sans-serif' : '600 25px Oswald, sans-serif'
-        ctx.fillStyle = i === 0 ? '#ffd84a' : t === l3 && eng.pick ? (eng.pick.prec >= 0.75 ? '#7fe08a' : eng.pick.prec >= 0.4 ? '#f5e7c4' : '#ff8a7a') : '#f5e7c4'
+        ctx.fillStyle = i === 0 ? '#ffd84a' : '#f5e7c4'
         ctx.fillText(t, x + w / 2, y + 28 + i * 36)
       })
       ctx.textBaseline = 'alphabetic'
@@ -778,7 +772,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       if (eng.help && now - eng.hintAt < 1600) {
         ctx.textAlign = 'center'; ctx.font = '700 34px Oswald, sans-serif'
         ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(40,10,10,.85)'; ctx.fillStyle = '#ffd84a'
-        const t = !eng.pick ? 'Touche d\'abord un point rouge !' : 'Swipe vers le haut d\'abord !'
+        const t = !eng.pick ? 'Touche d\'abord le ballon !' : 'Swipe vers le haut d\'abord !'
         ctx.strokeText(t, IW / 2, 1505); ctx.fillText(t, IW / 2, 1505)
       }
     }
@@ -873,10 +867,10 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     // étape 1 : on touche le gros ballon -> point rouge le plus proche (+ précision)
     const bb = IMG.bigBall
     eng.pending = null
-    if (Math.hypot(p.x - bb.x, p.y - bb.y) <= bb.r * 1.08) {
-      let bi = 0, bd = 1e9
-      DOTS.forEach((d, i) => { const dd = Math.hypot(p.x - d.x, p.y - d.y); if (dd < bd) { bd = dd; bi = i } })
-      const pk = { i: bi, prec: Math.max(0, Math.min(1, 1 - (bd - 12) / 60)), x: p.x, y: p.y }
+    const dB = Math.hypot(p.x - bb.x, p.y - bb.y)
+    if (dB <= bb.r * 1.05) {
+      const k = dB > bb.r * 0.9 ? (bb.r * 0.9) / dB : 1
+      const pk = { i: 0, prec: 1, x: bb.x + (p.x - bb.x) * k, y: bb.y + (p.y - bb.y) * k }
       if (!eng.pick) { eng.pick = pk; sfxTick(); return }
       eng.pending = pk // tap = on change de point ; glisser = swipe
     }
@@ -915,13 +909,13 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     w.__fk = {
       start: (goals = 0) => { startGame(); engineRef.current.goals = goals; setupShot() },
       shot: (cx: number, cy: number, dirX: number, power: number) => {
-        const eng = engineRef.current; eng.pick = { i: dotFor(cx, cy), prec: 1, x: 0, y: 0 }; eng.shot = { dirX, power }; shoot()
+        const eng = engineRef.current; eng.pick = { i: 0, prec: 1, x: IMG.bigBall.x + cx * IMG.bigBall.r, y: IMG.bigBall.y + cy * IMG.bigBall.r }; eng.shot = { dirX, power }; shoot()
       },
       // simulation sans affichage (réglage de la difficulté)
       sim: (goals: number, cx: number, cy: number, dirX: number, power: number) => {
         const eng = engineRef.current
         eng.goals = goals; eng.lives = 99; setupShot()
-        eng.pick = { i: dotFor(cx, cy), prec: 1, x: 0, y: 0 }; eng.shot = { dirX, power }; shoot()
+        eng.pick = { i: 0, prec: 1, x: IMG.bigBall.x + cx * IMG.bigBall.r, y: IMG.bigBall.y + cy * IMG.bigBall.r }; eng.shot = { dirX, power }; shoot()
         for (let i = 0; i < 600 && eng.phase === 'flight'; i++) step(1 / 120)
         return { o: eng.outcome, spot: eng.scene.cfg.ballX }
       },
@@ -960,7 +954,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
           <div className="fk2-rules" onClick={() => setShowRules(false)}>
             <div className="fk2-rules-box">
               <p className="fk2-card-title">Comment jouer ?</p>
-              <p>1. Touche un des 6 points rouges du gros ballon : il choisit ta frappe (tir droit, effet à gauche ou à droite, enroulée, ballon piqué). Plus tu touches pile le point, plus ton tir est précis (Parfait / Bien / Imprécis).</p>
+              <p>1. Touche le gros ballon là où tu veux le frapper : au centre = tir droit, sur le côté = effet (le ballon tourne vers l'autre côté), en bas = il monte, en bas sur le côté = frappe enroulée.</p>
               <p>2. Swipe vers le haut : la direction du swipe = là où le ballon finit ; swipe court = frappe douce et basse, long ou rapide = frappe forte et haute (vers 75 % c'est la lucarne, au-delà de 85 % c'est au-dessus).</p>
               <p>3. Appuie sur TIRER.</p>
               <p>But = 100 pts, lucarne = 200, multipliés par le combo (buts d'affilée, jusqu'à x5). 3 essais : chaque raté coûte un cœur. À chaque but, le tir recule et le gardien devient plus vif.</p>
@@ -1001,22 +995,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
 
 // type de frappe selon le point touché sur le gros ballon
 type ShotKind = 'straight' | 'side' | 'curler' | 'lob'
-// les 6 points rouges du gros ballon (coordonnées sur l'image) = 6 frappes
-const DOTS: { x: number; y: number; kind: ShotKind; curl: number; label: string }[] = [
-  { x: 470, y: 1225, kind: 'straight', curl: 0, label: 'Tir droit' },
-  { x: 334, y: 1227, kind: 'side', curl: -0.8, label: 'Effet vers la droite' },
-  { x: 608, y: 1225, kind: 'side', curl: 0.8, label: 'Effet vers la gauche' },
-  { x: 361, y: 1328, kind: 'curler', curl: -1, label: 'Enroulée vers la droite' },
-  { x: 578, y: 1328, kind: 'curler', curl: 1, label: 'Enroulée vers la gauche' },
-  { x: 469, y: 1350, kind: 'lob', curl: 0, label: 'Ballon piqué' },
-]
-const precLabel = (p: number) => (p >= 0.75 ? 'Parfait' : p >= 0.4 ? 'Bien' : 'Imprécis')
-function dotFor(cx: number, cy: number) {
-  const bb = IMG.bigBall
-  let bi = 0, bd = 1e9
-  DOTS.forEach((d, i) => { const dd = Math.hypot(bb.x + cx * bb.r - d.x, bb.y + cy * bb.r - d.y); if (dd < bd) { bd = dd; bi = i } })
-  return bi
-}
+const SHOT_NAME: Record<ShotKind, string> = { straight: 'Tir droit', side: 'Effet', curler: 'Frappe enroulée', lob: 'Ballon piqué' }
 export function shotKind(cx: number, cy: number): ShotKind {
   if (cy > 0.5 && Math.abs(cx) < 0.4) return 'lob'
   if (cy > 0.25 && Math.abs(cx) >= 0.4) return 'curler'
