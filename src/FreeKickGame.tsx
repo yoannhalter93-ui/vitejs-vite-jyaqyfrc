@@ -47,7 +47,7 @@ const WALL_DIST = 9.15
 const WALL_PLAYER_HALF_W = 0.25
 const WALL_HEIGHT = 2.0
 const KEEPER_LINE_OFFSET = 0.3
-const MAX_CURL_ACCEL = 5.5 // m/s²
+const MAX_CURL_ACCEL = 10 // m/s² (courbe bien visible)
 const MAX_SCORE = 100000
 const LIVES = 3
 const BALL_X = -3 // position du ballon sur l'image d'origine (référence de l'affichage)
@@ -103,11 +103,11 @@ function mulberry32(seed: number) {
 
 // ---- paliers : la distance augmente avec les buts, le gardien devient plus vif ----
 const STAGES = [
-  { from: 0, dMin: 17, dMax: 18, kSpeed: 2.3, kReact: 0.4, reach: 1.0 },
-  { from: 3, dMin: 19, dMax: 21, kSpeed: 2.9, kReact: 0.34, reach: 1.0 },
-  { from: 7, dMin: 22, dMax: 24, kSpeed: 3.4, kReact: 0.3, reach: 1.05 },
-  { from: 11, dMin: 25, dMax: 27, kSpeed: 3.7, kReact: 0.27, reach: 1.05 },
-  { from: 15, dMin: 28, dMax: 32, kSpeed: 4.0, kReact: 0.24, reach: 1.12 },
+  { from: 0, dMin: 17, dMax: 18, kSpeed: 2.0, kReact: 0.42, reach: 0.85 },
+  { from: 3, dMin: 19, dMax: 21, kSpeed: 2.5, kReact: 0.36, reach: 0.9 },
+  { from: 7, dMin: 22, dMax: 24, kSpeed: 3.0, kReact: 0.32, reach: 0.95 },
+  { from: 11, dMin: 25, dMax: 27, kSpeed: 3.4, kReact: 0.29, reach: 1.0 },
+  { from: 15, dMin: 28, dMax: 32, kSpeed: 3.8, kReact: 0.26, reach: 1.05 },
 ]
 const stageOf = (goals: number) => { let k = 0; STAGES.forEach((st, i) => { if (goals >= st.from) k = i }); return k + 1 }
 
@@ -157,7 +157,7 @@ function buildScene(cfg: ShotConfig): Scene {
   const ref = wallGeom(BALL_X, cfg.dist) // disposition de l'image d'origine
   return {
     cfg, ball0, hc: g.hc, w: g.w, wallLats: g.wallLats, wallC: g.wallC,
-    keeperX0: -g.near * 1.5,
+    keeperX0: -g.near * 1.0,
     ballSX: IMG.ball.x + (cfg.ballX - BALL_X) * SPOT_PX,
     wallSX: IMG.wall.x + (g.wallC.x - ref.wallC.x) * WALL_PX,
   }
@@ -419,26 +419,29 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const sc = eng.scene, b = sc.ball0
     const { dirX, power } = eng.shot
     const { cx, cy } = eng.contact
-    const low = cy > 0.3                          // bas du ballon
-    const under = cy > 0.55 && Math.abs(cx) < 0.4 // sous le ballon
-    // effet : touché à gauche = effet vers la droite ; bas + côté = enroulée
-    let curl = Math.max(-1, Math.min(1, cx * 1.05))
-    if (low && !under) curl = Math.max(-1, Math.min(1, curl * 1.35))
-    // visée : la direction du swipe, prolongée depuis la flèche jusqu'au but
-    const screenX = IMG.aimFrom.x + dirX * (IMG.aimFrom.y - 460)
+    const kind = shotKind(cx, cy)
+    // effet : touché à gauche = le ballon tourne vers la droite (et inversement)
+    let curl = kind === 'lob' ? 0 : Math.max(-1, Math.min(1, cx * 1.15))
+    if (kind === 'curler') curl = Math.max(-1, Math.min(1, curl * 1.3))
+    // visée : la direction du swipe, prolongée depuis la flèche jusqu'au but = là où le ballon finit
+    const screenX = IMG.aimFrom.x + dirX * (IMG.aimFrom.y - 460) * 0.6 // moins sensible : le but entier ≈ un swipe de ±35°
     const tx = Math.max(-7, Math.min(7, (screenX - IMG.goal.x) / SX[2]))
-    // hauteur : la puissance (swipe court = bas, long = haut), + dessous du ballon
-    const ty = 0.15 + power * 2.75 + (under ? 0.75 : 0) + (low && !under ? 0.25 : 0)
+    // hauteur à l'arrivée : la puissance (≈ 75 % = lucarne, au-delà de 85 % = au-dessus)
+    const ty = 0.3 + power * 2.6 + (kind === 'lob' ? 0.35 : 0)
     const target = { x: tx, y: ty, z: sc.cfg.dist }
     const horiz = Math.hypot(target.x - b.x, target.z - b.z)
-    let T = (0.55 + horiz * 0.018) * (1.22 - 0.4 * power)
-    if (under) T *= 1.15
+    // vitesse : forte = rapide (le gardien a moins de temps), douce = lente
+    let T = (0.55 + horiz * 0.018) * (1.3 - 0.5 * power)
+    if (kind === 'straight') T *= 0.9   // frappe sèche
+    if (kind === 'lob') T *= 1.18       // ballon piqué, plus lent
     const hx = (target.x - b.x) / horiz, hz = (target.z - b.z) / horiz
     const nx = hz, nz = -hx
-    const a = { x: -curl * MAX_CURL_ACCEL * nx, y: -G, z: -curl * MAX_CURL_ACCEL * nz }
+    // gravité « apparente » : l'enroulée et le piqué montent puis plongent (passent au-dessus du mur)
+    const gy = kind === 'curler' ? G + 4 : kind === 'lob' ? G + 2.5 : kind === 'side' ? G + 1.5 : G
+    const a = { x: -curl * MAX_CURL_ACCEL * nx, y: -gy, z: -curl * MAX_CURL_ACCEL * nz }
     eng.spinDir = curl || 0.15
-    // l'effet n'est compensé qu'à 70 % : le ballon dévie un peu de la visée
-    const C = 0.7
+    // l'effet est compensé à 85 % : le ballon arrive presque où on vise, la courbe sert à contourner le mur
+    const C = 0.85
     const v = {
       x: (target.x - b.x) / T - 0.5 * a.x * T * C,
       y: (target.y - b.y) / T - 0.5 * a.y * T,
@@ -739,7 +742,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         roundRect(ctx, z.x0 + 4, z.y0 + 6, z.x1 - z.x0 - 8, z.y1 - z.y0 - 12, 30); ctx.stroke()
         ctx.textAlign = 'center'; ctx.font = '700 30px Oswald, sans-serif'; ctx.fillStyle = '#fff3d0'
         ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(40,10,10,.8)'
-        const label = `Puissance ${Math.round(eng.shot.power * 100)} %`
+        const label = `${SHOT_LABEL[shotKind(eng.contact.cx, eng.contact.cy)]} · ${Math.round(eng.shot.power * 100)} %`
         // au bout de la flèche
         const tipLen = 90 + eng.shot.power * 330, ang = Math.atan2(eng.shot.dirX, 1)
         const lx = IMG.aimFrom.x + Math.sin(ang) * (tipLen + 40), ly = IMG.aimFrom.y - 20 - Math.cos(ang) * (tipLen + 40)
@@ -881,6 +884,14 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       shot: (cx: number, cy: number, dirX: number, power: number) => {
         const eng = engineRef.current; eng.contact = { cx, cy }; eng.shot = { dirX, power }; shoot()
       },
+      // simulation sans affichage (réglage de la difficulté)
+      sim: (goals: number, cx: number, cy: number, dirX: number, power: number) => {
+        const eng = engineRef.current
+        eng.goals = goals; eng.lives = 99; setupShot()
+        eng.contact = { cx, cy }; eng.shot = { dirX, power }; shoot()
+        for (let i = 0; i < 600 && eng.phase === 'flight'; i++) step(1 / 120)
+        return { o: eng.outcome, spot: eng.scene.cfg.ballX }
+      },
       state: () => { const e = engineRef.current; return { phase: e.phase, outcome: e.outcome, goals: e.goals, points: e.points, lives: e.lives, combo: e.combo } },
     }
   })
@@ -916,8 +927,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
           <div className="fk2-rules" onClick={() => setShowRules(false)}>
             <div className="fk2-rules-box">
               <p className="fk2-card-title">Comment jouer ?</p>
-              <p>1. Touche le gros ballon là où tu veux le frapper : au centre = tir droit, à gauche = effet vers la droite, à droite = effet vers la gauche, en bas sur le côté = frappe enroulée, dessous = plus de hauteur.</p>
-              <p>2. Swipe vers le haut : la direction du swipe = où part le ballon ; swipe court = frappe douce, long ou rapide = frappe forte (attention à la barre).</p>
+              <p>1. Touche le gros ballon là où tu veux le frapper : au centre = tir droit (rapide, mais il faut passer à côté du mur), à gauche = effet vers la droite, à droite = effet vers la gauche (le ballon contourne le mur), en bas sur le côté = frappe enroulée (monte au-dessus du mur puis plonge : la plus efficace), dessous = ballon piqué (lent et haut, par-dessus le mur).</p>
+              <p>2. Swipe vers le haut : la direction du swipe = là où le ballon finit ; swipe court = frappe douce et basse, long ou rapide = frappe forte et haute (vers 75 % c'est la lucarne, au-delà de 85 % c'est au-dessus).</p>
               <p>3. Appuie sur TIRER.</p>
               <p>But = 100 pts, lucarne = 200, multipliés par le combo (buts d'affilée, jusqu'à x5). 3 essais : chaque raté coûte un cœur. À chaque but, le tir recule et le gardien devient plus vif.</p>
               <button className="fk2-cta" onClick={() => setShowRules(false)}>OK</button>
@@ -954,6 +965,16 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     </div>
   )
 }
+
+// type de frappe selon le point touché sur le gros ballon
+type ShotKind = 'straight' | 'side' | 'curler' | 'lob'
+function shotKind(cx: number, cy: number): ShotKind {
+  if (cy > 0.5 && Math.abs(cx) < 0.4) return 'lob'
+  if (cy > 0.25 && Math.abs(cx) >= 0.4) return 'curler'
+  if (Math.abs(cx) >= 0.25) return 'side'
+  return 'straight'
+}
+const SHOT_LABEL: Record<ShotKind, string> = { straight: 'Tir droit', side: 'Effet', curler: 'Frappe enroulée', lob: 'Ballon piqué' }
 
 function roundRect(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r)
