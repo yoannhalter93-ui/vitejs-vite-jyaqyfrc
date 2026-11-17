@@ -50,7 +50,11 @@ const KEEPER_LINE_OFFSET = 0.3
 const MAX_CURL_ACCEL = 5.5 // m/s²
 const MAX_SCORE = 100000
 const LIVES = 3
-const BALL_X = -3 // le ballon est à gauche du but (comme sur l'image)
+const BALL_X = -3 // position du ballon sur l'image d'origine (référence de l'affichage)
+// positions de coup franc (m, 0 = face au but) : on en tire une au hasard à chaque tir
+const SPOTS = [-4, -2.5, -1, 0.5, 2]
+const SPOT_PX = 55   // décalage à l'écran du ballon et du tireur par mètre
+const WALL_PX = 62   // décalage à l'écran du mur par mètre
 
 // ---- l'image de référence (coordonnées en px de l'image) ----
 const IW = 941, IH = 1672
@@ -63,7 +67,7 @@ const IMG = {
 }
 const SX = [125, 109, 58.7]  // px par mètre (latéral) : ballon, mur, but
 const SY = [100, 88, 63.5]   // px par mètre (hauteur)
-const WALL_BOX = { x: 352, y: 428 } // position de la découpe du mur dans l'image
+const WALL_SPR = { cx: 124, feet: 188 } // découpe du mur (248 × 194) : milieu et pieds
 // gardien animé (vidéo fond vert) : en place, pas chassé, appel, envol, plongeon (vers la droite ; miroir à gauche)
 const KF_W = 322, KF_H = 265
 // tireur animé (vidéo fond vert) : 9 images — debout, élan (1-4), frappe (5), accompagnement (6-8)
@@ -99,15 +103,15 @@ function mulberry32(seed: number) {
 
 // ---- paliers : la distance augmente avec les buts, le gardien devient plus vif ----
 const STAGES = [
-  { from: 0, dMin: 17, dMax: 18, kSpeed: 1.5, kReact: 0.52, reach: 1.0 },
-  { from: 3, dMin: 19, dMax: 21, kSpeed: 2.1, kReact: 0.43, reach: 1.0 },
-  { from: 7, dMin: 22, dMax: 24, kSpeed: 2.6, kReact: 0.36, reach: 1.05 },
-  { from: 11, dMin: 25, dMax: 27, kSpeed: 2.9, kReact: 0.32, reach: 1.05 },
-  { from: 15, dMin: 28, dMax: 32, kSpeed: 3.2, kReact: 0.29, reach: 1.12 },
+  { from: 0, dMin: 17, dMax: 18, kSpeed: 2.3, kReact: 0.4, reach: 1.0 },
+  { from: 3, dMin: 19, dMax: 21, kSpeed: 2.9, kReact: 0.34, reach: 1.0 },
+  { from: 7, dMin: 22, dMax: 24, kSpeed: 3.4, kReact: 0.3, reach: 1.05 },
+  { from: 11, dMin: 25, dMax: 27, kSpeed: 3.7, kReact: 0.27, reach: 1.05 },
+  { from: 15, dMin: 28, dMax: 32, kSpeed: 4.0, kReact: 0.24, reach: 1.12 },
 ]
 const stageOf = (goals: number) => { let k = 0; STAGES.forEach((st, i) => { if (goals >= st.from) k = i }); return k + 1 }
 
-interface ShotConfig { dist: number; keeperSpeed: number; keeperReaction: number; keeperReach: number }
+interface ShotConfig { dist: number; ballX: number; keeperSpeed: number; keeperReaction: number; keeperReach: number }
 function shotConfig(seed: number, n: number): ShotConfig {
   const lv = stageOf(n)
   const st = STAGES[lv - 1], next = STAGES[lv]
@@ -115,7 +119,11 @@ function shotConfig(seed: number, n: number): ShotConfig {
   const span = next ? next.from - st.from : 16
   const u = Math.min(1, (n - st.from) / Math.max(1, span - 1))
   const dist = Math.max(st.dMin, Math.min(st.dMax, st.dMin + u * (st.dMax - st.dMin) + (r() - 0.5) * 0.6))
-  return { dist, keeperSpeed: st.kSpeed, keeperReaction: st.kReact, keeperReach: st.reach }
+  // position au hasard, jamais deux fois la même d'affilée
+  const prev = n > 0 ? Math.floor(mulberry32(seed + (n - 1) * 7919 + 1)() * SPOTS.length) : -1
+  let i = Math.floor(mulberry32(seed + n * 7919 + 1)() * SPOTS.length)
+  if (i === prev) i = (i + 1 + Math.floor(r() * (SPOTS.length - 1))) % SPOTS.length
+  return { dist, ballX: SPOTS[i], keeperSpeed: st.kSpeed, keeperReaction: st.kReact, keeperReach: st.reach }
 }
 
 // ---- géométrie ----
@@ -127,19 +135,32 @@ interface Scene {
   wallLats: number[]
   wallC: Vec3                  // centre du mur (pour caler l'image)
   keeperX0: number
+  ballSX: number // x à l'écran du ballon et du mur
+  wallSX: number
 }
-function buildScene(cfg: ShotConfig): Scene {
-  const ball0 = { x: BALL_X, y: BALL_R, z: 0 }
-  // mur de 4 à 9,15 m sur la ligne ballon -> poteau gauche
-  let hx = -GOAL_HALF_W - ball0.x, hz = cfg.dist
+// mur de 4 à 9,15 m sur la ligne ballon -> poteau le plus proche
+function wallGeom(ballX: number, dist: number) {
+  const near = ballX < -0.25 ? -1 : 1
+  let hx = near * GOAL_HALF_W - ballX, hz = dist
   const hl = Math.hypot(hx, hz)
   hx /= hl; hz /= hl
   const w = { x: hz, z: -hx }
-  const outward = Math.sign(w.x) * -1 || -1
+  const outward = Math.sign(w.x) * near || 1
   const wallLats = Array.from({ length: 4 }, (_, k) => outward * (0.35 - WALL_PLAYER_HALF_W - k * 0.55))
   const mean = wallLats.reduce((a, b) => a + b, 0) / 4
-  const wallC = { x: ball0.x + hx * WALL_DIST + w.x * mean, y: 0, z: hz * WALL_DIST + w.z * mean }
-  return { cfg, ball0, hc: { x: hx, z: hz }, w, wallLats, wallC, keeperX0: 1.65 }
+  const wallC = { x: ballX + hx * WALL_DIST + w.x * mean, y: 0, z: hz * WALL_DIST + w.z * mean }
+  return { near, hc: { x: hx, z: hz }, w, wallLats, wallC }
+}
+function buildScene(cfg: ShotConfig): Scene {
+  const ball0 = { x: cfg.ballX, y: BALL_R, z: 0 }
+  const g = wallGeom(cfg.ballX, cfg.dist)
+  const ref = wallGeom(BALL_X, cfg.dist) // disposition de l'image d'origine
+  return {
+    cfg, ball0, hc: g.hc, w: g.w, wallLats: g.wallLats, wallC: g.wallC,
+    keeperX0: -g.near * 1.5,
+    ballSX: IMG.ball.x + (cfg.ballX - BALL_X) * SPOT_PX,
+    wallSX: IMG.wall.x + (g.wallC.x - ref.wallC.x) * WALL_PX,
+  }
 }
 
 // projection sur l'image : interpolation ballon -> mur -> but (le mur et le but
@@ -152,11 +173,11 @@ function project(sc: Scene, p: Vec3) {
   let t: number, X: number, Y: number, xr: number, sx: number, sy: number
   if (u <= uw) {
     t = u / uw
-    X = L(IMG.ball.x, IMG.wall.x, t); Y = L(IMG.ball.y, IMG.wall.y, t)
+    X = L(sc.ballSX, sc.wallSX, t); Y = L(IMG.ball.y, IMG.wall.y, t)
     xr = L(sc.ball0.x, sc.wallC.x, t); sx = L(SX[0], SX[1], t); sy = L(SY[0], SY[1], t)
   } else {
     t = (u - uw) / (1 - uw)
-    X = L(IMG.wall.x, IMG.goal.x, t); Y = L(IMG.wall.y, IMG.goal.y, t)
+    X = L(sc.wallSX, IMG.goal.x, t); Y = L(IMG.wall.y, IMG.goal.y, t)
     xr = L(sc.wallC.x, 0, t); sx = L(SX[1], SX[2], t); sy = L(SY[1], SY[2], t)
   }
   return { x: X + (p.x - xr) * sx, y: Y - p.y * sy, k: sy, u }
@@ -643,10 +664,12 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       }
     }
     // le mur repasse devant le ballon quand le ballon est derrière lui
-    if (behindWall) {
-      drawBall()
-      if (im.wall.complete && im.wall.naturalWidth) ctx.drawImage(im.wall, WALL_BOX.x, WALL_BOX.y)
-    } else drawBall()
+    const drawWall = () => {
+      if (!im.wall.complete || !im.wall.naturalWidth) return
+      const wc = P(sc.wallC)
+      ctx.drawImage(im.wall, Math.round(wc.x - WALL_SPR.cx), Math.round(wc.y - WALL_SPR.feet))
+    }
+    if (behindWall) { drawBall(); drawWall() } else { drawWall(); drawBall() }
 
     // tireur n°10 animé : son pied droit tombe sur le ballon à la frappe
     if (im.shooter.complete && im.shooter.naturalWidth) {
@@ -655,7 +678,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       if (eng.phase === 'aim' && eng.runAt) f = Math.min(5, 1 + Math.floor(((t - eng.runAt) / 1000 / RUN_UP) * 5))
       else if (eng.kickAt && t - eng.kickAt < 450 && eng.phase !== 'aim') f = Math.min(8, 5 + Math.floor((t - eng.kickAt) / 110))
       const w = SH_W * SH_SCALE, h = SH_H * SH_SCALE
-      const x = IMG.ball.x - SH_BALL.x * SH_SCALE, y = IMG.ball.y - SH_BALL.y * SH_SCALE
+      const b0 = P(sc.ball0)
+      const x = b0.x - SH_BALL.x * SH_SCALE, y = b0.y - SH_BALL.y * SH_SCALE
       ctx.drawImage(im.shooter, f * SH_W, 0, SH_W, SH_H, x, y, w, h)
     }
 
