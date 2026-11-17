@@ -8,6 +8,7 @@ import plateSrc from './assets/freekick/fk_plate.jpg'
 import wallSrc from './assets/freekick/fk_wall.png'
 import keeperSrc from './assets/freekick/fk_keeper_anim.png'
 import ballSrc from './assets/freekick/fk_ball.png'
+import shooterSrc from './assets/freekick/fk_shooter_anim.png'
 
 // ============================================================================
 // Coup franc — mini-jeu hebdomadaire.
@@ -54,7 +55,7 @@ const BALL_X = -3 // le ballon est à gauche du but (comme sur l'image)
 // ---- l'image de référence (coordonnées en px de l'image) ----
 const IW = 941, IH = 1672
 const IMG = {
-  ball: { x: 330, y: 884 },          // point de coup franc (devant le tireur)
+  ball: { x: 300, y: 870 },          // point de coup franc (au pied droit du tireur)
   wall: { x: 475, y: 616 },          // pieds du mur (centre)
   goal: { x: 637, y: 532 },          // milieu de la ligne de but
   bigBall: { x: 472, y: 1255, r: 172 }, // gros ballon du « Comment jouer ? »
@@ -65,6 +66,9 @@ const SY = [100, 88, 63.5]   // px par mètre (hauteur)
 const WALL_BOX = { x: 352, y: 428 } // position de la découpe du mur dans l'image
 // gardien animé (vidéo fond vert) : en place, pas chassé, appel, envol, plongeon (vers la droite ; miroir à gauche)
 const KF_W = 322, KF_H = 265
+// tireur animé (vidéo fond vert) : 9 images — debout, élan (1-4), frappe (5), accompagnement (6-8)
+const SH_W = 345, SH_H = 510, SH_BALL = { x: 277.2, y: 465.2 }, SH_SCALE = 1.06
+const RUN_UP = 0.6 // s entre TIRER et la frappe
 const KF_SCALE = 107 / 211 // la pose « en place » fait 211 px sur la planche, 107 px sur l'image
 // zones cliquables de l'image
 const ZONE = {
@@ -185,6 +189,8 @@ interface Engine {
   swipe: { x: number; y: number; t: number }[]
   swiping: boolean
   shot: { dirX: number; power: number } | null // swipe enregistré, prêt à TIRER
+  runAt: number  // TIRER appuyé : élan du tireur
+  kickAt: number // instant de la frappe
   hintAt: number
   msg: { text: string; sub: string; at: number; good: boolean } | null
   particles: { x: number; y: number; vx: number; vy: number; life: number; c: string }[]
@@ -200,16 +206,16 @@ function newEngine(seed: number): Engine {
     phase: 'idle', seed, goals: 0, points: 0, lives: LIVES, combo: 1, startAt: 0, endAt: 0,
     scene, flight: null, free: null, outcome: null, outcomeAt: 0,
     keeperX: scene.keeperX0, keeperJump: 0, contact: { cx: 0, cy: 0 },
-    swipe: [], swiping: false, shot: null, hintAt: -1e9, msg: null, particles: [], spin: 0, audio: null,
+    swipe: [], swiping: false, shot: null, runAt: 0, kickAt: 0, hintAt: -1e9, msg: null, particles: [], spin: 0, audio: null,
     view: { s: 1, ox: 0, oy: 0 },
   }
 }
 
-let imgCache: { plate: HTMLImageElement; wall: HTMLImageElement; keeper: HTMLImageElement; ball: HTMLImageElement } | null = null
+let imgCache: { plate: HTMLImageElement; wall: HTMLImageElement; keeper: HTMLImageElement; ball: HTMLImageElement; shooter: HTMLImageElement } | null = null
 function fkImgs() {
   if (imgCache) return imgCache
   const load = (src: string) => { const im = new Image(); im.src = src; return im }
-  imgCache = { plate: load(plateSrc), wall: load(wallSrc), keeper: load(keeperSrc), ball: load(ballSrc) }
+  imgCache = { plate: load(plateSrc), wall: load(wallSrc), keeper: load(keeperSrc), ball: load(ballSrc), shooter: load(shooterSrc) }
   return imgCache
 }
 
@@ -339,6 +345,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     eng.swipe = []
     eng.swiping = false
     eng.shot = null
+    eng.runAt = 0
     eng.msg = null
     eng.phase = 'aim'
     sfxWhistle()
@@ -417,6 +424,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     eng.flight = { o: { ...b }, v, a, t: 0, trail: [] }
     eng.phase = 'flight'
     eng.shot = null
+    eng.runAt = 0
+    eng.kickAt = performance.now()
     sfxKick()
     vibrate(15)
   }
@@ -475,6 +484,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const sc = eng.scene
     for (const p of eng.particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 900 * dt; p.life -= dt }
     eng.particles = eng.particles.filter((p) => p.life > 0)
+    // élan terminé : frappe
+    if (eng.phase === 'aim' && eng.runAt && performance.now() - eng.runAt >= RUN_UP * 1000) shoot()
 
     if (eng.phase === 'flight' && eng.flight) {
       const f = eng.flight
@@ -618,7 +629,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const behindWall = ballPos.z > sc.wallC.z + 0.2
     const drawBall = () => {
       const sh = P({ ...ballPos, y: 0 })
-      const r = Math.max(5, bp.k * BALL_R * 1.55)
+      const r = Math.max(5, bp.k * BALL_R * (3.4 - 1.9 * Math.max(0, Math.min(1, bp.u))))
       ctx.fillStyle = `rgba(0,0,0,${Math.max(0.1, 0.35 - (ballPos.y - BALL_R) * 0.06)})`
       ctx.beginPath(); ctx.ellipse(sh.x, sh.y, r * 1.1, r * 0.35, 0, 0, Math.PI * 2); ctx.fill()
       if (eng.phase === 'flight' && eng.flight && eng.flight.trail.length > 1) {
@@ -636,6 +647,17 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       drawBall()
       if (im.wall.complete && im.wall.naturalWidth) ctx.drawImage(im.wall, WALL_BOX.x, WALL_BOX.y)
     } else drawBall()
+
+    // tireur n°10 animé : son pied droit tombe sur le ballon à la frappe
+    if (im.shooter.complete && im.shooter.naturalWidth) {
+      const t = now
+      let f = 0
+      if (eng.phase === 'aim' && eng.runAt) f = Math.min(5, 1 + Math.floor(((t - eng.runAt) / 1000 / RUN_UP) * 5))
+      else if (eng.kickAt && t - eng.kickAt < 450 && eng.phase !== 'aim') f = Math.min(8, 5 + Math.floor((t - eng.kickAt) / 110))
+      const w = SH_W * SH_SCALE, h = SH_H * SH_SCALE
+      const x = IMG.ball.x - SH_BALL.x * SH_SCALE, y = IMG.ball.y - SH_BALL.y * SH_SCALE
+      ctx.drawImage(im.shooter, f * SH_W, 0, SH_W, SH_H, x, y, w, h)
+    }
 
     // ---- bandeau : score, essais, temps, combo ----
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
@@ -782,7 +804,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     if (inZone(ZONE.help, p)) { setShowRules((v) => !v); return }
     if (eng.phase !== 'aim') return
     if (inZone(ZONE.shoot, p)) {
-      if (eng.shot) shoot()
+      if (eng.shot) { if (!eng.runAt) eng.runAt = performance.now() }
       else eng.hintAt = performance.now()
       return
     }
