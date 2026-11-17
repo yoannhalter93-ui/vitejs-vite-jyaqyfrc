@@ -216,6 +216,7 @@ interface Engine {
   msg: { text: string; sub: string; at: number; good: boolean } | null
   particles: { x: number; y: number; vx: number; vy: number; life: number; c: string }[]
   spin: number
+  spinDir: number // effet du tir (-1..1) : sens de rotation du ballon
   audio: AudioContext | null
   view: { s: number; ox: number; oy: number } // image -> px du canvas
 }
@@ -227,7 +228,7 @@ function newEngine(seed: number): Engine {
     phase: 'idle', seed, goals: 0, points: 0, lives: LIVES, combo: 1, startAt: 0, endAt: 0,
     scene, flight: null, free: null, outcome: null, outcomeAt: 0,
     keeperX: scene.keeperX0, keeperJump: 0, contact: { cx: 0, cy: 0 },
-    swipe: [], swiping: false, shot: null, runAt: 0, kickAt: 0, hintAt: -1e9, msg: null, particles: [], spin: 0, audio: null,
+    swipe: [], swiping: false, shot: null, runAt: 0, kickAt: 0, hintAt: -1e9, msg: null, particles: [], spin: 0, spinDir: 0, audio: null,
     view: { s: 1, ox: 0, oy: 0 },
   }
 }
@@ -435,6 +436,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const hx = (target.x - b.x) / horiz, hz = (target.z - b.z) / horiz
     const nx = hz, nz = -hx
     const a = { x: -curl * MAX_CURL_ACCEL * nx, y: -G, z: -curl * MAX_CURL_ACCEL * nz }
+    eng.spinDir = curl || 0.15
     // l'effet n'est compensé qu'à 70 % : le ballon dévie un peu de la visée
     const C = 0.7
     const v = {
@@ -466,8 +468,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     let nv: Vec3
     switch (outcome) {
       case 'goal': case 'lucarne': nv = { x: v.x * 0.25, y: v.y * 0.2, z: v.z * 0.12 }; break
-      case 'wall': nv = { x: v.x * 0.3 + (Math.random() - 0.5) * 2, y: 2.2, z: -v.z * 0.22 }; break
-      case 'saved': nv = { x: (p.x - eng.keeperX) * 3 + v.x * 0.2, y: Math.abs(v.y) * 0.3 + 1.5, z: -v.z * 0.25 }; break
+      case 'wall': nv = { x: v.x * 0.15 + (Math.random() - 0.5) * 2.4, y: 1.2 + Math.random(), z: -v.z * 0.08 }; break // retombe devant le mur
+      case 'saved': nv = { x: (p.x - eng.keeperX) * 2.5 + v.x * 0.2, y: Math.abs(v.y) * 0.3 + 1.5, z: -v.z * 0.12 }; break // repoussé sur le côté
       case 'post': nv = { x: -v.x * 0.5 + Math.sign(p.x) * -2, y: v.y * 0.6, z: -v.z * 0.35 }; break
       case 'bar': nv = { x: v.x * 0.5, y: -Math.abs(v.y) * 0.3 + 3, z: -v.z * 0.35 }; break
       default: nv = { ...v }
@@ -510,7 +512,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
 
     if (eng.phase === 'flight' && eng.flight) {
       const f = eng.flight
-      eng.spin += dt * 18
+      eng.spin += dt * (9 + Math.abs(eng.spinDir) * 16) * (eng.spinDir < 0 ? -1 : 1) // rotation selon l'effet
       const SUB = 8
       for (let i = 0; i < SUB && eng.phase === 'flight'; i++) {
         const t0 = f.t, t1 = t0 + dt / SUB
@@ -588,6 +590,10 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       const isGoal = eng.outcome === 'goal' || eng.outcome === 'lucarne'
       if (isGoal && fb.p.z > sc.cfg.dist + 1.6) { fb.p.z = sc.cfg.dist + 1.6; fb.v.z = 0; fb.v.x *= 0.5 }
       if (fb.p.y < BALL_R) { fb.p.y = BALL_R; fb.v.y = Math.abs(fb.v.y) * 0.4; fb.v.x *= 0.7; fb.v.z *= 0.7 }
+      // au sol : le ballon roule et ralentit
+      if (fb.p.y <= BALL_R + 0.02) { const k = Math.max(0, 1 - dt * 2.5); fb.v.x *= k; fb.v.z *= k }
+      if (fb.p.z < 2) { fb.p.z = 2; fb.v.z = Math.max(0, fb.v.z) }
+      eng.spin += dt * Math.hypot(fb.v.x, fb.v.z) * 1.5
       eng.keeperJump *= Math.max(0, 1 - dt * 4)
       const elapsed = (performance.now() - eng.outcomeAt) / 1000
       if (elapsed > 1.8) {
@@ -650,7 +656,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const behindWall = ballPos.z > sc.wallC.z + 0.2
     const drawBall = () => {
       const sh = P({ ...ballPos, y: 0 })
-      const r = Math.max(5, bp.k * BALL_R * (3.4 - 1.9 * Math.max(0, Math.min(1, bp.u))))
+      const r = Math.max(6, bp.k * BALL_R * (4.2 - 2.2 * Math.max(0, Math.min(1, bp.u))))
       ctx.fillStyle = `rgba(0,0,0,${Math.max(0.1, 0.35 - (ballPos.y - BALL_R) * 0.06)})`
       ctx.beginPath(); ctx.ellipse(sh.x, sh.y, r * 1.1, r * 0.35, 0, 0, Math.PI * 2); ctx.fill()
       if (eng.phase === 'flight' && eng.flight && eng.flight.trail.length > 1) {
@@ -659,7 +665,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         ctx.strokeStyle = 'rgba(255,245,220,0.35)'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.stroke()
       }
       if (im.ball.complete && im.ball.naturalWidth) {
-        ctx.save(); ctx.translate(bp.x, bp.y); ctx.rotate(Math.round(eng.spin / (Math.PI / 2)) * (Math.PI / 2))
+        ctx.save(); ctx.translate(bp.x, bp.y); ctx.rotate(eng.spin)
         ctx.drawImage(im.ball, -r, -r, r * 2, r * 2); ctx.restore()
       }
     }
