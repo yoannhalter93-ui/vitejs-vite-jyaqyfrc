@@ -214,6 +214,7 @@ interface Engine {
   runAt: number  // TIRER appuyé : élan du tireur
   kickAt: number // instant de la frappe
   hintAt: number
+  help: boolean // aides affichées (bouton « ? »)
   msg: { text: string; sub: string; at: number; good: boolean } | null
   particles: { x: number; y: number; vx: number; vy: number; life: number; c: string }[]
   spin: number
@@ -229,7 +230,7 @@ function newEngine(seed: number): Engine {
     phase: 'idle', seed, goals: 0, points: 0, lives: LIVES, combo: 1, startAt: 0, endAt: 0,
     scene, flight: null, free: null, outcome: null, outcomeAt: 0,
     keeperX: scene.keeperX0, keeperJump: 0, pick: null, pending: null,
-    swipe: [], swiping: false, shot: null, runAt: 0, kickAt: 0, hintAt: -1e9, msg: null, particles: [], spin: 0, spinDir: 0, audio: null,
+    swipe: [], swiping: false, shot: null, runAt: 0, kickAt: 0, hintAt: -1e9, help: false, msg: null, particles: [], spin: 0, spinDir: 0, audio: null,
     view: { s: 1, ox: 0, oy: 0 },
   }
 }
@@ -704,6 +705,13 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     ctx.fillStyle = '#f2b544'; ctx.font = '700 36px Oswald, sans-serif'
     ctx.fillText('x' + eng.combo, 826, 239)
 
+    // « ? » allumé quand les aides sont affichées
+    if (eng.help) {
+      const z = ZONE.help
+      ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 5
+      roundRect(ctx, z.x0 + 4, z.y0 + 4, z.x1 - z.x0 - 8, z.y1 - z.y0 - 8, 12); ctx.stroke()
+    }
+
     // ---- point rouge choisi sur le gros ballon ----
     if (eng.pick) {
       const d = DOTS[eng.pick.i]
@@ -713,14 +721,14 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       // là où le doigt a touché
       ctx.fillStyle = '#fff'; ctx.strokeStyle = '#1b1b1f'; ctx.lineWidth = 3
       ctx.beginPath(); ctx.arc(eng.pick.x, eng.pick.y, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke()
-    } else if (eng.phase === 'aim') {
+    } else if (eng.phase === 'aim' && eng.help) {
       // invite : les points rouges clignotent
       const pulse = 0.5 + 0.5 * Math.sin(now / 200)
       ctx.strokeStyle = `rgba(255,214,90,${0.25 + 0.5 * pulse})`; ctx.lineWidth = 5
       for (const d of DOTS) { ctx.beginPath(); ctx.arc(d.x, d.y, 30, 0, Math.PI * 2); ctx.stroke() }
     }
     // ---- guide des 3 étapes (sur la pelouse) ----
-    if (eng.phase === 'aim' && !eng.runAt) {
+    if (eng.phase === 'aim' && !eng.runAt && eng.help) {
       const step = !eng.pick ? 1 : !eng.shot ? 2 : 3
       const l1 = step === 1 ? '① Touche un point rouge du ballon' : step === 2 ? '② Swipe vers le haut : direction + puissance' : '③ Appuie sur TIRER'
       const l3 = eng.pick ? `${DOTS[eng.pick.i].label} · ${precLabel(eng.pick.prec)}${eng.shot ? ` · ${Math.round(eng.shot.power * 100)} %` : ''}` : 'il choisit ta frappe'
@@ -767,7 +775,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         roundRect(ctx, z.x0 + 4, z.y0 + 6, z.x1 - z.x0 - 8, z.y1 - z.y0 - 12, 30); ctx.stroke()
 
       }
-      if (now - eng.hintAt < 1600) {
+      if (eng.help && now - eng.hintAt < 1600) {
         ctx.textAlign = 'center'; ctx.font = '700 34px Oswald, sans-serif'
         ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(40,10,10,.85)'; ctx.fillStyle = '#ffd84a'
         const t = !eng.pick ? 'Touche d\'abord un point rouge !' : 'Swipe vers le haut d\'abord !'
@@ -854,7 +862,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       else endGame()
       return
     }
-    if (inZone(ZONE.help, p)) { setShowRules((v) => !v); return }
+    // « ? » : en partie, affiche / cache les aides ; sinon, les règles
+    if (inZone(ZONE.help, p)) { if (eng.phase === 'idle' || eng.phase === 'over') setShowRules((v) => !v); else eng.help = !eng.help; return }
     if (eng.phase !== 'aim') return
     if (inZone(ZONE.shoot, p)) {
       if (eng.shot) { if (!eng.runAt) eng.runAt = performance.now() }
