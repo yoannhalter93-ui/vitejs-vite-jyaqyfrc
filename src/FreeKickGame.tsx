@@ -47,7 +47,6 @@ const WALL_DIST = 9.15
 const WALL_PLAYER_HALF_W = 0.25
 const WALL_HEIGHT = 2.0
 const KEEPER_LINE_OFFSET = 0.3
-const MAX_CURL_ACCEL = 11 // m/s² : effet de côté ≈ 3 m de courbe, enroulée ≈ 5 m
 const MAX_SCORE = 100000
 const LIVES = 3
 const BALL_X = -3 // position du ballon sur l'image d'origine (référence de l'affichage)
@@ -189,7 +188,8 @@ const OUTCOME_TEXT: Record<Outcome, string> = {
   post: 'Poteau !', bar: 'Transversale !', wide: 'À côté !', over: 'Au-dessus !',
 }
 
-interface Flight { o: Vec3; v: Vec3; a: Vec3; t: number; trail: Vec3[] }
+// trajectoire : pos(t) = o + v t + ½ a t² + ⅙ j t³ (j = effet qui grandit en fin de course, comme un vrai ballon)
+interface Flight { o: Vec3; v: Vec3; a: Vec3; j: Vec3; t: number; trail: Vec3[] }
 interface Engine {
   phase: 'idle' | 'aim' | 'flight' | 'after' | 'over'
   seed: number
@@ -428,28 +428,32 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     //    plus on tape bas sur le côté, plus il tourne et monte (frappe enroulée) ;
     //  - bas (centre) : le ballon monte haut ; haut : frappe sèche et basse.
     const low = Math.max(0, iy), high = Math.max(0, -iy)
-    const curl = ix * (1 + 0.6 * low)                      // jusqu'à ±1,6
+    const curl = Math.max(-1, Math.min(1, ix)) * (1 + 0.4 * low) // jusqu'à ±1,4
     // départ : la direction du swipe, vers un point du but
     // swipe tout droit = le ballon part droit devant lui (vers le but à l'écran, depuis sa position)
     const bx0 = project(sc, b).x
     const screenX = bx0 + dirX * (IMG.ball.y - IMG.goal.y) * 0.75
     const tx = Math.max(-9, Math.min(9, (screenX - IMG.goal.x) / SX[2]))
     // hauteur visée : la puissance, puis le point d'impact (bas = monte, haut = rase)
-    const ty = Math.max(0.15, 0.35 + power * 1.9 + low * 1.3 - high * 0.9)
+    const ty = Math.max(0.15, 0.4 + power * 1.6 + low * 0.7 - high * 0.6)
     const target = { x: tx, y: ty, z: sc.cfg.dist }
     const horiz = Math.hypot(target.x - b.x, target.z - b.z)
     // vitesse : la puissance ; frappe sèche (haut du ballon) plus rapide, dessous plus lent
     const T = (0.55 + horiz * 0.018) * (1.3 - 0.5 * power) * (1 + 0.15 * low - 0.12 * high)
     const hx = (target.x - b.x) / horiz, hz = (target.z - b.z) / horiz
     const nx = hz, nz = -hx
-    const a = { x: -curl * MAX_CURL_ACCEL * nx, y: -G, z: -curl * MAX_CURL_ACCEL * nz }
+    // effet : le ballon part droit puis s'incurve de plus en plus (jusqu'à ~2,2 m, ~3 m en enroulée)
+    const D = -curl * 2.2
+    const jm = (6 * D) / (T * T * T)
+    const a = { x: 0, y: -G, z: 0 }
+    const j = { x: jm * nx, y: 0, z: jm * nz }
     eng.spinDir = curl || 0.15
     const v = {
       x: (target.x - b.x) / T,
       y: (target.y - b.y) / T - 0.5 * a.y * T,
       z: (target.z - b.z) / T,
     }
-    eng.flight = { o: { ...b }, v, a, t: 0, trail: [] }
+    eng.flight = { o: { ...b }, v, a, j, t: 0, trail: [] }
     eng.phase = 'flight'
     eng.shot = null
     eng.runAt = 0
@@ -459,11 +463,11 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
   }
 
   const flightPos = (f: Flight, t: number): Vec3 => ({
-    x: f.o.x + f.v.x * t + 0.5 * f.a.x * t * t,
-    y: f.o.y + f.v.y * t + 0.5 * f.a.y * t * t,
-    z: f.o.z + f.v.z * t + 0.5 * f.a.z * t * t,
+    x: f.o.x + f.v.x * t + 0.5 * f.a.x * t * t + (f.j.x * t * t * t) / 6,
+    y: f.o.y + f.v.y * t + 0.5 * f.a.y * t * t + (f.j.y * t * t * t) / 6,
+    z: f.o.z + f.v.z * t + 0.5 * f.a.z * t * t + (f.j.z * t * t * t) / 6,
   })
-  const flightVel = (f: Flight, t: number): Vec3 => ({ x: f.v.x + f.a.x * t, y: f.v.y + f.a.y * t, z: f.v.z + f.a.z * t })
+  const flightVel = (f: Flight, t: number): Vec3 => ({ x: f.v.x + f.a.x * t + (f.j.x * t * t) / 2, y: f.v.y + f.a.y * t, z: f.v.z + f.a.z * t + (f.j.z * t * t) / 2 })
 
   const resolve = (outcome: Outcome, p: Vec3, v: Vec3) => {
     const eng = engineRef.current
@@ -551,7 +555,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
           const v = flightVel(f, t1)
           f.o = { x: p1.x, y: BALL_R, z: p1.z }
           f.v = { x: v.x * 0.78, y: Math.abs(v.y) * 0.45, z: v.z * 0.78 }
-          f.a = { x: f.a.x * 0.4, y: -G, z: f.a.z * 0.4 }
+          f.a = { x: 0, y: -G, z: 0 }; f.j = { x: 0, y: 0, z: 0 }
           f.t = 0
           sfxThud()
           continue
