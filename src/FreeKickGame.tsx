@@ -111,7 +111,8 @@ function mulberry32(seed: number) {
 // ---- paliers : la distance augmente avec les buts, le gardien devient plus vif ----
 const STAGES = [
   // gardien : vitesse de plongeon (m/s), temps de réaction (s), allonge (m), lecture de l'effet (0-1)
-  { from: 0, dMin: 17, dMax: 19, kSpeed: 4.3, kReact: 0.32, reach: 1.0, read: 0.3, jump: 0.15, wide: 0 },
+  // palier 1 (3 premiers buts) : prise en main — gardien lent qui ne lit pas l'effet, mur fixe
+  { from: 0, dMin: 16.5, dMax: 18, kSpeed: 2.6, kReact: 0.42, reach: 0.85, read: 0.05, jump: 0, wide: 0 },
   { from: 3, dMin: 19, dMax: 23, kSpeed: 4.4, kReact: 0.31, reach: 1.0, read: 0.33, jump: 0.3, wide: 0.2 },
   { from: 7, dMin: 21, dMax: 26, kSpeed: 4.5, kReact: 0.3, reach: 1.0, read: 0.36, jump: 0.4, wide: 0.3 },
   { from: 11, dMin: 23, dMax: 29, kSpeed: 4.6, kReact: 0.29, reach: 1.02, read: 0.4, jump: 0.5, wide: 0.35 },
@@ -128,7 +129,7 @@ function shotConfig(seed: number, n: number): ShotConfig {
   const u = Math.min(1, (n - st.from) / Math.max(1, span - 1))
   // distance : elle avance dans le palier, avec de temps en temps un tir bien plus loin
   let dist = st.dMin + u * (st.dMax - st.dMin) * 0.7 + r() * (st.dMax - st.dMin) * 0.3
-  if (r() < 0.2) dist = st.dMax + r() * 3
+  if (lv > 1 && r() < 0.2) dist = st.dMax + r() * 3
   // position au hasard (jamais deux fois la même d'affilée), parfois très excentrée
   const prev = n > 0 ? Math.floor(mulberry32(seed + (n - 1) * 7919 + 1)() * SPOTS.length) : -1
   let i = Math.floor(mulberry32(seed + n * 7919 + 1)() * SPOTS.length)
