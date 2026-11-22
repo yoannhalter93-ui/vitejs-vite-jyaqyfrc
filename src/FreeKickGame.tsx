@@ -720,7 +720,12 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       const wc = P({ ...sc.wallC, y: lift })
       const g = P(sc.wallC)
       if (lift > 0.02) { ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(g.x, g.y, 120, 10, 0, 0, Math.PI * 2); ctx.fill() }
-      ctx.drawImage(im.wall, Math.round(wc.x - WALL_SPR.cx), Math.round(wc.y - WALL_SPR.feet))
+      // indice : un mur qui va sauter fléchit les genoux en rythme avant la frappe
+      if (eng.phase === 'aim' && sc.cfg.wallJumps) {
+        const crouch = 0.035 * (0.5 + 0.5 * Math.sin(now / 160))
+        const h = im.wall.naturalHeight * (1 - crouch)
+        ctx.drawImage(im.wall, Math.round(wc.x - WALL_SPR.cx), Math.round(wc.y - WALL_SPR.feet * (1 - crouch)), im.wall.naturalWidth, h)
+      } else ctx.drawImage(im.wall, Math.round(wc.x - WALL_SPR.cx), Math.round(wc.y - WALL_SPR.feet))
     }
     if (behindWall) { drawBall(); drawWall() } else { drawWall(); drawBall() }
 
