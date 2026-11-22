@@ -64,8 +64,6 @@ const IMG = {
   bigBall: { x: 472, y: 1255, r: 172 }, // gros ballon du « Comment jouer ? »
   aimFrom: { x: 472, y: 1000 },      // pied de la flèche « Swipe = puissance »
 }
-const SX = [125, 109, 58.7]  // px par mètre (latéral) : ballon, mur, but
-const SY = [100, 88, 63.5]   // px par mètre (hauteur)
 const WALL_SPR = { cx: 124, feet: 188 } // découpe du mur (248 × 194) : milieu et pieds
 // gardien animé (vidéo fond vert) : en place, pas chassé, appel, envol, plongeon (vers la droite ; miroir à gauche)
 const KF_W = 322, KF_H = 265
@@ -165,22 +163,20 @@ function buildScene(cfg: ShotConfig): Scene {
 
 // projection sur l'image : interpolation ballon -> mur -> but (le mur et le but
 // restent exactement où ils sont dessinés sur l'image, quelle que soit la distance)
-// projection sur l'image : courbes douces (quadratiques) qui passent par le ballon, le mur et le
-// but tels qu'ils sont dessinés -> une trajectoire droite reste lisse à l'écran (pas de cassure au mur)
-function quad(u: number, uw: number, a: number, b: number, c: number) {
-  // polynôme de Lagrange passant par (0,a), (uw,b), (1,c)
-  return a * ((u - uw) * (u - 1)) / (uw * 1) + b * (u * (u - 1)) / (uw * (uw - 1)) + c * (u * (u - uw)) / (1 - uw)
-}
+// projection sur l'image : une vraie caméra (perspective), donc une trajectoire droite reste
+// droite à l'écran. Calée sur l'image : but (poteaux x 422 / 852, ligne y 532, 60 px/m),
+// pieds du mur y ≈ 610, ballon au point de coup franc. La profondeur est ramenée à un but
+// toujours dessiné à la même place (z' = 1,43 m pour le ballon, 18 m pour le but).
+const CAM = { f: 1350, zc: -4.5, cy: 406, h: 2.1, z0: 1.43, zg: 18, goalX: 637 }
 function project(sc: Scene, p: Vec3) {
   const D = sc.cfg.dist
-  const uw = Math.max(0.2, Math.min(0.8, sc.wallC.z / D))
-  const u = Math.max(-0.3, Math.min(1.25, p.z / D))
-  const X = quad(u, uw, sc.ballSX, sc.wallSX, IMG.goal.x)
-  const Y = quad(u, uw, IMG.ball.y, IMG.wall.y, IMG.goal.y)
-  const xr = quad(u, uw, sc.ball0.x, sc.wallC.x, 0)
-  const sx = Math.max(30, quad(u, uw, SX[0], SX[1], SX[2]))
-  const sy = Math.max(30, quad(u, uw, SY[0], SY[1], SY[2]))
-  return { x: X + (p.x - xr) * sx, y: Y - p.y * sy, k: sy, u }
+  const zp = CAM.z0 + (p.z * (CAM.zg - CAM.z0)) / D
+  const k = CAM.f / Math.max(1.2, zp - CAM.zc)
+  // caméra placée pour que le ballon tombe à sa place (ballSX) et le but au centre de l'image
+  const kb = CAM.f / (CAM.z0 - CAM.zc), kg = CAM.f / (CAM.zg - CAM.zc)
+  const xc = (kb * sc.cfg.ballX - sc.ballSX + CAM.goalX) / (kb - kg)
+  const cx = CAM.goalX + kg * xc
+  return { x: cx + k * (p.x - xc), y: CAM.cy - k * (p.y - CAM.h), k, u: p.z / D }
 }
 
 type Outcome = 'goal' | 'lucarne' | 'wall' | 'saved' | 'post' | 'bar' | 'wide' | 'over'
@@ -657,7 +653,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         const d = eng.keeperX - sc.keeperX0
         const m = Math.abs(d) + eng.keeperJump * 1.2
         const f = m < 0.12 ? 0 : m < 0.45 ? 1 : m < 0.85 ? 2 : m < 1.3 ? 3 : 4
-        const k = KF_SCALE * (c.k / SY[2])
+        const k = KF_SCALE * (c.k / 63.5)
         const w = KF_W * k, h = KF_H * k
         ctx.save()
         ctx.translate(c.x, c.y)
@@ -675,7 +671,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const behindWall = ballPos.z > sc.wallC.z + 0.2
     const drawBall = () => {
       const sh = P({ ...ballPos, y: 0 })
-      const r = Math.max(6, bp.k * BALL_R * (4.2 - 2.2 * Math.max(0, Math.min(1, bp.u))))
+      const r = Math.max(6, bp.k * BALL_R * 1.85)
       ctx.fillStyle = `rgba(0,0,0,${Math.max(0.1, 0.35 - (ballPos.y - BALL_R) * 0.06)})`
       ctx.beginPath(); ctx.ellipse(sh.x, sh.y, r * 1.1, r * 0.35, 0, 0, Math.PI * 2); ctx.fill()
       if (eng.phase === 'flight' && eng.flight && eng.flight.trail.length > 1) {
