@@ -57,8 +57,8 @@ const WIDE_SPOTS = [-8.5, -7, -5.5, 5.5, 7, 8.5]
 // le mur saute parfois (de plus en plus souvent) : hauteur du saut (m) au fil du temps depuis la frappe
 const WALL_JUMP = 0.42
 const wallLift = (jumps: boolean, t: number) => {
-  if (!jumps || t < 0.12) return 0
-  const u = (t - 0.12) / 0.55
+  if (!jumps || t < 0.1) return 0
+  const u = (t - 0.1) / 0.75 // le mur reste en l'air ~0,75 s : un tir à ras de terre passe dessous
   return u >= 1 ? 0 : WALL_JUMP * Math.sin(Math.PI * u)
 }
 const SPOT_PX = 55   // décalage à l'écran du ballon et du tireur par mètre
@@ -582,7 +582,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
           const pc = { x: p0.x + (p1.x - p0.x) * u, y: p0.y + (p1.y - p0.y) * u, z: p0.z + (p1.z - p0.z) * u }
           const lat = (pc.x - sc.ball0.x) * sc.w.x + pc.z * sc.w.z
           const lift = wallLift(sc.cfg.wallJumps, (performance.now() - eng.kickAt) / 1000)
-          if (sc.wallLats.some((l) => Math.abs(lat - l) <= WALL_PLAYER_HALF_W + BALL_R) && pc.y <= WALL_HEIGHT + lift + BALL_R && pc.y - BALL_R >= lift) {
+          if (sc.wallLats.some((l) => Math.abs(lat - l) <= WALL_PLAYER_HALF_W + BALL_R) && pc.y <= WALL_HEIGHT + lift + BALL_R && pc.y + BALL_R > lift) { // passe dessous si le mur saute assez haut
             resolve('wall', pc, flightVel(f, t1)); break
           }
         }
@@ -975,6 +975,13 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         eng.lives = 99; eng.seed = seed; eng.goals = goals; setupShot()
         eng.pick = { i: 0, prec: 1, x: IMG.bigBall.x + cx * IMG.bigBall.r, y: IMG.bigBall.y + cy * IMG.bigBall.r }; eng.shot = { dirX, power }; shoot()
         for (let i = 0; i < 600 && eng.phase === 'flight'; i++) step(1 / 120)
+        return eng.outcome
+      },
+      simKeep: (cx: number, cy: number, dirX: number, power: number) => {
+        const eng = engineRef.current
+        eng.pick = { i: 0, prec: 1, x: IMG.bigBall.x + cx * IMG.bigBall.r, y: IMG.bigBall.y + cy * IMG.bigBall.r }; eng.shot = { dirX, power }; shoot()
+        const t0 = eng.kickAt
+        for (let i = 0; i < 600 && eng.phase === 'flight'; i++) { eng.kickAt = t0 - (i * 1000) / 120 + (performance.now() - t0); step(1 / 120) }
         return eng.outcome
       },
       state: () => { const e = engineRef.current; return { phase: e.phase, outcome: e.outcome, goals: e.goals, points: e.points, lives: e.lives, combo: e.combo } },
