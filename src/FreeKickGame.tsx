@@ -45,7 +45,7 @@ const GOAL_H = 2.44
 const POST_R = 0.06
 const WALL_DIST = 9.15
 const WALL_PLAYER_HALF_W = 0.25
-const WALL_HEIGHT = 2.0
+const WALL_HEIGHT = 1.9
 const KEEPER_LINE_OFFSET = 0.3
 const MAX_SCORE = 100000
 const LIVES = 3
@@ -164,21 +164,21 @@ function buildScene(cfg: ShotConfig): Scene {
 
 // projection sur l'image : interpolation ballon -> mur -> but (le mur et le but
 // restent exactement où ils sont dessinés sur l'image, quelle que soit la distance)
+// projection sur l'image : courbes douces (quadratiques) qui passent par le ballon, le mur et le
+// but tels qu'ils sont dessinés -> une trajectoire droite reste lisse à l'écran (pas de cassure au mur)
+function quad(u: number, uw: number, a: number, b: number, c: number) {
+  // polynôme de Lagrange passant par (0,a), (uw,b), (1,c)
+  return a * ((u - uw) * (u - 1)) / (uw * 1) + b * (u * (u - 1)) / (uw * (uw - 1)) + c * (u * (u - uw)) / (1 - uw)
+}
 function project(sc: Scene, p: Vec3) {
   const D = sc.cfg.dist
-  const uw = sc.wallC.z / D
-  const u = Math.max(-0.4, Math.min(1.35, p.z / D))
-  const L = (a: number, b: number, t: number) => a + (b - a) * t
-  let t: number, X: number, Y: number, xr: number, sx: number, sy: number
-  if (u <= uw) {
-    t = u / uw
-    X = L(sc.ballSX, sc.wallSX, t); Y = L(IMG.ball.y, IMG.wall.y, t)
-    xr = L(sc.ball0.x, sc.wallC.x, t); sx = L(SX[0], SX[1], t); sy = L(SY[0], SY[1], t)
-  } else {
-    t = (u - uw) / (1 - uw)
-    X = L(sc.wallSX, IMG.goal.x, t); Y = L(IMG.wall.y, IMG.goal.y, t)
-    xr = L(sc.wallC.x, 0, t); sx = L(SX[1], SX[2], t); sy = L(SY[1], SY[2], t)
-  }
+  const uw = Math.max(0.2, Math.min(0.8, sc.wallC.z / D))
+  const u = Math.max(-0.3, Math.min(1.25, p.z / D))
+  const X = quad(u, uw, sc.ballSX, sc.wallSX, IMG.goal.x)
+  const Y = quad(u, uw, IMG.ball.y, IMG.wall.y, IMG.goal.y)
+  const xr = quad(u, uw, sc.ball0.x, sc.wallC.x, 0)
+  const sx = Math.max(30, quad(u, uw, SX[0], SX[1], SX[2]))
+  const sy = Math.max(30, quad(u, uw, SY[0], SY[1], SY[2]))
   return { x: X + (p.x - xr) * sx, y: Y - p.y * sy, k: sy, u }
 }
 
@@ -429,30 +429,39 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     //  - bas (centre) : le ballon monte haut ; haut : frappe sèche et basse.
     const low = Math.max(0, iy), high = Math.max(0, -iy)
     const curl = Math.max(-1, Math.min(1, ix)) * (1 + 0.4 * low) // jusqu'à ±1,4
-    // départ : la direction du swipe, vers un point du but
-    // swipe tout droit = le ballon part droit devant lui (vers le but à l'écran, depuis sa position)
-    const bx0 = project(sc, b).x
-    const screenX = bx0 + dirX * (IMG.ball.y - IMG.goal.y) * 0.75
-    const tx = Math.max(-9, Math.min(9, (screenX - IMG.goal.x) / SX[2]))
     // hauteur visée : la puissance, puis le point d'impact (bas = monte, haut = rase)
-    const ty = Math.max(0.15, 0.4 + power * 1.6 + low * 0.7 - high * 0.6)
-    const target = { x: tx, y: ty, z: sc.cfg.dist }
-    const horiz = Math.hypot(target.x - b.x, target.z - b.z)
-    // vitesse : la puissance ; frappe sèche (haut du ballon) plus rapide, dessous plus lent
-    const T = (0.55 + horiz * 0.018) * (1.3 - 0.5 * power) * (1 + 0.15 * low - 0.12 * high)
-    const hx = (target.x - b.x) / horiz, hz = (target.z - b.z) / horiz
+    const ty = Math.max(0.15, 0.45 + power * 1.6 + low * 0.9 - high * 0.6)
+    const bs0 = project(sc, b)
+    const want = dirX * 0.75 // pente à l'écran de la flèche (dx / dy)
+    // construit le tir vers le point tx du but
+    const build = (tx: number) => {
+      const target = { x: tx, y: ty, z: sc.cfg.dist }
+      const horiz = Math.hypot(target.x - b.x, target.z - b.z)
+      const T = (0.42 + horiz * 0.017) * (1.2 - 0.4 * power) * (1 + 0.12 * low - 0.1 * high) // ≈ 25 m/s : trajectoire tendue
+      const hx = (target.x - b.x) / horiz, hz = (target.z - b.z) / horiz
+      // ballon frappé qui monte puis plonge (passe au-dessus du mur et retombe sous la barre)
+      const a = { x: 0, y: -(G + 5), z: 0 }
+      const v = { x: (target.x - b.x) / T, y: (target.y - b.y) / T - 0.5 * a.y * T, z: (target.z - b.z) / T }
+      return { T, hx, hz, a, v }
+    }
+    // le ballon part EXACTEMENT dans le sens de la flèche à l'écran : on cherche le point du but
+    // qui donne ce départ (pente mesurée sur le premier tiers du vol)
+    const slope = (tx: number) => {
+      const s0 = build(tx), t = s0.T * 0.3
+      const q = project(sc, { x: b.x + s0.v.x * t, y: b.y + s0.v.y * t + 0.5 * s0.a.y * t * t, z: b.z + s0.v.z * t })
+      return (q.x - bs0.x) / Math.max(1, bs0.y - q.y)
+    }
+    let lo = -14, hi = 14
+    for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (slope(m) < want) lo = m; else hi = m }
+    const { T, hx, hz, a, v } = build((lo + hi) / 2) // (a est une copie : on y ajoute l'effet)
     const nx = hz, nz = -hx
-    // effet : le ballon part droit puis s'incurve de plus en plus (jusqu'à ~2,2 m, ~3 m en enroulée)
-    const D = -curl * 2.2
-    const jm = (6 * D) / (T * T * T)
-    const a = { x: 0, y: -G, z: 0 }
+    // effet : le ballon part droit puis s'incurve de plus en plus (côté ≈ 3 m, bas + côté ≈ 4,5 m)
+    const D = -curl * 3.2
+    // courbe régulière (accélération constante sur le côté), un peu plus marquée en fin de course
+    const am = (2 * D * 0.6) / (T * T), jm = (6 * D * 0.4) / (T * T * T)
+    a.x += am * nx; a.z += am * nz
     const j = { x: jm * nx, y: 0, z: jm * nz }
     eng.spinDir = curl || 0.15
-    const v = {
-      x: (target.x - b.x) / T,
-      y: (target.y - b.y) / T - 0.5 * a.y * T,
-      z: (target.z - b.z) / T,
-    }
     eng.flight = { o: { ...b }, v, a, j, t: 0, trail: [] }
     eng.phase = 'flight'
     eng.shot = null
@@ -746,10 +755,11 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
 
     // ---- swipe en cours / enregistré : flèche dans la direction, longueur = puissance ----
     const arrow = (dirX: number, power: number, alpha: number) => {
-      const len = 90 + power * 330
-      const ang = Math.atan2(dirX, 1)
+      const len = 70 + power * 200
+      const ang = Math.atan2(dirX * 0.75, 1) // même angle que le départ du ballon
       ctx.save()
-      ctx.translate(IMG.aimFrom.x, IMG.aimFrom.y - 20)
+      const bs = project(sc, sc.ball0)
+      ctx.translate(bs.x, bs.y - 30)
       ctx.rotate(ang)
       const g = ctx.createLinearGradient(0, 0, 0, -len)
       g.addColorStop(0, `rgba(255,200,60,${0.15 * alpha})`); g.addColorStop(1, `rgba(255,220,90,${0.95 * alpha})`)
