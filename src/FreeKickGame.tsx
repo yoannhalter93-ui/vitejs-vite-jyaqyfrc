@@ -101,15 +101,16 @@ function mulberry32(seed: number) {
 
 // ---- paliers : la distance augmente avec les buts, le gardien devient plus vif ----
 const STAGES = [
-  { from: 0, dMin: 17, dMax: 18, kSpeed: 2.0, kReact: 0.42, reach: 0.85 },
-  { from: 3, dMin: 19, dMax: 21, kSpeed: 2.5, kReact: 0.36, reach: 0.9 },
-  { from: 7, dMin: 22, dMax: 24, kSpeed: 3.0, kReact: 0.32, reach: 0.95 },
-  { from: 11, dMin: 25, dMax: 27, kSpeed: 3.4, kReact: 0.29, reach: 1.0 },
-  { from: 15, dMin: 28, dMax: 32, kSpeed: 3.8, kReact: 0.26, reach: 1.05 },
+  // gardien : vitesse de plongeon (m/s), temps de réaction (s), allonge (m), lecture de l'effet (0-1)
+  { from: 0, dMin: 17, dMax: 18, kSpeed: 4.3, kReact: 0.32, reach: 1.0, read: 0.3 },
+  { from: 3, dMin: 19, dMax: 21, kSpeed: 4.4, kReact: 0.31, reach: 1.0, read: 0.33 },
+  { from: 7, dMin: 21, dMax: 23, kSpeed: 4.5, kReact: 0.3, reach: 1.0, read: 0.36 },
+  { from: 11, dMin: 23, dMax: 25, kSpeed: 4.6, kReact: 0.29, reach: 1.02, read: 0.4 },
+  { from: 15, dMin: 25, dMax: 28, kSpeed: 4.8, kReact: 0.28, reach: 1.05, read: 0.44 },
 ]
 const stageOf = (goals: number) => { let k = 0; STAGES.forEach((st, i) => { if (goals >= st.from) k = i }); return k + 1 }
 
-interface ShotConfig { dist: number; ballX: number; keeperSpeed: number; keeperReaction: number; keeperReach: number }
+interface ShotConfig { dist: number; ballX: number; keeperSpeed: number; keeperReaction: number; keeperReach: number; keeperRead: number }
 function shotConfig(seed: number, n: number): ShotConfig {
   const lv = stageOf(n)
   const st = STAGES[lv - 1], next = STAGES[lv]
@@ -121,7 +122,7 @@ function shotConfig(seed: number, n: number): ShotConfig {
   const prev = n > 0 ? Math.floor(mulberry32(seed + (n - 1) * 7919 + 1)() * SPOTS.length) : -1
   let i = Math.floor(mulberry32(seed + n * 7919 + 1)() * SPOTS.length)
   if (i === prev) i = (i + 1 + Math.floor(r() * (SPOTS.length - 1))) % SPOTS.length
-  return { dist, ballX: SPOTS[i], keeperSpeed: st.kSpeed, keeperReaction: st.kReact, keeperReach: st.reach }
+  return { dist, ballX: SPOTS[i], keeperSpeed: st.kSpeed, keeperReaction: st.kReact, keeperReach: st.reach, keeperRead: st.read }
 }
 
 // ---- géométrie ----
@@ -155,7 +156,8 @@ function buildScene(cfg: ShotConfig): Scene {
   const ref = wallGeom(BALL_X, cfg.dist) // disposition de l'image d'origine
   return {
     cfg, ball0, hc: g.hc, w: g.w, wallLats: g.wallLats, wallC: g.wallC,
-    keeperX0: -g.near * 1.0,
+    // le gardien se place du côté libre, un peu différemment à chaque tir
+    keeperX0: -g.near * 1.0 + (mulberry32(Math.round(cfg.dist * 1000) + Math.round(cfg.ballX * 77))() - 0.5) * 1.2,
     ballSX: IMG.ball.x + (cfg.ballX - BALL_X) * SPOT_PX,
     wallSX: IMG.wall.x + (g.wallC.x - ref.wallC.x) * WALL_PX,
   }
@@ -203,6 +205,7 @@ interface Engine {
   outcomeAt: number
   keeperX: number
   keeperJump: number
+  keeperAim: { x: number; y: number; rx: number; ry: number; T: number } // lecture du tir : départ (x,y) puis vraie arrivée (rx,ry) à la fin du vol
   pick: { i: number; prec: number; x: number; y: number } | null // point rouge choisi (étape 1) et précision du toucher
   pending: { i: number; prec: number; x: number; y: number } | null
   swipe: { x: number; y: number; t: number }[]
@@ -226,7 +229,7 @@ function newEngine(seed: number): Engine {
   return {
     phase: 'idle', seed, goals: 0, points: 0, lives: LIVES, combo: 1, startAt: 0, endAt: 0,
     scene, flight: null, free: null, outcome: null, outcomeAt: 0,
-    keeperX: scene.keeperX0, keeperJump: 0, pick: null, pending: null,
+    keeperX: scene.keeperX0, keeperJump: 0, keeperAim: { x: 0, y: 1, rx: 0, ry: 1, T: 1 }, pick: null, pending: null,
     swipe: [], swiping: false, shot: null, runAt: 0, kickAt: 0, hintAt: -1e9, help: false, msg: null, particles: [], spin: 0, spinDir: 0, audio: null,
     view: { s: 1, ox: 0, oy: 0 },
   }
@@ -461,6 +464,15 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const j = { x: jm * nx, y: 0, z: jm * nz }
     eng.spinDir = curl || 0.15
     eng.flight = { o: { ...b }, v, a, j, t: 0, trail: [] }
+    // lecture du gardien : le point d'arrivée réel (avec l'effet) mélangé à celui d'un tir sans effet
+    {
+      const kz = sc.cfg.dist - KEEPER_LINE_OFFSET
+      const at = (f: Flight) => { let t = 0; while (t < 3 && flightPos(f, t).z < kz) t += 0.005; return { ...flightPos(f, t), t } }
+      const real = at(eng.flight)
+      const naive = at({ o: { ...b }, v, a: { x: 0, y: a.y, z: 0 }, j: { x: 0, y: 0, z: 0 }, t: 0, trail: [] })
+      const r = sc.cfg.keeperRead
+      eng.keeperAim = { x: naive.x + (real.x - naive.x) * r, y: naive.y + (real.y - naive.y) * r, rx: real.x, ry: real.y, T: real.t }
+    }
     eng.phase = 'flight'
     eng.shot = null
     eng.runAt = 0
@@ -536,14 +548,14 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         f.t = t1
         // gardien : réagit après son temps de réaction, sans lire l'effet restant
         if (t1 > sc.cfg.keeperReaction) {
-          const v = flightVel(f, t1)
-          const remain = Math.max(0.05, (sc.cfg.dist - p1.z) / Math.max(1, v.z))
-          const px = p1.x + v.x * remain
-          const py = p1.y + v.y * remain - 0.5 * G * remain * remain
+          // il lit d'abord le départ, puis voit l'effet se dessiner en fin de vol
+          const ka = eng.keeperAim
+          const w = Math.max(0, Math.min(1, (t1 / ka.T - 0.45) / 0.4))
+          const px = ka.x + (ka.rx - ka.x) * w, py = ka.y + (ka.ry - ka.y) * w
           const target = Math.max(-GOAL_HALF_W, Math.min(GOAL_HALF_W, px))
           const maxMove = sc.cfg.keeperSpeed * (dt / SUB)
           eng.keeperX += Math.max(-maxMove, Math.min(maxMove, target - eng.keeperX))
-          const wantJump = py > 1.7 ? Math.min(0.45, (py - 1.7) * 0.6) : 0
+          const wantJump = py > 1.6 ? Math.min(0.6, (py - 1.6) * 0.8) : 0
           eng.keeperJump += (wantJump - eng.keeperJump) * Math.min(1, (dt / SUB) * 6)
         }
         // mur
@@ -935,6 +947,13 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
         const pts: number[][] = []
         for (let i = 0; i < 600 && eng.phase === 'flight' && eng.flight; i++) { const q = project(eng.scene, flightPos(eng.flight, eng.flight.t)); pts.push([q.x, q.y]); step(1 / 120) }
         return { pts, o: eng.outcome }
+      },
+      simS: (goals: number, seed: number, cx: number, cy: number, dirX: number, power: number) => {
+        const eng = engineRef.current
+        eng.lives = 99; eng.seed = seed; eng.goals = goals; setupShot()
+        eng.pick = { i: 0, prec: 1, x: IMG.bigBall.x + cx * IMG.bigBall.r, y: IMG.bigBall.y + cy * IMG.bigBall.r }; eng.shot = { dirX, power }; shoot()
+        for (let i = 0; i < 600 && eng.phase === 'flight'; i++) step(1 / 120)
+        return eng.outcome
       },
       state: () => { const e = engineRef.current; return { phase: e.phase, outcome: e.outcome, goals: e.goals, points: e.points, lives: e.lives, combo: e.combo } },
     }
