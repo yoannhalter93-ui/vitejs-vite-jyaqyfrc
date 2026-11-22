@@ -52,6 +52,15 @@ const LIVES = 3
 const BALL_X = -3 // position du ballon sur l'image d'origine (référence de l'affichage)
 // positions de coup franc (m, 0 = face au but) : on en tire une au hasard à chaque tir
 const SPOTS = [-4, -2.5, -1, 0.5, 2]
+// positions très excentrées (au bord de la surface), de plus en plus fréquentes avec les paliers
+const WIDE_SPOTS = [-8.5, -7, -5.5, 5.5, 7, 8.5]
+// le mur saute parfois (de plus en plus souvent) : hauteur du saut (m) au fil du temps depuis la frappe
+const WALL_JUMP = 0.42
+const wallLift = (jumps: boolean, t: number) => {
+  if (!jumps || t < 0.12) return 0
+  const u = (t - 0.12) / 0.55
+  return u >= 1 ? 0 : WALL_JUMP * Math.sin(Math.PI * u)
+}
 const SPOT_PX = 55   // décalage à l'écran du ballon et du tireur par mètre
 const WALL_PX = 62   // décalage à l'écran du mur par mètre
 
@@ -102,27 +111,32 @@ function mulberry32(seed: number) {
 // ---- paliers : la distance augmente avec les buts, le gardien devient plus vif ----
 const STAGES = [
   // gardien : vitesse de plongeon (m/s), temps de réaction (s), allonge (m), lecture de l'effet (0-1)
-  { from: 0, dMin: 17, dMax: 18, kSpeed: 4.3, kReact: 0.32, reach: 1.0, read: 0.3 },
-  { from: 3, dMin: 19, dMax: 21, kSpeed: 4.4, kReact: 0.31, reach: 1.0, read: 0.33 },
-  { from: 7, dMin: 21, dMax: 23, kSpeed: 4.5, kReact: 0.3, reach: 1.0, read: 0.36 },
-  { from: 11, dMin: 23, dMax: 25, kSpeed: 4.6, kReact: 0.29, reach: 1.02, read: 0.4 },
-  { from: 15, dMin: 25, dMax: 28, kSpeed: 4.8, kReact: 0.28, reach: 1.05, read: 0.44 },
+  { from: 0, dMin: 17, dMax: 19, kSpeed: 4.3, kReact: 0.32, reach: 1.0, read: 0.3, jump: 0.15, wide: 0 },
+  { from: 3, dMin: 19, dMax: 23, kSpeed: 4.4, kReact: 0.31, reach: 1.0, read: 0.33, jump: 0.3, wide: 0.2 },
+  { from: 7, dMin: 21, dMax: 26, kSpeed: 4.5, kReact: 0.3, reach: 1.0, read: 0.36, jump: 0.4, wide: 0.3 },
+  { from: 11, dMin: 23, dMax: 29, kSpeed: 4.6, kReact: 0.29, reach: 1.02, read: 0.4, jump: 0.5, wide: 0.35 },
+  { from: 15, dMin: 25, dMax: 32, kSpeed: 4.8, kReact: 0.28, reach: 1.05, read: 0.44, jump: 0.55, wide: 0.4 },
 ]
 const stageOf = (goals: number) => { let k = 0; STAGES.forEach((st, i) => { if (goals >= st.from) k = i }); return k + 1 }
 
-interface ShotConfig { dist: number; ballX: number; keeperSpeed: number; keeperReaction: number; keeperReach: number; keeperRead: number }
+interface ShotConfig { dist: number; ballX: number; wallJumps: boolean; keeperSpeed: number; keeperReaction: number; keeperReach: number; keeperRead: number }
 function shotConfig(seed: number, n: number): ShotConfig {
   const lv = stageOf(n)
   const st = STAGES[lv - 1], next = STAGES[lv]
   const r = mulberry32(seed + n * 7919)
   const span = next ? next.from - st.from : 16
   const u = Math.min(1, (n - st.from) / Math.max(1, span - 1))
-  const dist = Math.max(st.dMin, Math.min(st.dMax, st.dMin + u * (st.dMax - st.dMin) + (r() - 0.5) * 0.6))
-  // position au hasard, jamais deux fois la même d'affilée
+  // distance : elle avance dans le palier, avec de temps en temps un tir bien plus loin
+  let dist = st.dMin + u * (st.dMax - st.dMin) * 0.7 + r() * (st.dMax - st.dMin) * 0.3
+  if (r() < 0.2) dist = st.dMax + r() * 3
+  // position au hasard (jamais deux fois la même d'affilée), parfois très excentrée
   const prev = n > 0 ? Math.floor(mulberry32(seed + (n - 1) * 7919 + 1)() * SPOTS.length) : -1
   let i = Math.floor(mulberry32(seed + n * 7919 + 1)() * SPOTS.length)
   if (i === prev) i = (i + 1 + Math.floor(r() * (SPOTS.length - 1))) % SPOTS.length
-  return { dist, ballX: SPOTS[i], keeperSpeed: st.kSpeed, keeperReaction: st.kReact, keeperReach: st.reach, keeperRead: st.read }
+  const wide = r() < st.wide
+  const ballX = wide ? WIDE_SPOTS[Math.floor(r() * WIDE_SPOTS.length)] : SPOTS[i]
+  if (wide) dist = Math.min(dist, 22) // excentré = plus près du but (bord de surface)
+  return { dist, ballX, wallJumps: r() < st.jump, keeperSpeed: st.kSpeed, keeperReaction: st.kReact, keeperReach: st.reach, keeperRead: st.read }
 }
 
 // ---- géométrie ----
@@ -158,7 +172,7 @@ function buildScene(cfg: ShotConfig): Scene {
     cfg, ball0, hc: g.hc, w: g.w, wallLats: g.wallLats, wallC: g.wallC,
     // le gardien se place du côté libre, un peu différemment à chaque tir
     keeperX0: -g.near * 1.0 + (mulberry32(Math.round(cfg.dist * 1000) + Math.round(cfg.ballX * 77))() - 0.5) * 1.2,
-    ballSX: IMG.ball.x + (cfg.ballX - BALL_X) * SPOT_PX,
+    ballSX: Math.max(260, Math.min(760, IMG.ball.x + (cfg.ballX - BALL_X) * SPOT_PX)),
     wallSX: IMG.wall.x + (g.wallC.x - ref.wallC.x) * WALL_PX,
   }
 }
@@ -565,7 +579,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
           const u = (WALL_DIST - d0) / (d1 - d0)
           const pc = { x: p0.x + (p1.x - p0.x) * u, y: p0.y + (p1.y - p0.y) * u, z: p0.z + (p1.z - p0.z) * u }
           const lat = (pc.x - sc.ball0.x) * sc.w.x + pc.z * sc.w.z
-          if (sc.wallLats.some((l) => Math.abs(lat - l) <= WALL_PLAYER_HALF_W + BALL_R) && pc.y <= WALL_HEIGHT + BALL_R) {
+          const lift = wallLift(sc.cfg.wallJumps, (performance.now() - eng.kickAt) / 1000)
+          if (sc.wallLats.some((l) => Math.abs(lat - l) <= WALL_PLAYER_HALF_W + BALL_R) && pc.y <= WALL_HEIGHT + lift + BALL_R && pc.y - BALL_R >= lift) {
             resolve('wall', pc, flightVel(f, t1)); break
           }
         }
@@ -699,7 +714,10 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     // le mur repasse devant le ballon quand le ballon est derrière lui
     const drawWall = () => {
       if (!im.wall.complete || !im.wall.naturalWidth) return
-      const wc = P(sc.wallC)
+      const lift = eng.phase === 'aim' ? 0 : wallLift(sc.cfg.wallJumps, (now - eng.kickAt) / 1000)
+      const wc = P({ ...sc.wallC, y: lift })
+      const g = P(sc.wallC)
+      if (lift > 0.02) { ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(g.x, g.y, 120, 10, 0, 0, Math.PI * 2); ctx.fill() }
       ctx.drawImage(im.wall, Math.round(wc.x - WALL_SPR.cx), Math.round(wc.y - WALL_SPR.feet))
     }
     if (behindWall) { drawBall(); drawWall() } else { drawWall(); drawBall() }
@@ -926,6 +944,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
   useEffect(() => {
     if (!location.search.includes('debug')) return
     const w = window as unknown as Record<string, unknown>
+    w.__fkCfg = () => engineRef.current.scene.cfg
+    w.__fkSetup = (g: number, sd: number) => { const e = engineRef.current; e.phase = 'aim'; e.lives = 99; e.seed = sd; e.goals = g; setupShot() }
     w.__fkBall = () => project(engineRef.current.scene, engineRef.current.scene.ball0)
     w.__fk = {
       start: (goals = 0) => { startGame(); engineRef.current.goals = goals; setupShot() },
