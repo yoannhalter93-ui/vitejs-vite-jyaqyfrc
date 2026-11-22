@@ -71,6 +71,7 @@ const WALL_SPR = { cx: 124, feet: 188 } // découpe du mur (248 × 194) : milieu
 const KF_W = 322, KF_H = 265
 // tireur animé (vidéo fond vert) : 9 images — debout, élan (1-4), frappe (5), accompagnement (6-8)
 const SH_W = 345, SH_H = 510, SH_BALL = { x: 277.2, y: 465.2 }, SH_SCALE = 1.06
+const ARROW_MAX = 420 // longueur (px d'image) de la flèche à 100 % de puissance
 const RUN_UP = 0.6 // s entre TIRER et la frappe
 const KF_SCALE = 107 / 211 // la pose « en place » fait 211 px sur la planche, 107 px sur l'image
 // zones cliquables de l'image
@@ -417,7 +418,8 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
   // Frappe : direction (swipe), puissance (swipe), effet + hauteur (point touché sur le gros ballon)
   const shoot = () => {
     const eng = engineRef.current
-    if (eng.phase !== 'aim' || !eng.shot || !eng.pick) return
+    if (eng.phase !== 'aim' || !eng.shot) return
+    if (!eng.pick) eng.pick = { i: 0, prec: 1, x: IMG.bigBall.x, y: IMG.bigBall.y } // sans point : tir sans effet
     const sc = eng.scene, b = sc.ball0
     const { dirX, power } = eng.shot
     // point d'impact (continu) : côté = effet, bas = le ballon monte, haut = il plonge
@@ -432,7 +434,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     // hauteur visée : la puissance, puis le point d'impact (bas = monte, haut = rase)
     const ty = Math.max(0.15, 0.45 + power * 1.6 + low * 0.9 - high * 0.6)
     const bs0 = project(sc, b)
-    const want = dirX * 0.75 // pente à l'écran de la flèche (dx / dy)
+    const want = dirX // pente à l'écran de la flèche (dx / dy)
     // construit le tir vers le point tx du but
     const build = (tx: number) => {
       const target = { x: tx, y: ty, z: sc.cfg.dist }
@@ -624,11 +626,10 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
   // swipe -> direction (pente) et puissance (longueur + vitesse)
   const readSwipe = (a: { x: number; y: number; t: number }, b: { x: number; y: number; t: number }) => {
     const dy = a.y - b.y, dx = b.x - a.x
-    if (dy < 40) return null
+    if (dy < 30) return null
     const len = Math.hypot(dx, dy)
-    const speed = len / Math.max(40, b.t - a.t) // px d'image / ms
-    const power = Math.max(0.05, Math.min(1, (len / 650) * 0.7 + Math.min(1, speed / 2.6) * 0.3))
-    return { dirX: Math.max(-1.2, Math.min(1.2, dx / dy)), power }
+    const power = Math.max(0.05, Math.min(1, (len - 30) / (ARROW_MAX - 30)))
+    return { dirX: Math.max(-1.5, Math.min(1.5, dx / dy)), power }
   }
 
   // ------------------------------------------------------------ dessin ------
@@ -736,7 +737,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     // ---- guide des 3 étapes (sur la pelouse) ----
     if (eng.phase === 'aim' && !eng.runAt && eng.help) {
       const step = !eng.pick ? 1 : !eng.shot ? 2 : 3
-      const l1 = step === 1 ? '① Touche le ballon' : step === 2 ? '② Swipe vers le haut : direction + puissance' : '③ Appuie sur TIRER'
+      const l1 = step === 1 ? '① Touche le gros ballon : l\'effet' : step === 2 ? '② Tire la flèche depuis le ballon' : '③ Appuie sur TIRER'
       const l3 = eng.pick ? `${SHOT_NAME[shotKind((eng.pick.x - IMG.bigBall.x) / IMG.bigBall.r, (eng.pick.y - IMG.bigBall.y) / IMG.bigBall.r)]}${eng.shot ? ` · ${Math.round(eng.shot.power * 100)} %` : ''}` : 'là où tu frappes le ballon'
       const lines = [l1, l3]
       ctx.font = '700 30px Oswald, sans-serif'
@@ -755,18 +756,19 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
 
     // ---- swipe en cours / enregistré : flèche dans la direction, longueur = puissance ----
     const arrow = (dirX: number, power: number, alpha: number) => {
-      const len = 70 + power * 200
-      const ang = Math.atan2(dirX * 0.75, 1) // même angle que le départ du ballon
+      const len = 30 + power * (ARROW_MAX - 30)
+      const ang = Math.atan2(dirX, 1) // même angle que le départ du ballon
       ctx.save()
       const bs = project(sc, sc.ball0)
-      ctx.translate(bs.x, bs.y - 30)
+      ctx.translate(bs.x, bs.y)
       ctx.rotate(ang)
       const g = ctx.createLinearGradient(0, 0, 0, -len)
       g.addColorStop(0, `rgba(255,200,60,${0.15 * alpha})`); g.addColorStop(1, `rgba(255,220,90,${0.95 * alpha})`)
       ctx.fillStyle = g
       ctx.beginPath()
-      ctx.moveTo(-26, 0); ctx.lineTo(-26, -len + 50); ctx.lineTo(-58, -len + 50); ctx.lineTo(0, -len)
-      ctx.lineTo(58, -len + 50); ctx.lineTo(26, -len + 50); ctx.lineTo(26, 0); ctx.closePath(); ctx.fill()
+      const hd = Math.min(50, len * 0.45)
+      ctx.moveTo(-14, 0); ctx.lineTo(-20, -len + hd); ctx.lineTo(-46, -len + hd); ctx.lineTo(0, -len)
+      ctx.lineTo(46, -len + hd); ctx.lineTo(20, -len + hd); ctx.lineTo(14, 0); ctx.closePath(); ctx.fill()
       ctx.strokeStyle = `rgba(255,240,190,${alpha})`; ctx.lineWidth = 4; ctx.stroke()
       ctx.restore()
     }
@@ -877,22 +879,21 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       else eng.hintAt = performance.now()
       return
     }
-    // étape 1 : on touche le gros ballon -> point rouge le plus proche (+ précision)
+    // le gros ballon : le point touché = l'effet
     const bb = IMG.bigBall
-    eng.pending = null
     const dB = Math.hypot(p.x - bb.x, p.y - bb.y)
     if (dB <= bb.r * 1.05) {
       const k = dB > bb.r * 0.9 ? (bb.r * 0.9) / dB : 1
-      const pk = { i: 0, prec: 1, x: bb.x + (p.x - bb.x) * k, y: bb.y + (p.y - bb.y) * k }
-      if (!eng.pick) { eng.pick = pk; sfxTick(); return }
-      eng.pending = pk // tap = on change de point ; glisser = swipe
+      eng.pick = { i: 0, prec: 1, x: bb.x + (p.x - bb.x) * k, y: bb.y + (p.y - bb.y) * k }
+      sfxTick()
+      return
     }
-    if (!eng.pick) { eng.hintAt = performance.now(); return }
-    // étape 2 : swipe (depuis la pelouse ou le ballon)
-    if (p.y > 560) {
+    // la flèche part toujours du ballon (au pied du tireur) : on pose le doigt dessus et on tire
+    const bs = project(eng.scene, eng.scene.ball0)
+    if (Math.hypot(p.x - bs.x, p.y - bs.y) <= 90) {
       e.currentTarget.setPointerCapture(e.pointerId)
       eng.swiping = true
-      eng.swipe = [p]
+      eng.swipe = [{ x: bs.x, y: bs.y, t: p.t }, p]
     }
   }
   const onPointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -911,14 +912,13 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     if (eng.phase !== 'aim') return
     const r = pts.length >= 2 ? readSwipe(pts[0], pts[pts.length - 1]) : null
     if (r) eng.shot = r
-    else if (eng.pending) { eng.pick = eng.pending; sfxTick() }
-    eng.pending = null
   }
 
   // tests automatiques (?debug)
   useEffect(() => {
     if (!location.search.includes('debug')) return
     const w = window as unknown as Record<string, unknown>
+    w.__fkBall = () => project(engineRef.current.scene, engineRef.current.scene.ball0)
     w.__fk = {
       start: (goals = 0) => { startGame(); engineRef.current.goals = goals; setupShot() },
       shot: (cx: number, cy: number, dirX: number, power: number) => {
