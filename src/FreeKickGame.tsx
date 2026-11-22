@@ -445,7 +445,9 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
     const low = Math.max(0, iy), high = Math.max(0, -iy)
     const curl = Math.max(-1, Math.min(1, ix)) * (1 + 0.4 * low) // jusqu'à ±1,4
     // hauteur visée : la puissance, puis le point d'impact (bas = monte, haut = rase)
-    const ty = Math.max(0.15, 0.45 + power * 1.6 + low * 0.9 - high * 0.6)
+    // frappé en haut du ballon = tir à ras de terre (il roule, passe sous le mur qui saute)
+    const grounder = high > 0.4
+    const ty = grounder ? BALL_R : Math.max(0.15, (0.45 + power * 1.6 + low * 0.9) * (1 - high * 1.4))
     const bs0 = project(sc, b)
     const want = dirX // pente à l'écran de la flèche (dx / dy)
     // construit le tir vers le point tx du but
@@ -455,7 +457,7 @@ export default function FreeKickGame({ groupId, groupName, autoApplyAllLeagues, 
       const T = (0.42 + horiz * 0.017) * (1.2 - 0.4 * power) * (1 + 0.12 * low - 0.1 * high) // ≈ 25 m/s : trajectoire tendue
       const hx = (target.x - b.x) / horiz, hz = (target.z - b.z) / horiz
       // ballon frappé qui monte puis plonge (passe au-dessus du mur et retombe sous la barre)
-      const a = { x: 0, y: -(G + 5), z: 0 }
+      const a = { x: 0, y: grounder ? 0 : -(G + 5 * (1 - high * 2)), z: 0 }
       const v = { x: (target.x - b.x) / T, y: (target.y - b.y) / T - 0.5 * a.y * T, z: (target.z - b.z) / T }
       return { T, hx, hz, a, v }
     }
